@@ -389,11 +389,10 @@ end
 %End communications
 try
     save(savename,'datlog');
+    delete(syncname);%added 5/10/2016 delete sync file in prep for next trial
 catch ME
     disp(ME);
 end
-
-delete(syncname);%added 5/10/2016 delete sync file in prep for next trial
 
 try %stopping the treadmill
 %see if the treadmill is supposed to stop at the end of the profile
