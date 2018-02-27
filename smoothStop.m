@@ -15,8 +15,8 @@ function smoothStop(t)
     sendTreadmillPacket(payload,t);
     %expectedSlowdownTime=(vM-vn)/700; %Expected time until both belts
     %match each other, if decelerating at 700mm/s^2
-    expectedSlowdownTime=.5;
-    pause(expectedSlowdownTime+.2)%Wait 
+    expectedSlowdownTime=(vM-vn)/a;
+    pause(expectedSlowdownTime+.3)%Wait 
     %Then ask for a full stop, in another 500ms:
     a=min(2*vn,1000);
     [payload] = getPayload(0,0,a,a,cur_incl);
