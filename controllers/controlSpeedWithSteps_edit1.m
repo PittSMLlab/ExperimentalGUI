@@ -410,14 +410,15 @@ try %stopping the treadmill
         smoothStop(t);
     end
     %Check if treadmill stopped, if not, try again:
+    pause(1)
     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
     stopped = cur_speedR==0 && cur_speedL==0;
     counter=0;
     while ~stopped && counter<5 %Try 5 times to stop the treadmill smoothly
         disp('Treadmill did not stop when requested. Trying again.')
-        smoothStop(t)
-        pause(.3)
-        [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
+        %smoothStop(t)
+        pause(1) %Give time to smoothStop to execute everything
+        [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t)
         stopped = cur_speedR==0 && cur_speedL==0;
         counter=counter+1;
     end
