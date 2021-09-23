@@ -1,4 +1,5 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
+
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelectFast(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -755,7 +756,6 @@ while ~STOP %only runs if stop button is not pressed
         if isnan(velL(LstepCount))
             sentL=auxL;
         end
-        
         if (RstepCount<N-1 && ~isnan(velR(RstepCount+1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount+1))) %Next step won't be self-controlled for EITHER belt. 
             if ~endTonePlayed 
                 datlog.audioCues.stop(RstepCount)=now;
@@ -766,7 +766,7 @@ while ~STOP %only runs if stop button is not pressed
             enableMemory=false;
             M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions 
             if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M) %Smooth transition to computer control
-                velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
+                 velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
                 velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
             end
         end
@@ -872,17 +872,17 @@ for z = 1:temp-1
     datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
  %save marker positions for the SAME frames
-%  for l=1:length(mn)
-%      eval(['aux=datlog.Markers.' mn{l} ';']);
-%      aux(temp:end,:)=[];
-%      eval(['datlog.Markers.' mn{l} '=aux;']);
-%      eval(['aux=datlog.Markers.' mn{l} 'filt;']);
-%      aux(temp:end,:)=[];
-%      eval(['datlog.Markers.' mn{l} 'filt=aux;']);
-%      eval(['aux=datlog.Markers.' mn{l} 'var;']);
-%      aux(temp:end,:)=[];
-%      eval(['datlog.Markers.' mn{l} 'var=aux;']);
-%  end
+ for l=1:length(mn)
+     eval(['aux=datlog.Markers.' mn{l} ';']);
+     aux(temp:end,:)=[];
+     eval(['datlog.Markers.' mn{l} '=aux;']);
+     eval(['aux=datlog.Markers.' mn{l} 'filt;']);
+     aux(temp:end,:)=[];
+     eval(['datlog.Markers.' mn{l} 'filt=aux;']);
+     eval(['aux=datlog.Markers.' mn{l} 'var;']);
+     aux(temp:end,:)=[];
+     eval(['datlog.Markers.' mn{l} 'var=aux;']);
+ end
 
 %convert RHS times
 temp = find(datlog.stepdata.RHSdata(:,1) == 0,1,'first');

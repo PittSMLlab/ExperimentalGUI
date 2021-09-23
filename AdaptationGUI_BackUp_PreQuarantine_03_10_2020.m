@@ -40,7 +40,6 @@ end
 if nargout
     [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
 else
-    
     gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
@@ -268,10 +267,8 @@ if get(handles.EMGWorks_checkbox,'Value')==1
    else
        %           pause(3);
    end
-       ss = serial('COM15');
+    ss = serial('COM9');
       fopen(ss);
-      pause(0.1);
-      fclose(ss);
       
        
 %     %Do something
@@ -317,7 +314,7 @@ if get(handles.Nexus_checkbox,'Value')==1
 %      %current method of triggering, matlab sends command via serial port.
 %      %MOnitor in Nexus watched for pulse to toggle start/stop. 
 %      %use orange wire out of serial port to pin 64 on AD board
-      s = serial('COM1'); % vicon 
+      s = serial('COM1');
       fopen(s);
       pause(0.1);
       fclose(s);%this set of commands pulses the voltage high then low, signaling start/stop capture in nexus
@@ -497,9 +494,8 @@ switch(selection)
     case 14 %providing audio feedback to the participants during overground walking
         disp('Overground audio speed feedback');
         mode=1;
-        audioFbBtn=questdlg('Should audio feedback on speed be provided?');  %added by DMMO 3/13/2020
         %be sure to have selected the right profile!!!!!
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode);
         ssrecord = [];%delete useless zero at beginning
         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
@@ -510,13 +506,8 @@ switch(selection)
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
-    
-    case 16
-        disp('AutomaticityAssessmentProtocol');
-        mode=1;
-        currIterationAnswer = inputdlg('What is the current_iteration: ');
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
-                
+        
+        
 end
                
 pause(3); %Wait three seconds before stopping software collection
@@ -525,9 +516,7 @@ if startedEMG_flag
 %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
 %     XServer.SendKeys('^s'); %Stop acquisition 
 %     XServer.AppActivate('AdaptationGUI'); %This window
-      fopen(ss);
-      pause(0.1);
-      fclose(ss);
+     fclose(ss);
 end
 if startedNexus_flag
 %     XServer.AppActivate('Vicon Nexus 1.8.5');
@@ -707,16 +696,6 @@ function EMGWorks_checkbox_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of EMGWorks_checkbox
-
-
-% --- Executes when selecting the audio_feedback controller. 
-function AudioFeedback_checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to provide audio feedback in over ground walking (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Audiofeedback (yes or
-% no)
 
 
 % --- Executes on button press in StoptreadmillSTOP_checkbox.

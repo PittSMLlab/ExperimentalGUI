@@ -1,3 +1,4 @@
+
 function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
@@ -18,7 +19,22 @@ if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
 
 end
 
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Carly is Testing...
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%  Set up the feedback figure
+        FB=figure('Color', 'k', 'ToolBar', 'none', 'Position', [1921 1 1920 1039]); hold on
+        patch([0 1 1 0 0], [0 0 1 1 0], 'k')
+        text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
+        RFB=patch([.8 1 .8 .8], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
+        LFB=patch([.2 0 .2 .2], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
 
+        %UM, so I need the patches to be global if I want to change them
+        %elsewhere...
+        global RFB
+        global LFB
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 paramLHS=0;
 paramRHS=0;
@@ -675,8 +691,7 @@ while ~STOP %only runs if stop button is not pressed
                 toneplayed=true;
                 endTonePlayed=false;
             end
-        end
-
+        end  
         
         %Do the control:
         switch mode
@@ -755,7 +770,6 @@ while ~STOP %only runs if stop button is not pressed
         if isnan(velL(LstepCount))
             sentL=auxL;
         end
-        
         if (RstepCount<N-1 && ~isnan(velR(RstepCount+1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount+1))) %Next step won't be self-controlled for EITHER belt. 
             if ~endTonePlayed 
                 datlog.audioCues.stop(RstepCount)=now;
@@ -766,7 +780,7 @@ while ~STOP %only runs if stop button is not pressed
             enableMemory=false;
             M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions 
             if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M) %Smooth transition to computer control
-                velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
+                 velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
                 velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
             end
         end

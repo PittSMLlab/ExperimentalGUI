@@ -1,3 +1,4 @@
+
 function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
@@ -755,7 +756,6 @@ while ~STOP %only runs if stop button is not pressed
         if isnan(velL(LstepCount))
             sentL=auxL;
         end
-        
         if (RstepCount<N-1 && ~isnan(velR(RstepCount+1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount+1))) %Next step won't be self-controlled for EITHER belt. 
             if ~endTonePlayed 
                 datlog.audioCues.stop(RstepCount)=now;
@@ -766,7 +766,7 @@ while ~STOP %only runs if stop button is not pressed
             enableMemory=false;
             M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions 
             if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M) %Smooth transition to computer control
-                velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
+                 velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
                 velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
             end
         end

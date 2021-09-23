@@ -22,7 +22,7 @@ function varargout = AdaptationGUI(varargin)
 
 % Edit the above text to modify the response to help AdaptationGUI
 
-% Last Modified by GUIDE v2.5 12-Mar-2020 10:14:25
+% Last Modified by GUIDE v2.5 24-May-2016 21:11:07
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -33,14 +33,12 @@ gui_State = struct('gui_Name',       mfilename, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
-%     gui_State.gui_Callback = str2funedc(varargin{1});
-       gui_State.gui_Callback = str2func(varargin{1});
+    gui_State.gui_Callback = str2func(varargin{1});
 end
 
 if nargout
     [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
 else
-    
     gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
@@ -86,7 +84,7 @@ lastKeyPress=now;
 global keyWasReleased
 keyWasReleased=true;
 
-%        % Added by Marcela 10/04/2019
+        % Added by Marcela 10/04/2019
         [rclicksound,rFrequency]=audioread('RightClick.mp3');
         [lclicksound,lFrequency]=audioread('LeftClick.mp3');
         global rclicksound
@@ -256,30 +254,42 @@ set(handles.Status_textbox,'BackgroundColor','Yellow');
 % import java.awt.Robot;
 % import java.awt.event.*;
 % robot = Robot;
-startedEMG_flag=false; %turned on by Dulce 3/12/2020
+startedEMG_flag=false;
 if get(handles.EMGWorks_checkbox,'Value')==1
-   startedEMG_flag=true; 
-   
-   if get(handles.EMGWorks_checkbox,'Value')==1
-       button=questdlg('Please confirm that EMGworks is in trigger mode');  %added by DMMO 3/13/2020
-       if ~strcmp(button,'Yes')
-           return; %Abort starting of treadmill
-       end
-   else
-       %           pause(3);
-   end
-       ss = serial('COM15');
-      fopen(ss);
-      pause(0.1);
-      fclose(ss);
-      
-       
 %     %Do something
-%     startedEMG_flag=true;
+    startedEMG_flag=true;
 %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
 %     pause(.3)
 %     XServer.SendKeys('^a'); %Start acquisition (it should already be in the acquisition phase of the workflow
 %     XServer.AppActivate('AdaptationGUI'); %This window
+
+%%%%% DULCE CHANGES 
+
+
+      I_EMG = serial('Input EMGWorks');
+      fopen(I_EMG);
+      pause(0.1);
+      fclose(I_EMG);%this set of commands pulses the voltage high then low, signaling start/stop capture in EMGWorks
+      
+%       if get(handles.waitForNexusChkBox,'Value')==1
+%           button=questdlg('Please confirm that Nexus has started capture', 'Nexus confirm dialog');
+%           if ~strcmp(button,'Yes')
+%               return; %Abort starting of treadmill
+%           end
+%       else
+% %           pause(3);
+%       end
+      
+      %Deleting old plots:
+%     ll=findobj(handles.profileaxes,'Type','Line');
+%     delete(ll(1:end-2));
+%     ll=findobj(handles.profileaxes,'Type','AnimatedLine');
+%     delete(ll);
+%     
+%     %Give some time between Nexus start and treadmill start
+%     pause(.1)
+
+
 end
 startedNexus_flag=false;
 if get(handles.Nexus_checkbox,'Value')==1
@@ -317,20 +327,19 @@ if get(handles.Nexus_checkbox,'Value')==1
 %      %current method of triggering, matlab sends command via serial port.
 %      %MOnitor in Nexus watched for pulse to toggle start/stop. 
 %      %use orange wire out of serial port to pin 64 on AD board
-      s = serial('COM1'); % vicon 
+      s = serial('COM1');
       fopen(s);
       pause(0.1);
       fclose(s);%this set of commands pulses the voltage high then low, signaling start/stop capture in nexus
-%       
-      if get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==0
-%            if get(handles.waitForNexusChkBox,'Value')==1
+      
+      I_EMG = serial('Input EMGWorks');
+      fopen(I_EMG);
+      pause(0.1);
+      fclose(I_EMG);
+      
+      if get(handles.waitForNexusChkBox,'Value')==1
           button=questdlg('Please confirm that Nexus has started capture', 'Nexus confirm dialog');
           if ~strcmp(button,'Yes')
-              return; %Abort starting of treadmill
-          end
-      elseif get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==1 %added by DMMO 3/13/2020
-               button=questdlg('Please confirm that Nexus & EMGworks has started capture', 'Nexus confirm dialog');  %added by DMMO 3/13/2020
-          if ~strcmp(button,'Yes')  %added by DMMO 3/13/2020
               return; %Abort starting of treadmill
           end
       else
@@ -497,9 +506,8 @@ switch(selection)
     case 14 %providing audio feedback to the participants during overground walking
         disp('Overground audio speed feedback');
         mode=1;
-        audioFbBtn=questdlg('Should audio feedback on speed be provided?');  %added by DMMO 3/13/2020
         %be sure to have selected the right profile!!!!!
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode);
         ssrecord = [];%delete useless zero at beginning
         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
@@ -510,24 +518,16 @@ switch(selection)
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
-    
-    case 16
-        disp('AutomaticityAssessmentProtocol');
-        mode=1;
-        currIterationAnswer = inputdlg('What is the current_iteration: ');
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
-                
+        
+        
 end
                
 pause(3); %Wait three seconds before stopping software collection
 %Stop capture Nexus & EMGWorks
 if startedEMG_flag
-%     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
-%     XServer.SendKeys('^s'); %Stop acquisition 
-%     XServer.AppActivate('AdaptationGUI'); %This window
-      fopen(ss);
-      pause(0.1);
-      fclose(ss);
+    XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
+    XServer.SendKeys('^s'); %Stop acquisition 
+    XServer.AppActivate('AdaptationGUI'); %This window
 end
 if startedNexus_flag
 %     XServer.AppActivate('Vicon Nexus 1.8.5');
@@ -541,10 +541,17 @@ if startedNexus_flag
 %***************New method, use UDP packet to stop Nexus collection
 %       stopmsg=['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStop RESULT="SUCCESS"><Name VALUE="Trial' num2str(TrialNum) '"/><DatabasePath VALUE="' nexuspath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum*10) '"/></CaptureStop>']; %311
 %       step(myudp,int8(stopmsg));
-% 
+
     fopen(s);
     pause(0.1);
     fclose(s);
+    
+    O_EMG = serial('Output EMGWorks');
+
+    fopen(O_EMG);
+    pause(0.1);
+    fclose(O_EMG);
+    
 end
 
 set(handles.Status_textbox,'String','Ready');
@@ -554,6 +561,8 @@ set(handles.Status_textbox,'BackgroundColor','Green');
 % TrialNum = TrialNum+1;
 
 guidata(hObject, handles);
+
+
 
 % --- Executes on button press in Stop_button.
 function Stop_button_Callback(hObject, eventdata, handles)
@@ -707,16 +716,6 @@ function EMGWorks_checkbox_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of EMGWorks_checkbox
-
-
-% --- Executes when selecting the audio_feedback controller. 
-function AudioFeedback_checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to provide audio feedback in over ground walking (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Audiofeedback (yes or
-% no)
 
 
 % --- Executes on button press in StoptreadmillSTOP_checkbox.
@@ -1082,17 +1081,3 @@ function feedbackBox_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of feedbackBox
 global feedbackFlag
 feedbackFlag=hObject.Value;
-
-
-% --- Executes during object creation, after setting all properties.
-function EMGWorks_checkbox_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to EMGWorks_checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-
-% --- Executes during object deletion, before destroying properties.
-function EMGWorks_checkbox_DeleteFcn(hObject, eventdata, handles)
-% hObject    handle to EMGWorks_checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)

@@ -1,4 +1,3 @@
-
 function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1(velL,velR,FzThreshold,profilename)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
@@ -141,6 +140,7 @@ disp('File creation time');
 
 %Send first speed command & store
 acc=3500;
+% acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
 [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
 sendTreadmillPacket(payload,t);
 datlog.TreadmillCommands.firstSent = [velR(RstepCount),velL(LstepCount),acc,acc,cur_incl,now];%record the command
@@ -264,7 +264,7 @@ while ~STOP %only runs if stop button is not pressed
                 datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
 %                 RHSTime(RstepCount) = TimeStamp;
                 RHSTime(RstepCount) = now;
-                set(ghandle.Right_step_textbox,'String',num2str(LstepCount-1));
+                set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                 drawnow;
@@ -315,6 +315,7 @@ while ~STOP %only runs if stop button is not pressed
                 %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
             end
     end
+   
     
     if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
         break
