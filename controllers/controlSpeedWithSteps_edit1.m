@@ -70,14 +70,38 @@ end
 %Initialize nexus & treadmill communications
 try
 % [MyClient] = openNexusIface();
-    Client.LoadViconDataStreamSDK();
-    MyClient = Client();
-    Hostname = 'localhost:801';
-    out = MyClient.Connect(Hostname);
-    out = MyClient.EnableMarkerData();
-    out = MyClient.EnableDeviceData();
-    MyClient.SetStreamMode(StreamMode.ServerPush);
+%this was previously on 
+%     Client.LoadViconDataStreamSDK();
+%     MyClient = Client();
+%     Hostname = 'localhost:801'; %'localhost:801'
+%     out = MyClient.Connect(Hostname);
+%     out = MyClient.EnableMarkerData();
+%     out = MyClient.EnableDeviceData();
+%     MyClient.SetStreamMode(StreamMode.ServerPush);
     %MyClient.SetStreamMode(StreamMode.ClientPull);
+    
+    %New code DMMO  
+    HostName = 'localhost:801';
+%     fprintf( 'Loading SDK...' );
+    addpath( '..\dotNET' );
+    dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    if dssdkAssembly == ""
+        [ file, path ] = uigetfile( '*.dll' );
+        dssdkAssembly = fullfile( path, file );
+      
+    end
+
+    NET.addAssembly(dssdkAssembly);
+    MyClient = ViconDataStreamSDK.DotNET.Client();
+    MyClient.Connect( HostName );
+    % Enable some different data types
+    out =MyClient.EnableSegmentData();
+    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    
+    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
     datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
@@ -215,17 +239,19 @@ while ~STOP %only runs if stop button is not pressed
     else
         set(ghandle.figure1,'Color',[1,1,1]);
     end
-    
-    if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+%% This section was on    
+%     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+    if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
         Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
         Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-        if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
-            STOP = 1;  %stop, the GUI can't find the forceplate values
+%         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+            if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
+            STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
             disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
             datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
         end
     end
-
+%%
     %read from treadmill
 %     [RBS,LBS,theta] = getCurrentData(t);
 %     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
@@ -435,7 +461,8 @@ end
 % pause(1)
 disp('closing comms');
 try
-    closeNexusIface(MyClient);
+    closeNexusIface(MyClient); %This was on before 
+%      MyClient.Disconnect();
     closeTreadmillComm(t);
 %     keyboard
 catch ME

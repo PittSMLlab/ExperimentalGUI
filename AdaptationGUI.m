@@ -268,7 +268,8 @@ if get(handles.EMGWorks_checkbox,'Value')==1
    else
        %           pause(3);
    end
-       ss = serial('COM15');
+
+      ss = serial('COM4');
       fopen(ss);
       pause(0.1);
       fclose(ss);
@@ -800,7 +801,7 @@ end
 
 xlabel('Stride Count');
 ylabel('Speed (m/s)');
-legend('Left Foot','Right Foot');
+legend('Left Foot','Right Foot','AutoUpdate','off');
 set(handles.profileaxes,'NextPlot','add')
 
 set(handles.Status_textbox,'String','Ready');
