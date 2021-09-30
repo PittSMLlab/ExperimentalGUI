@@ -357,8 +357,6 @@ switch(selection)
     case 1%control speed with steps
         
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1(round(velL*1000), round(velR*1000), forceThreshold, shortName); %
-%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_old(round(velL*1000), round(velR*1000), forceThreshold);
-%         keyboard;
 
     case 2
         mode=1; %Signed
@@ -392,81 +390,7 @@ switch(selection)
         ssrecord(1) = [];%delete useless zero at beginning
         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
-% % %         ssrecord
-%    %This controller was not being used, turn off 9/30/2021 
-%     case 6%self selected speed rev3 based on swing phase time and distance
-%         
-%         [looptime Rstept Rstepp Lstept Lstepp] = SelfSelectedSpeed_swing_rev3(round(velL*1000),round(velR*1000));
-%         keyboard
-        
-%     case 7 %This controller was not being used, turn off 9/30/2021
-%         
-%         [Rgammarecord,Lgammarecord,Rmeangamma,Lmeangamma,Rstdgamma,Lstdgamma] = Dulce_grad_gamma_rev1(round(velL*1000), round(velR*1000), forceThreshold);
-%         disp('the mean gamma for the R leg is:');
-%         disp(Rmeangamma);
-%         disp('the mean gamma for the L leg is:');
-%         disp(Lmeangamma);
-%         disp('the stdev gamma for the R leg is:');
-%         disp(Rstdgamma);
-%         disp('the stdev gamma for the L leg is:');
-%         disp(Lstdgamma);
-        
-%     case 8  %This controller was not being used, turn off 9/30/2021
-% %         [Rbetarecord,Lbetarecord,Rmeanbeta,Lmeanbeta,Rstdbeta,Lstdbeta] = Dulce_grad_beta(round(velL*1000), round(velR*1000), forceThreshold);
-% %         disp('the ratio  for the R leg is:');
-% %         disp(Rmeanbeta);
-% %         disp('the ratio for the L leg is:');
-% %         disp(Lmeanbeta);
-% %         disp('the std for the R leg is:');
-% %         disp(Rstdbeta);
-% %         disp('the stdev gamma for the L leg is:');
-% %         disp(Lstdbeta);
-% %         keyboard
-%         SL_BF_findtargets(round(velL*1000),round(velR*1000),forceThreshold,shortName);
-        %         save('Rgammarecord',Rgammarecord);%save it just in case
-        %         save('Lgammarecord',Lgammarecord);
-%     case 9  %This controller was not being used, turn off 9/30/2021
-%         [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
-% 
-%         disp('the mean ratio for the R leg is:');
-%         disp(RatiomeanR);
-%         disp('the mean ratio  for the L leg is:');
-%         disp(RatiomeanL);
-%         disp('the stdev ratio for the R leg is:');
-%         disp(Rstd);
-%         disp('the stdev ratio for the L leg is:');
-%         disp(Lstd);
-%         disp('the mean of RHS');
-%         disp(alphaRmean);
-%         disp('the mean of LHS');
-%         disp(alphaLmean);
-%         disp('the stdev  R leg is:');
-%         disp(alphaRstd);
-%         disp('the stdev e L leg is:');
-%         disp(alphaLstd);
-% %         disp('mean RTO')
-% %         disp(betameanR)
-% %         disp('mean Lto')
-% %         disp(betameanL)
-% %         disp('R scale')
-% %         disp(Rsci)
-% %         disp('L scale')
-% %         disp(Lsci)
-%         disp('X mean R leg')
-%         disp(XmeanR)
-%         disp('X mean L leg')
-%         disp(XmeanL)
-%         disp('Ratio R leg with X@LHS')
-%         disp(RatioXmeanR')
-%         disp('Ratio L leg with X@RHS')
-%         disp(RatioXmeanL)
-%         disp('R scale with X')
-%         disp(RsciX)
-%         disp('L scale with X')
-%         disp(LsciX)
-%         
-        
-        
+      
         
     case 6
         newline = sprintf('\n');
@@ -484,12 +408,6 @@ switch(selection)
         disp('mean selected speed: ');
         mean(listofss)./1000
         
-%     case 11  %This controller was not being used, turn off 9/30/2021
-%         SL_BF_findtargets_OG(round(velL*1000),round(velR*1000),forceThreshold,profilename);
-        
-%     case 12  %This controller was not being used, turn off 9/30/2021
-% %         controlbytime(velL*1000,velR*1000,forceThreshold,profilename);
-%         controlbytime2(velL*1000,velR*1000,forceThreshold,profilename);
     case 7
          
         mode=1;
