@@ -393,13 +393,12 @@ switch(selection)
         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
 % % %         ssrecord
-%    %This controller was not being used, turn off 9/30/2021 
-%     case 6%self selected speed rev3 based on swing phase time and distance
-%         
-%         [looptime Rstept Rstepp Lstept Lstepp] = SelfSelectedSpeed_swing_rev3(round(velL*1000),round(velR*1000));
-%         keyboard
+    case 6%self selected speed rev3 based on swing phase time and distance
         
-%     case 7 %This controller was not being used, turn off 9/30/2021
+        [looptime Rstept Rstepp Lstept Lstepp] = SelfSelectedSpeed_swing_rev3(round(velL*1000),round(velR*1000));
+        keyboard
+        
+%     case 7
 %         
 %         [Rgammarecord,Lgammarecord,Rmeangamma,Lmeangamma,Rstdgamma,Lstdgamma] = Dulce_grad_gamma_rev1(round(velL*1000), round(velR*1000), forceThreshold);
 %         disp('the mean gamma for the R leg is:');
@@ -411,64 +410,64 @@ switch(selection)
 %         disp('the stdev gamma for the L leg is:');
 %         disp(Lstdgamma);
         
-%     case 8  %This controller was not being used, turn off 9/30/2021
-% %         [Rbetarecord,Lbetarecord,Rmeanbeta,Lmeanbeta,Rstdbeta,Lstdbeta] = Dulce_grad_beta(round(velL*1000), round(velR*1000), forceThreshold);
-% %         disp('the ratio  for the R leg is:');
-% %         disp(Rmeanbeta);
-% %         disp('the ratio for the L leg is:');
-% %         disp(Lmeanbeta);
-% %         disp('the std for the R leg is:');
-% %         disp(Rstdbeta);
-% %         disp('the stdev gamma for the L leg is:');
-% %         disp(Lstdbeta);
-% %         keyboard
-%         SL_BF_findtargets(round(velL*1000),round(velR*1000),forceThreshold,shortName);
+    case 8
+%         [Rbetarecord,Lbetarecord,Rmeanbeta,Lmeanbeta,Rstdbeta,Lstdbeta] = Dulce_grad_beta(round(velL*1000), round(velR*1000), forceThreshold);
+%         disp('the ratio  for the R leg is:');
+%         disp(Rmeanbeta);
+%         disp('the ratio for the L leg is:');
+%         disp(Lmeanbeta);
+%         disp('the std for the R leg is:');
+%         disp(Rstdbeta);
+%         disp('the stdev gamma for the L leg is:');
+%         disp(Lstdbeta);
+%         keyboard
+        SL_BF_findtargets(round(velL*1000),round(velR*1000),forceThreshold,shortName);
         %         save('Rgammarecord',Rgammarecord);%save it just in case
         %         save('Lgammarecord',Lgammarecord);
-%     case 9  %This controller was not being used, turn off 9/30/2021
-%         [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
-% 
-%         disp('the mean ratio for the R leg is:');
-%         disp(RatiomeanR);
-%         disp('the mean ratio  for the L leg is:');
-%         disp(RatiomeanL);
-%         disp('the stdev ratio for the R leg is:');
-%         disp(Rstd);
-%         disp('the stdev ratio for the L leg is:');
-%         disp(Lstd);
-%         disp('the mean of RHS');
-%         disp(alphaRmean);
-%         disp('the mean of LHS');
-%         disp(alphaLmean);
-%         disp('the stdev  R leg is:');
-%         disp(alphaRstd);
-%         disp('the stdev e L leg is:');
-%         disp(alphaLstd);
-% %         disp('mean RTO')
-% %         disp(betameanR)
-% %         disp('mean Lto')
-% %         disp(betameanL)
-% %         disp('R scale')
-% %         disp(Rsci)
-% %         disp('L scale')
-% %         disp(Lsci)
-%         disp('X mean R leg')
-%         disp(XmeanR)
-%         disp('X mean L leg')
-%         disp(XmeanL)
-%         disp('Ratio R leg with X@LHS')
-%         disp(RatioXmeanR')
-%         disp('Ratio L leg with X@RHS')
-%         disp(RatioXmeanL)
-%         disp('R scale with X')
-%         disp(RsciX)
-%         disp('L scale with X')
-%         disp(LsciX)
-%         
+    case 9
+        [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
+
+        disp('the mean ratio for the R leg is:');
+        disp(RatiomeanR);
+        disp('the mean ratio  for the L leg is:');
+        disp(RatiomeanL);
+        disp('the stdev ratio for the R leg is:');
+        disp(Rstd);
+        disp('the stdev ratio for the L leg is:');
+        disp(Lstd);
+        disp('the mean of RHS');
+        disp(alphaRmean);
+        disp('the mean of LHS');
+        disp(alphaLmean);
+        disp('the stdev  R leg is:');
+        disp(alphaRstd);
+        disp('the stdev e L leg is:');
+        disp(alphaLstd);
+%         disp('mean RTO')
+%         disp(betameanR)
+%         disp('mean Lto')
+%         disp(betameanL)
+%         disp('R scale')
+%         disp(Rsci)
+%         disp('L scale')
+%         disp(Lsci)
+        disp('X mean R leg')
+        disp(XmeanR)
+        disp('X mean L leg')
+        disp(XmeanL)
+        disp('Ratio R leg with X@LHS')
+        disp(RatioXmeanR')
+        disp('Ratio L leg with X@RHS')
+        disp(RatioXmeanL)
+        disp('R scale with X')
+        disp(RsciX)
+        disp('L scale with X')
+        disp(LsciX)
         
         
         
-    case 6
+        
+    case 10
         newline = sprintf('\n');
         set(handles.Status_textbox,'FontSize',10);
         set(handles.Status_textbox,'String',['Busy...',newline,'Press 8 to +',newline,'Press 2 to -',newline,'Press "f" to perturb fast',newline,'Press "s" to perturb slow',newline,'Press "b" to return to profile']);
@@ -484,19 +483,19 @@ switch(selection)
         disp('mean selected speed: ');
         mean(listofss)./1000
         
-%     case 11  %This controller was not being used, turn off 9/30/2021
-%         SL_BF_findtargets_OG(round(velL*1000),round(velR*1000),forceThreshold,profilename);
+    case 11
+        SL_BF_findtargets_OG(round(velL*1000),round(velR*1000),forceThreshold,profilename);
         
-%     case 12  %This controller was not being used, turn off 9/30/2021
-% %         controlbytime(velL*1000,velR*1000,forceThreshold,profilename);
-%         controlbytime2(velL*1000,velR*1000,forceThreshold,profilename);
-    case 7
+    case 12
+%         controlbytime(velL*1000,velR*1000,forceThreshold,profilename);
+        controlbytime2(velL*1000,velR*1000,forceThreshold,profilename);
+    case 13
          
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
         
-    case 8 %providing audio feedback to the participants during overground walking
+    case 14 %providing audio feedback to the participants during overground walking
         disp('Overground audio speed feedback');
         mode=1;
         audioFbBtn=questdlg('Should audio feedback on speed be provided?');  %added by DMMO 3/13/2020
@@ -507,13 +506,13 @@ switch(selection)
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
         % % %         ssrecord
         
-    case 9
+    case 15
         
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
     
-    case 10
+    case 16
         disp('AutomaticityAssessmentProtocol');
         mode=1;
         currIterationAnswer = inputdlg('What is the current_iteration: ');
