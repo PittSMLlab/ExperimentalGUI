@@ -15,16 +15,16 @@ global LFBClicker
 LFBClicker=0;
 global fastbeep
 %if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
-    ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'k', 'ToolBar', 'none');
-    pp=gca;
-    axis([0 1  0 1]);
-    patch([0 1 1 0 0], [0 0 1 1 0], 'k')
-    text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
+ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'k', 'ToolBar', 'none');
+pp=gca;
+axis([0 1  0 1]);
+patch([0 1 1 0 0], [0 0 1 1 0], 'k')
+text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
 %     RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
 %     LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
-    RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
-    LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
-    
+RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+
 %end
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -58,8 +58,8 @@ lastRHIP=nan(1,6);
 lastLHIP=nan(1,6);
 toneplayed=false;
 %MGR 11/08/2019
-countRaux=0; 
-countLaux=0; 
+countRaux=0;
+countLaux=0;
 Raux=[];
 Laux=[];
 
@@ -260,14 +260,28 @@ velR(end+1)=0;
 %Initialize nexus & treadmill communications
 try
     % [MyClient] = openNexusIface();
-    Client.LoadViconDataStreamSDK();
-    MyClient = Client();
-    Hostname = 'localhost:801';
-    out = MyClient.Connect(Hostname);
-    out = MyClient.EnableMarkerData();
-    out = MyClient.EnableDeviceData();
-    %MyClient.SetStreamMode(StreamMode.ServerPush);
-    MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+    %     Client.LoadViconDataStreamSDK();
+    %     MyClient = Client();
+    %     Hostname = 'localhost:801';
+    %     out = MyClient.Connect(Hostname);
+    %     out = MyClient.EnableMarkerData();
+    %     out = MyClient.EnableDeviceData();
+    %     %MyClient.SetStreamMode(StreamMode.ServerPush);
+    %     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+    
+    HostName = 'localhost:801';
+    addpath( '..\dotNET' );
+    dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    NET.addAssembly(dssdkAssembly);
+    MyClient = ViconDataStreamSDK.DotNET.Client();
+    MyClient.Connect( HostName );
+    % Enable some different data types
+    out =MyClient.EnableSegmentData();
+    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
     mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
 catch ME
@@ -300,7 +314,7 @@ try %So that if something fails, communications are closed properly
     new_stanceR=false;
     phase=0; %0= Double Support, 1 = single L support, 2= single R support
     RstepCount=1;
-    LstepCount=1;  
+    LstepCount=1;
     % RTOTime(N)=TimeStamp;
     % LTOTime(N)=TimeStamp;
     % RHSTime(N)=TimeStamp;
@@ -318,7 +332,7 @@ try %So that if something fails, communications are closed properly
     datlog.inclineang = cur_incl;
     
     %Send first speed command & store
-    acc=3000; 
+    acc=3000;
     [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
     memoryR=velR(1);
     memoryL=velL(1);
@@ -381,15 +395,17 @@ try %So that if something fails, communications are closed properly
                 set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
                 set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
             end
-
+            
             %Read forces
             Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
             Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
-            if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+            %             if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+            if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
                 %Fz_L.Result
                 Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
                 Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-                if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+                %                 if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+                if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
                     %Fz_L.Result
                     %Fz_R.Result.Value
                     %Fz_L.Result.Value
@@ -400,7 +416,7 @@ try %So that if something fails, communications are closed properly
             end
             new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
             new_stanceR=Fz_R.Value<-FzThreshold;
-        end        
+        end
         
         LHS=new_stanceL && ~old_stanceL;
         RHS=new_stanceR && ~old_stanceR;
@@ -652,13 +668,13 @@ try %So that if something fails, communications are closed properly
                 otherwise
                     error('Invalid mode')
             end
-%             if isnan(velR(RstepCount)) %Only updating belts under
-%             self-control %MGR Commented 12/11/19
-%                 sentR=auxR;
-%             end
-%             if isnan(velL(LstepCount))
-%                 sentL=auxL;
-%             end
+            %             if isnan(velR(RstepCount)) %Only updating belts under
+            %             self-control %MGR Commented 12/11/19
+            %                 sentR=auxR;
+            %             end
+            %             if isnan(velL(LstepCount))
+            %                 sentL=auxL;
+            %             end
             
             %% HURRY UP, Slow Poke!
             if (~isnan(velR(RstepCount+3))) && (~isnan(velL(LstepCount+3))) && toneplayed==true;
@@ -673,22 +689,22 @@ try %So that if something fails, communications are closed properly
                 
                 %% New Stuff from Carly and Marcela
                 if RFBClicker==1 || LFBClicker==1
-%                     display('Lama')
-%                     if RFBClicker==1 && LFBClicker ==0 %IF I get info that they clicked Right
-%                         addpoints(RFB,.75, .3)
-%                     elseif RFBClicker==0 && LFBClicker==1 %If I get info that they clicked Left
-%                         addpoints(LFB,.25, .3)
-%                     elseif RFBClicker==1 && LFBClicker ==1
-%                         error('Nope')
-%                     end
-
+                    %                     display('Lama')
+                    %                     if RFBClicker==1 && LFBClicker ==0 %IF I get info that they clicked Right
+                    %                         addpoints(RFB,.75, .3)
+                    %                     elseif RFBClicker==0 && LFBClicker==1 %If I get info that they clicked Left
+                    %                         addpoints(LFB,.25, .3)
+                    %                     elseif RFBClicker==1 && LFBClicker ==1
+                    %                         error('Nope')
+                    %                     end
+                    
                     datlog.audioCues.stop(RstepCount)=now; %Marcela added so the click time is counted as an end cue 12-10-19
                     
                     RFBClicker=0;
                     LFBClicker=0;
                     
-%                     display(['Right before the click: OLD Rcount', num2str(RstepCount), ' OLD Lcount:', num2str(LstepCount)])
-
+                    %                     display(['Right before the click: OLD Rcount', num2str(RstepCount), ' OLD Lcount:', num2str(LstepCount)])
+                    
                     NonSelfControlL=find(~isnan(velL))-1;
                     NonSelfControlR=find(~isnan(velR))-1;
                     
@@ -700,9 +716,9 @@ try %So that if something fails, communications are closed properly
                     LstepCount=LstepCount+addSteps;
                     
                     %                     display(['ALERT! There has been a click: New Rcount', num2str(RstepCount), ' New Lcount:', num2str(LstepCount)])
-                     stop(fastbeep)
-                     endTonePlayed=true;
-                     
+                    stop(fastbeep)
+                    endTonePlayed=true;
+                    
                 elseif RFBClicker==0 && LFBClicker==0
                     if ~endTonePlayed
                         stop(fastbeep)
@@ -710,10 +726,10 @@ try %So that if something fails, communications are closed properly
                         sound(endTone,4096)
                         endTonePlayed=true;
                     end
-                                    
+                    
                 end
                 
-              
+                
                 M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions
                 if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M)
                     velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
@@ -725,7 +741,7 @@ try %So that if something fails, communications are closed properly
                 
                 enableMemory=false;
             end
-
+            
         end
         
         aux=(now-lastSent)*86400; %Time elapsed in secs
@@ -743,27 +759,27 @@ try %So that if something fails, communications are closed properly
             old_velR.Value = sentR;
             old_velL.Value = sentL;
         end
-% % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % % % % % %         %% Carly is Testing...
-% % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % % % % % %         %%  Set up the feedback figure
-% % % % % % %         %display(['RClick:', num2str(RFBClicker), '    LClick:', num2str(LFBClicker)])
-% % % % % % %         if RFBClicker==1 && LFBClicker ==0 %&&  enableMemory==true%IF I get info that they clicked Right
-% % % % % % %             % set(RFB, 'FaceColor', 'g')
-% % % % % % %             addpoints(RFB,.75, .3)
-% % % % % % %         elseif RFBClicker==0 && LFBClicker==1 %&&  enableMemory==true%If I get info that they clicked Left
-% % % % % % %             % set(LFB, 'FaceColor', 'g')
-% % % % % % %             addpoints(LFB,.25, .3)
-% % % % % % % %         elseif RFBClicker==1 || LFBClicker == 1
-% % % % % % % %             RFBClicker=0;
-% % % % % % % %             LFBClicker=0;
-% % % % % % % %             %display('Guinea Pig')
-% % % % % % % %             %             set(LFB, 'FaceColor', 'k')
-% % % % % % % %             %             set(RFB, 'FaceColor', 'k')
-% % % % % % % %             clearpoints(LFB)
-% % % % % % % %             clearpoints(RFB)
-% % % % % % %         end
-% % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % % % % % % %         %% Carly is Testing...
+        % % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % % % % % % %         %%  Set up the feedback figure
+        % % % % % % %         %display(['RClick:', num2str(RFBClicker), '    LClick:', num2str(LFBClicker)])
+        % % % % % % %         if RFBClicker==1 && LFBClicker ==0 %&&  enableMemory==true%IF I get info that they clicked Right
+        % % % % % % %             % set(RFB, 'FaceColor', 'g')
+        % % % % % % %             addpoints(RFB,.75, .3)
+        % % % % % % %         elseif RFBClicker==0 && LFBClicker==1 %&&  enableMemory==true%If I get info that they clicked Left
+        % % % % % % %             % set(LFB, 'FaceColor', 'g')
+        % % % % % % %             addpoints(LFB,.25, .3)
+        % % % % % % % %         elseif RFBClicker==1 || LFBClicker == 1
+        % % % % % % % %             RFBClicker=0;
+        % % % % % % % %             LFBClicker=0;
+        % % % % % % % %             %display('Guinea Pig')
+        % % % % % % % %             %             set(LFB, 'FaceColor', 'k')
+        % % % % % % % %             %             set(RFB, 'FaceColor', 'k')
+        % % % % % % % %             clearpoints(LFB)
+        % % % % % % % %             clearpoints(RFB)
+        % % % % % % %         end
+        % % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
     end %While, when STOP button is pressed
     if STOP
@@ -832,7 +848,7 @@ disp('closing comms');
 try
     closeNexusIface(MyClient);
     closeTreadmillComm(t);
-
+    
 catch ME
     datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
     datlog.errormsgs{end+1} = ME;
@@ -947,7 +963,7 @@ delete(findobj(ghandle.profileaxes,'Type','Text'))
 delete(findobj(ghandle.profileaxes,'Type','Patch'))
 
 % %MGR 11/08/19
-% 
+%
 % datlog.auxStepCount.headers={'R Step Count Real', 'L Step Count Real'};
 % datlog.auxStepCount.data(:,1)=Raux';
 % datlog.auxStepCount.data(:,2)=Laux';
