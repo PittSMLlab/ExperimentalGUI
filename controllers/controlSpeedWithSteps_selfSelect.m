@@ -202,7 +202,7 @@ end
 if nargin<3
     FzThreshold=40; %Newtons (40 is minimum for noise not to be an issue)
 elseif FzThreshold<40
-%     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
+    %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 40N instead');
     FzThreshold=40;
@@ -222,16 +222,32 @@ velR(end+1)=0;
 
 %Initialize nexus & treadmill communications
 try
-% [MyClient] = openNexusIface();
-    Client.LoadViconDataStreamSDK();
-    MyClient = Client();
-    Hostname = 'localhost:801';
-    out = MyClient.Connect(Hostname);
-    out = MyClient.EnableMarkerData();
-    out = MyClient.EnableDeviceData();
-    %MyClient.SetStreamMode(StreamMode.ServerPush);
-    MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
-        mn={'LHIP','RHIP','LANK','RANK'};
+    % [MyClient] = openNexusIface();
+    %     Client.LoadViconDataStreamSDK();
+    %     MyClient = Client();
+    %     Hostname = 'localhost:801';
+    %     out = MyClient.Connect(Hostname);
+    %     out = MyClient.EnableMarkerData();
+    %     out = MyClient.EnableDeviceData();
+    %     %MyClient.SetStreamMode(StreamMode.ServerPush);
+    %     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+    %         mn={'LHIP','RHIP','LANK','RANK'};
+    %     altMn={'LGT','RGT','LANK','RANK'};
+    
+    HostName = 'localhost:801';
+    addpath( '..\dotNET' );
+    dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    NET.addAssembly(dssdkAssembly);
+    MyClient = ViconDataStreamSDK.DotNET.Client();
+    MyClient.Connect( HostName );
+    % Enable some different data types
+    out =MyClient.EnableSegmentData();
+    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
+    mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
@@ -353,14 +369,14 @@ while ~STOP %only runs if stop button is not pressed
     end
     
     %Read markers:
-    sn=MyClient.GetSubjectName(1).SubjectName;
+    sn=MyClient.GetSubjectName(0).SubjectName; %DMMO
     for l=1:4
         md=MyClient.GetMarkerGlobalTranslation(sn,mn{l});
-        if md.Result.Value==2 %%Success getting marker
+        if strcmp(md.Result,'Success')%md.Result.Value==2 %%Success getting marker
             aux=double(md.Translation);
         else
             md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
-            if md.Result.Value==2
+            if strcmp(md.Result,'Success')%md.Result.Value==2
                 aux=double(md.Translation);
             else
                 aux=[nan nan nan]';
@@ -473,27 +489,47 @@ while ~STOP %only runs if stop button is not pressed
         %end
         eval([mn{l} '=newEstimate'';']); %Saving as row vector
         eval([mn{l} 'var=newEstimateCovar;']);
-        eval(['datlog.Markers.' mn{l} 'filt(frameind.Value,:) = newEstimate;']);%record the current estim
-        eval(['datlog.Markers.' mn{l} 'var(frameind.Value,:) = newEstimateCovar(:);']);%record the current var
+%         eval(['datlog.Markers.' mn{l} 'filt(frameind.Value,:) =
+%         newEstimate;']);%record the current estim % We don't know why it
+%         was braking. No Marker data in datalog now MGR DMMO
+
+%         eval(['datlog.Markers.' mn{l} 'var(frameind.Value,:) =
+%         newEstimateCovar(:);']);%record the current var % We don't know why it
+%         was braking. No Marker data in datalog now MGR DMMO
     end
     
     
     %Read forces
     Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
     Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
-    if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+%     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+%         %Fz_L.Result
+%         Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+%         Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+%         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+%             %Fz_L.Result
+%             %Fz_R.Result.Value
+%             %Fz_L.Result.Value
+%             STOP = 1;  %stop, the GUI can't find the forceplate values
+%             disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+%             datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
+%         end
+%     end
+%     
+if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
+    %Fz_L.Result
+    Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+    Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+    %                 if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+    if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
         %Fz_L.Result
-        Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
-        Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-        if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
-            %Fz_L.Result
-            %Fz_R.Result.Value
-            %Fz_L.Result.Value
-            STOP = 1;  %stop, the GUI can't find the forceplate values
-            disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
-            datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
-        end
+        %Fz_R.Result.Value
+        %Fz_L.Result.Value
+        STOP = 1;  %stop, the GUI can't find the forceplate values
+        disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+        datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
     end
+end
     new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
     new_stanceR=Fz_R.Value<-FzThreshold;
     end
