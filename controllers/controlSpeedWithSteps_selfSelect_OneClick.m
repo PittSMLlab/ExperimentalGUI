@@ -14,18 +14,22 @@ RFBClicker=0;
 global LFBClicker
 LFBClicker=0;
 global fastbeep
-%if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
-ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'k', 'ToolBar', 'none');
+if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
+ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'w', 'ToolBar', 'none');
 pp=gca;
-axis([0 1  0 1]);
-patch([0 1 1 0 0], [0 0 1 1 0], 'k')
-text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
+axis([0 length(velL)  0 0.5]);
+%patch([0 1 1 0 0], [0 0 1 1 0], 'w')
+text(0, .5, 'Which belt is moving slower?', 'FontSize', 75, 'Color', 'k')
 %     RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
 %     LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
-RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
-LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+% RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+% LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
 
-%end
+ccc1=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[0 0 1],'MarkerEdgeColor','none');
+ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');
+
+end
+
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % %% Carly is Testing...
@@ -543,10 +547,10 @@ try %So that if something fails, communications are closed properly
         if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
             try
                 if RHS
-                    %addpoints(ccc2,RstepCount-1,yR)
+                    addpoints(ccc2,RstepCount-1,yR)
                 end
                 if LHS
-                    %addpoints(ccc1,LstepCount-1,yL)
+                    addpoints(ccc1,LstepCount-1,yL)
                 end
                 drawnow
             catch
