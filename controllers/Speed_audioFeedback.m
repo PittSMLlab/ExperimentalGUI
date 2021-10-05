@@ -352,7 +352,7 @@ try %So that if something fails, communications are closed properly
             md_LANK=MyClient.GetMarkerGlobalTranslation(sn,mn{3});
             md_RANK=MyClient.GetMarkerGlobalTranslation(sn,mn{4});
 
-            if strcmp(md.Result,'Success') %md.Result.Value==2 %%Success getting marker
+            if strcmp(md.Result,'Success') %md.Result.Value==2 %DMMO %%Success getting marker
                 aux=double(md.Translation);
 
 
@@ -362,7 +362,7 @@ try %So that if something fails, communications are closed properly
                 RANK_pos = double(md_RANK.Translation);
             else
                 md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
-                if strcmp(md.Result,'Success')% md.Result.Value==2
+                if strcmp(md.Result,'Success')% md.Result.Value==2 %DMMO
                     aux=double(md.Translation);
                     LHIP_pos = double(md_LHIP.Translation);
                     RHIP_pos = double(md_RHIP.Translation);
