@@ -520,6 +520,16 @@ end
 %convert command times
 temp = find(isnan(datlog.TreadmillCommands.read(:,4)),1,'first');
 datlog.TreadmillCommands.read(temp:end,:) = [];
+
+%Added by Shuqi 1/18/2022
+try
+    firstTMTime = datlog.TreadmillCommands.read(1,4);
+    lastTMTime = datlog.TreadmillCommands.read(end,4);
+    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+    fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n'])
+catch 
+    fprintf('Unable to get TM packets start and end time')
+end
 for z = 1:temp-1
     datlog.TreadmillCommands.read(z,4) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
 end
