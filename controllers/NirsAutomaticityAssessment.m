@@ -6,18 +6,40 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %The first value for velL and velR is the initial desired speed, and new
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
+%% Parameter for randonization order 
+randomization_order = [3 2 1 4 6 5]; %for visit 2, random number between 7 -12
+startingAlphabet = 'B';
 
-%%
+%% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = 1; 
-randomization_order = [6 3 1 5 2 4];
-alphabetLetter = 'B'; %TODO: to be randomized for each participant 1st and last visit swap; maybe read from randomized file generated order
-info = audiodevinfo; %only need to run this once to look up output channel number and check if input device is connected
 recordData = true; %usually true, could turn off for debugging
-restDuration = 10; %default 20s rest, could change for debugging
+restDuration = 20; %default 20s rest, could change for debugging
 
-%%
-all_events = [1 2 0; 0 2 1;1 0 2; 1 2 0; 2 1 0; 2 0 1]; %fixed order, only change the order to index these.
-event_list = all_events(randomization_order(current_iteration),:); %0 = stand and alphabet, 1 = walk and alphabet, 2 = walk, 
+%% Set up task sequence, recordings and main loop
+if current_iteration == 0
+    if strcmp(startingAlphabet, 'A')
+        event_list = [3 1 2 4 5]; %walk, stand alpha A, walk alpha, stand 3 A, walk 3A
+    else
+        event_list = [3 6 7 8 9];
+    end
+    restDuration = 25;
+    recordData = false;
+    % Pop up window to confirm parameter setup
+    button=questdlg('Please confirm that oxysoft_present is 1 (NIRS connected) and rest duration is 20.');  
+    if ~strcmp(button,'Yes')
+       return; %Abort starting the tri
+    end
+else
+    if strcmp(startingAlphabet, 'A')
+        all_events = [2 4 3 1 5;4 3 2 1 5;3 1 2 4 5; 3 2 4 5 1;3 4 1 2 5;2 3 5 4 1];
+    else
+       all_events= [7 8 3 6 9; 8 3 7 6 9; 3 6 7 8 9; 3 7 8 9 6; 3 8 6 7 9; 7 3 9 8 6]; %fixed order, only change the order to index these.
+    end
+    event_list = all_events(randomization_order(current_iteration),:);
+    %1 = stand and alphabet A, 2 = walk and alphabet A, 3 = walk, 4 = stand and
+    %alphabet 3 A, 5 = walk and alphabet 3 A; 6 = stand and alphabet B, 7 = walk and alphabet B, 8 = stand and
+    %alphabet 3B, 9 = walk and alphabet 3B
+end
 
 if recordData
     Fz = 48000;
@@ -241,13 +263,36 @@ velR(end+1)=0;
 
 %Initialize nexus & treadmill communications
 try
-    Client.LoadViconDataStreamSDK();
-    MyClient = Client();
-    Hostname = 'localhost:801';
-    out = MyClient.Connect(Hostname);
-    out = MyClient.EnableMarkerData();
-    out = MyClient.EnableDeviceData();
-    MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+%     Client.LoadViconDataStreamSDK();
+%     MyClient = Client();
+%     Hostname = 'localhost:801';
+%     out = MyClient.Connect(Hostname);
+%     out = MyClient.EnableMarkerData();
+%     out = MyClient.EnableDeviceData();
+%     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+
+    HostName = 'localhost:801';
+%     fprintf( 'Loading SDK...' );
+    addpath( '..\dotNET' );
+    dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    if dssdkAssembly == ""
+        [ file, path ] = uigetfile( '*.dll' );
+        dssdkAssembly = fullfile( path, file );
+      
+    end
+
+    NET.addAssembly(dssdkAssembly);
+    MyClient = ViconDataStreamSDK.DotNET.Client();
+    MyClient.Connect( HostName );
+    % Enable some different data types
+    out =MyClient.EnableSegmentData();
+    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    
+    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
+    
     mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
 catch ME
@@ -256,14 +301,14 @@ catch ME
     datlog.errormsgs{end+1} = ME;%store specific error
     disp(ME);
 end
-try
-    t = openTreadmillComm();
-catch ME
-    disp('Error in creating TCP connection to Treadmill, see datlog for details...');
-    datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
-    datlog.errormsgs{end+1} = ME;
-    disp(ME);
-end
+% try
+% %     t = openTreadmillComm();
+% catch ME
+%     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
+%     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
+%     datlog.errormsgs{end+1} = ME;
+%     disp(ME);
+% end
 
 try %So that if something fails, communications are closed properly
     MyClient.GetFrame();
@@ -295,15 +340,16 @@ try %So that if something fails, communications are closed properly
     trialIndex = 1;
     eventorder = event_list(trialIndex,:); %0 = stand and alphabet, 1 = walk and alphabet, 2 = walk, 
     %set up audio players
-    if alphabetLetter == 'C'
-        audioFileNames = {'relax','walk','rest','standAndC','stopAndRest','walkAndC'};
-    else
-        audioFileNames = {'relax','walk','rest','standAndB','stopAndRest','walkAndB'};
-    end
-    audioids = {'relax','walk','rest','standAlphabet','stopAndRest','walkAlphabet'};
+    audioids = {'standAndA','walkAndA','walk','standAndEvery3A','walkAndEvery3A',...
+        'standAndB','walkAndB','standAndEvery3B','walkAndEvery3B','relax','rest','stopAndRest'};
+    eventCodeCharacter = {'A','B','W','C','D','E','F','G','H'};
+    %1 = stand and alphabet A, 2 = walk and alphabet A, 3 = walk, 4 = stand and
+    %alphabet 3 A, 5 = walk and alphabet 3 A; 6 = stand and alphabet B, 7 = walk and alphabet B, 8 = stand and
+    %alphabet 3B, 9 = walk and alphabet 3B
     instructions = containers.Map();
-    for i = 1 : length(audioFileNames)
-        [audio_data,audio_fs]=audioread(strcat(audioFileNames{i},'.mp3'));
+    for i = 1 : length(audioids)
+%         disp(strcat(audioids{i},'.mp3'))
+        [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
         instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
     end
     % Write event I with description 'Instructions' to Oxysoft
@@ -316,24 +362,25 @@ try %So that if something fails, communications are closed properly
     nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
     datlog = nirsEvent('rest', 'R', nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
     pause(restDuration);
+    
+    for possibleStandEvent = 1:4
+        if ismember(eventorder(currentIndex),[1,4,6,8]) %stand and alphabetA or B, or 3 letters A or B
+            datlog = nirsEvent(audioids{eventorder(currentIndex)}, eventCodeCharacter{eventorder(currentIndex)}, audioids{eventorder(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+            currentIndex = currentIndex + 1;
+            pause(restDuration);
 
-    if eventorder(currentIndex)== 0 %stand and alphabet
-        datlog = nirsEvent('standAlphabet', 'A', ['Stand_and_Alphabet_' alphabetLetter], instructions, datlog, Oxysoft, oxysoft_present);
-        currentIndex = currentIndex + 1;
-        pause(restDuration);
+%             %complete follow a rest block
+            nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
+            datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
+            pause(restDuration);
+        end
 
-        %complete follow a rest block
-        nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
-        datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
-        pause(restDuration);
-    end
-
-    if eventorder(currentIndex)==1 %first event is walk and alphabet
-        datlog = nirsEvent('walkAlphabet','B',['Walk_and_Alphabet_' alphabetLetter], instructions, datlog, Oxysoft, oxysoft_present);
-        currentIndex  = currentIndex + 1;
-    elseif eventorder(currentIndex) == 2 %firstw event is walk
-        datlog = nirsEvent('walk','W','Walk', instructions, datlog, Oxysoft, oxysoft_present);
-        currentIndex = currentIndex + 1;
+        if ismember(eventorder(currentIndex),[2,3,5,7,9]) %first event is walk and alphabet
+            datlog = nirsEvent(audioids{eventorder(currentIndex)},eventCodeCharacter{eventorder(currentIndex)},audioids{eventorder(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+            tStart=clock;
+            currentIndex  = currentIndex + 1;
+            break; %repeat untill a walk task is detected %TODO: check this actually breaks out
+        end
     end
         
     %Send first speed command & store
@@ -377,7 +424,7 @@ try %So that if something fails, communications are closed properly
             datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
                         
             %Read markers:
-            sn=MyClient.GetSubjectName(1).SubjectName;
+            sn=MyClient.GetSubjectName(0).SubjectName;
             l=1;
             md=MyClient.GetMarkerGlobalTranslation(sn,mn{l});
 
@@ -386,7 +433,7 @@ try %So that if something fails, communications are closed properly
             md_LANK=MyClient.GetMarkerGlobalTranslation(sn,mn{3});
             md_RANK=MyClient.GetMarkerGlobalTranslation(sn,mn{4});
 
-            if md.Result.Value==2 %%Success getting marker
+            if strcmp(md.Result,'Success') %md.Result.Value==2 %%Success getting marker
                 aux=double(md.Translation);
 
 
@@ -396,7 +443,7 @@ try %So that if something fails, communications are closed properly
                 RANK_pos = double(md_RANK.Translation);
             else
                 md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
-                if md.Result.Value==2
+                if strcmp(md.Result,'Success') % md.Result.Value==2
                     aux=double(md.Translation);
                     LHIP_pos = double(md_LHIP.Translation);
                     RHIP_pos = double(md_RHIP.Translation);
@@ -504,22 +551,33 @@ try %So that if something fails, communications are closed properly
                 %reach one end (computer side)
                 t1(end+1,:) = clock;
                 inout1 = 1;
+                disp('Reaching t1')
             elseif body_y_pos(frameind.Value) >= y_max
                 %reach the door side
                 t2 = clock;
+                disp('Reaching t2')
                 inout2 = 1;
                 inout1 = 0; %half of a loop done, reset the computer side flag untill back in computer side again (complete the loop)
             end
-
-            if inout1 == 1 && inout2 == 1
-                t_diff = t1(end,:)-t1(end-1,:);
-                walk_duration = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-                datlog.walkTime(end+1) = walk_duration;
-                t_diff = t2 - t1(end-1,:);
-                datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-                t_diff = t1(end,:) - t2;
-                datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-                
+            
+            tEnd = clock;
+            t_diff = tEnd - tStart;
+            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+            if round(t_diff) == restDuration %now stop after 20s passed , before stop after 1 loop %inout1 == 1 && inout2 == 1
+                fprintf('time diff: %f',t_diff)
+                %TODO: use round in case couldn't get exactly 20s, so will
+                %stop from 19.5 ~ 20.49 seconds
+                if (length(t1) >= 2)
+%                     t_diff = t1(end,:)-t1(end-1,:);
+%                     walk_duration = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+%                     datlog.walkTime(end+1) = walk_duration;
+                end
+                if exist('t2','var') && (length(t1) >= 2)
+%                     t_diff = t2 - t1(end-1,:);
+%                     datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+%                     t_diff = t1(end,:) - t2;
+%                     datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+                end
                 %always stop once, only stop at the computer side, then move on to next instruction.
                 inout1 = 0; %reset
                 inout2 = 0;
@@ -538,35 +596,36 @@ try %So that if something fails, communications are closed properly
                         warning('Check your code. Should not be in this code block.');
                     end
                 end
+                for possibleStandEvent = 1:4
+                    if STOP ~= 1&& ismember(eventorder(currentIndex),[1,4,6,8]) %stand and alphabetA or B, or 3 letters A or B
+                        datlog = nirsEvent(audioids{eventorder(currentIndex)},eventCodeCharacter{eventorder(currentIndex)},audioids{eventorder(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+                        currentIndex = currentIndex + 1;
+                        pause(restDuration)
 
-                if STOP ~= 1&& eventorder(currentIndex)== 0 %stand and alphabet
-                    datlog = nirsEvent('standAlphabet','A',['Stand_and_Alphabet_' alphabetLetter], instructions, datlog, Oxysoft, oxysoft_present);
-                    currentIndex = currentIndex + 1;
-                    pause(restDuration)
+                        %complete follow a rest block
+                        nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
+                        datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
+                        pause(restDuration);
 
-                    %complete follow a rest block
-                    nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
-                    datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
-                    pause(restDuration);
+                        if currentIndex > length (eventorder)
+                            currentIndex = 1; %reset the current index
+                            trialIndex = trialIndex + 1;
+                            if (trialIndex >  size(event_list,1))
+                                STOP = 1;
+                                datlog = nirsEvent('relax','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present); 
+                                break;
+                            else %Should never be here
+                                warning('Check your code. Should not be in this code block.');
+                            end      
+                        end 
+                    end
 
-                    if currentIndex > length (eventorder)
-                        currentIndex = 1; %reset the current index
-                        trialIndex = trialIndex + 1;
-                        if (trialIndex >  size(event_list,1))
-                            STOP = 1;
-                            datlog = nirsEvent('relax','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present); 
-                        else %Should never be here
-                            warning('Check your code. Should not be in this code block.');
-                        end      
-                    end 
-                end
-
-                if STOP ~= 1 && eventorder(currentIndex)==1 %first event is walk and alphabet
-                    datlog = nirsEvent('walkAlphabet','B',['Walk_and_Alphabet_' alphabetLetter], instructions, datlog, Oxysoft, oxysoft_present);
-                    currentIndex  = currentIndex + 1;
-                elseif STOP ~= 1 && eventorder(currentIndex) == 2 %first event is walk
-                    datlog = nirsEvent('walk','W','Walk', instructions, datlog, Oxysoft, oxysoft_present);
-                    currentIndex = currentIndex + 1;
+                    if STOP ~= 1 && ismember(eventorder(currentIndex),[2,3,5,7,9]) %first event is walk and alphabet
+                        datlog = nirsEvent(audioids{eventorder(currentIndex)},eventCodeCharacter{eventorder(currentIndex)},audioids{eventorder(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+                        tStart=clock;
+                        currentIndex  = currentIndex + 1;
+                        break;
+                    end
                 end
             end                        
         end
@@ -607,7 +666,7 @@ try
     disp('Closing Nexus Client') 
     disp(clock);
     closeNexusIface(MyClient);
-    closeTreadmillComm(t);
+%     closeTreadmillComm(t);
     disp('Done Closing');
     disp(clock);
 catch ME
@@ -659,18 +718,21 @@ end
 datlog.audioCues.start = datlog.audioCues.start';
 datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
 datlog.straightTime = datlog.straightTime';
-datlog.walkTime = datlog.walkTime';
+% datlog.walkTime = datlog.walkTime';
 temp = isnan(datlog.audioCues.start);
-disp('\nConverting datalog, current starts \n'); %TODo: Shuqi
+disp('\nConverting datalog, current starts \n'); 
 disp(datlog.audioCues.start);
 datlog.audioCues.start=datlog.audioCues.start(~temp);
-datlog.audioCues.start = ((datlog.audioCues.start)-(datlog.framenumbers.data(1,2)))*86400;
+datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
+datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom','datenum');
 
 if recordData
     stop(recObj);
     audioData = getaudiodata(recObj);
     datlog.audioCues.recording{end+1} = audioData;
     datlog.audioCues.recording=datlog.audioCues.recording';
+    audiowrite([savename, '_Recording.wav'],audioData, Fz);
+    audioinfo([savename, '_Recording.wav'])
 end
 %Get rid of graphical objects we no longer need:
 if exist('ff','var') && isvalid(ff)

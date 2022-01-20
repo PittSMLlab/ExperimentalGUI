@@ -15,7 +15,8 @@ if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
     pp=gca;
     axis([0 length(velL)  0 2]);
     ccc1=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[0 0 1],'MarkerEdgeColor','none');
-    ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none'); 
+    ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');
+    
 end
 
 paramLHS=0;
