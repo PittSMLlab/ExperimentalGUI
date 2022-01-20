@@ -96,6 +96,10 @@ keyWasReleased=true;
         [fastbeeps,fastbeepf]=audioread('FastBeep.mp3');
         fastbeep=audioplayer(fastbeeps,fastbeepf);
         global fastbeep
+        
+        % Added by Shuqi 01/19/2022
+        global numAudioCountDown
+        numAudioCountDown = [];
        
 % Update handles structure
 guidata(hObject, handles);
@@ -268,12 +272,14 @@ if get(handles.EMGWorks_checkbox,'Value')==1
    else
        %           pause(3);
    end
-
-      ss = serial('COM4');
-      fopen(ss);
-      pause(0.1);
-      fclose(ss);
-      
+   
+    disp(['Opening EMGWorks Port '  datestr(datetime('now'))])
+    ss = serial('COM4');
+    fopen(ss);
+    pause(0.1);
+    fclose(ss);
+    disp(['Done Opening EMGWorks Port '  datestr(datetime('now'))])
+    
        
 %     %Do something
 %     startedEMG_flag=true;
@@ -318,10 +324,13 @@ if get(handles.Nexus_checkbox,'Value')==1
 %      %current method of triggering, matlab sends command via serial port.
 %      %MOnitor in Nexus watched for pulse to toggle start/stop. 
 %      %use orange wire out of serial port to pin 64 on AD board
+      
+      disp(['Opening Vicon Port '  datestr(datetime('now'))])
       s = serial('COM1'); % vicon 
       fopen(s);
       pause(0.1);
       fclose(s);%this set of commands pulses the voltage high then low, signaling start/stop capture in nexus
+      disp(['Done Opening Vicon Port '  datestr(datetime('now'))])
 %       
       if get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==0
 %            if get(handles.waitForNexusChkBox,'Value')==1
@@ -355,7 +364,6 @@ end
 switch(selection)
 
     case 1%control speed with steps
-        
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1(round(velL*1000), round(velR*1000), forceThreshold, shortName); %
 
     case 2
@@ -436,18 +444,24 @@ switch(selection)
         mode=1;
         currIterationAnswer = inputdlg('What is the current_iteration: ');
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
-                
+
+    case 11
+        global numAudioCountDown %Added by Shuqi 1/19/2022, default [], only count down at TM start and end
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_AudioCountDown(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
+
 end
                
-pause(3); %Wait three seconds before stopping software collection
+pause(1.5); %Wait three seconds before stopping software collection
 %Stop capture Nexus & EMGWorks
 if startedEMG_flag
 %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
 %     XServer.SendKeys('^s'); %Stop acquisition 
 %     XServer.AppActivate('AdaptationGUI'); %This window
+      disp(['Stopping EMG Port '  datestr(datetime('now'))])
       fopen(ss);
       pause(0.1);
       fclose(ss);
+      disp(['Done Stopping EMG Port '  datestr(datetime('now'))])
 end
 if startedNexus_flag
 %     XServer.AppActivate('Vicon Nexus 1.8.5');
@@ -462,9 +476,11 @@ if startedNexus_flag
 %       stopmsg=['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStop RESULT="SUCCESS"><Name VALUE="Trial' num2str(TrialNum) '"/><DatabasePath VALUE="' nexuspath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum*10) '"/></CaptureStop>']; %311
 %       step(myudp,int8(stopmsg));
 % 
+    disp(['Closing Vicon Port '  datestr(datetime('now'))])
     fopen(s);
     pause(0.1);
     fclose(s);
+    disp(['Done Closing Vicon Port '  datestr(datetime('now'))])
 end
 
 set(handles.Status_textbox,'String','Ready');
@@ -857,6 +873,7 @@ if enableMemory && isAllowed && keyWasReleased
     counter=counter+1;
     addLog.keypress{counter,1}=keypress;
     addLog.keypress{counter,2}=now;
+    addLog.keyTime{counter,1}=datetime(now,'ConvertFrom','datenum');
     
     %Take action:
     if ~firstPress
