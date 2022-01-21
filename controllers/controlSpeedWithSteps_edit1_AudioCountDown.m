@@ -8,18 +8,23 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = con
 %The first value for velL and velR is the initial desired speed, and new
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
-% numAudioCountDown: how many count downs to perform, default false or empty (won't
-% play any audio countdown). For simple TM trials, pass in an array [-1]
-% -> do count down at the end, use -1 as the reserved value. Will play
-% audio "Treadmill will stop in 3 - 2 - 1 - now" in the end.
-% For trials with a change of speed in between, the count down would be an
+% numAudioCountDown: how many count downs to perform, default [-1], means 
+% do count down at the end, use -1 as the reserved value. Will play
+% audio "Treadmill will start in 3 - 2 - 1 - now" at the beginning, and 
+% "Treadmill will stop in 3 - 2 - 1 - now" in the end.
+% For trials with a change of speed in between, the numAudioCountDown would be an
 % array of what stride the speed will change, appended with -1, for example
 % [25,225,-1] means to play count down for speed change at stride 25 and
-% 225, and then at TM end
+% 225, and then at also count down for treadmill start and stop. The last
+% -1 is required in the array.
 
 global PAUSE%pause button value
 global STOP
 STOP = false;
+
+if ~ismember(-1, numAudioCountDown) %-1 has to be included, if not throw error
+    error('Incorrect input given. -1 must be included.\n')
+end
 
 if numAudioCountDown %Added by Shuqi, 01/19/2022
     [audio_data,audio_fs]=audioread('TMStartIn3.mp3');
@@ -450,7 +455,7 @@ while ~STOP %only runs if stop button is not pressed
     if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
         if numAudioCountDown %Added by Shuqi, 01/19/2022
             fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount1)
+            play(AudioCount1);
         end
         break
     %only send a command if it is different from the previous one. Don't

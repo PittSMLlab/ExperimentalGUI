@@ -99,7 +99,7 @@ keyWasReleased=true;
         
         % Added by Shuqi 01/19/2022
         global numAudioCountDown
-        numAudioCountDown = [];
+        numAudioCountDown = [-1];
        
 % Update handles structure
 guidata(hObject, handles);
@@ -446,7 +446,7 @@ switch(selection)
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
 
     case 11
-        global numAudioCountDown %Added by Shuqi 1/19/2022, default [], only count down at TM start and end
+        global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_AudioCountDown(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
 
 end
