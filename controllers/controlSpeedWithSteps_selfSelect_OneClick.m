@@ -14,9 +14,8 @@ RFBClicker=0;
 global LFBClicker
 LFBClicker=0;
 global fastbeep
-global PAUSE%pause button value
-global STOP
-STOP = false;
+
+global counter
 
 if ~ismember(-1, numAudioCountDown) %-1 has to be included, if not throw error
     error('Incorrect input given. -1 must be included.\n')
@@ -151,21 +150,21 @@ if length(iL)-length(iL2)==1
 end
 
 
-counter=1;
+counterTemp=1;
 for i=1:length(iL)
     pp=patch([iL(i) iL2(i) iL2(i) iL(i)],[yl(1) yl(1) yl(2) yl(2)],[0 .3 .6],'FaceAlpha',.2,'EdgeColor','none');
     uistack(pp,'bottom')
     if (velL(iL(i))-velR(iL(i)))==0
         try
-            auxT=signList(counter);
+            auxT=signList(counterTemp);
         catch
             if mode==0
                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
             end
-            signList(counter)=1;
-            auxT=signList(counter);
+            signList(counterTemp)=1;
+            auxT=signList(counterTemp);
         end
-        counter=counter+1;
+        counterTemp=counterTemp+1;
     else
         auxT=sign(velR(iL(i))-velL(iL(i)));
     end
@@ -174,7 +173,7 @@ end
 aux1=diff(isnan(velR));
 iL=find(aux1==1);
 iL2=find(aux1==-1);
-counter=1;
+counterTemp=1;
 
 %Temporal Fix Marcela :S 11/08/2019
 if length(iL)-length(iL2)==1
@@ -186,15 +185,15 @@ for i=1:length(iL)
     uistack(pp,'bottom')
     if (velL(iL(i))-velR(iL(i)))==0
         try
-            auxT=-signList(counter);
+            auxT=-signList(counterTemp);
         catch
             if mode==0
                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
             end
-            signList(counter)=1;
-            auxT=-signList(counter);
+            signList(counterTemp)=1;
+            auxT=-signList(counterTemp);
         end
-        counter=counter+1;
+        counterTemp=counterTemp+1;
     else
         auxT=sign(velL(iL(i))-velR(iL(i)));
     end
