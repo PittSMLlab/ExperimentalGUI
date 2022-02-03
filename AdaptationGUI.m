@@ -86,21 +86,21 @@ lastKeyPress=now;
 global keyWasReleased
 keyWasReleased=true;
 
-%        % Added by Marcela 10/04/2019
-        [rclicksound,rFrequency]=audioread('RightClick.mp3');
-        [lclicksound,lFrequency]=audioread('LeftClick.mp3');
-        global rclicksound
-        global lclicksound
-        global rFrequency
-        global lFrequency
-        [fastbeeps,fastbeepf]=audioread('FastBeep.mp3');
-        fastbeep=audioplayer(fastbeeps,fastbeepf);
-        global fastbeep
-        
-        % Added by Shuqi 01/19/2022
-        global numAudioCountDown
-        numAudioCountDown = [-1];
-       
+% Added by Marcela 10/04/2019
+[rclicksound,rFrequency]=audioread('RightClick.mp3');
+[lclicksound,lFrequency]=audioread('LeftClick.mp3');
+global rclicksound
+global lclicksound
+global rFrequency
+global lFrequency
+[fastbeeps,fastbeepf]=audioread('FastBeep.mp3');
+fastbeep=audioplayer(fastbeeps,fastbeepf);
+global fastbeep
+
+% Added by Shuqi 01/19/2022
+global numAudioCountDown
+numAudioCountDown = [-1];
+
 % Update handles structure
 guidata(hObject, handles);
 
@@ -148,7 +148,7 @@ varargout{1} = handles.output;
 guidata(hObject, handles);
 
 
-function SaveAs_textbox_Callback(hObject, eventdata, handles)
+function SaveAs_textbox_Callback(hObject, ~, handles)
 % hObject    handle to SaveAs_textbox (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -420,7 +420,7 @@ switch(selection)
          
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,numAudioCountDown); %
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
         
     case 8 %providing audio feedback to the participants during overground walking
         disp('Overground audio speed feedback');
