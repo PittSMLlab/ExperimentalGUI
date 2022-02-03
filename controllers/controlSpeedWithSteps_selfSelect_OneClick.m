@@ -14,33 +14,42 @@ RFBClicker=0;
 global LFBClicker
 LFBClicker=0;
 global fastbeep
+
+
+
 if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
-ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'w', 'ToolBar', 'none');
-pp=gca;
-axis([0 length(velL)  0 0.5]);
-%patch([0 1 1 0 0], [0 0 1 1 0], 'w')
-text(0, .5, 'Which belt is moving slower?', 'FontSize', 75, 'Color', 'k')
-%     RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
-%     LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
-% RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
-% LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
-
-ccc1=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[0 0 1],'MarkerEdgeColor','none');
-ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');
-
+    
+    if contains(lower(profilename),'familiarization')
+        
+        ff=figure('Units','Normalized','Position',[1 0 1 1]);
+        pp=gca;
+        set(gcf,'color','w');
+        axis([0 length(velL)  0 2]);
+        title('Which leg is moving slower?', 'FontSize', 75, 'Color', 'k');
+        ylabel('Belt speed (m/s)', 'FontSize', 25, 'Color', 'k');
+        xlabel('Stride number', 'FontSize', 25, 'Color', 'k');
+        ccc1=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[0 0 1],'MarkerEdgeColor','none');
+        ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');
+        
+        if velL(~isnan(velL)) >= 0
+            annotation('textbox', [0.75, 0.85, 0, 0], 'string', {'Left'},'FontSize', 25, 'Color', 'b' )
+            annotation('textbox', [0.75, 0.80, 0, 0], 'string', {'Right'},'FontSize', 25, 'Color', 'r' )
+        else
+            annotation('textbox', [0.75, 0.85, 0, 0], 'string', {'Left'},'FontSize', 25, 'Color', 'r' )
+            annotation('textbox', [0.75, 0.80, 0, 0], 'string', {'Right'},'FontSize', 25, 'Color', 'b' )
+        end
+        
+    else
+        
+        ff=figure('Units','Normalized','Position',[1 0 1 1]);
+        pp=gca;     
+        text(0.05,0.5,'Which leg is moving slower?', 'FontSize', 75, 'Color', 'k');
+        axis off;
+        set(gcf,'color','w');
+            
+    end
+    
 end
-
-
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %% Carly is Testing...
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %%  Set up the feedback figure
-% FB=figure('Color', 'k', 'ToolBar', 'none', 'Position', [1921 1 1920 1039]); hold on
-% patch([0 1 1 0 0], [0 0 1 1 0], 'k')
-% text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
-% RFB=patch([.8 1 .8 .8], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
-% LFB=patch([.2 0 .2 .2], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 paramLHS=0;
 paramRHS=0;
@@ -76,9 +85,6 @@ if nargin<8 || isempty(paramCalibFunc)
 else
     save([d '\..\calibrations\lastCalibration.mat'],'paramCalibFunc','paramComputeFunc')
 end
-
-
-
 
 if nargin<5 || isempty(mode)
     error('Need to specify control mode')
@@ -547,16 +553,19 @@ try %So that if something fails, communications are closed properly
         if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
             try
                 if RHS
-                    addpoints(ccc2,RstepCount-1,yR)
+                    addpoints(ccc2,RstepCount-1,abs(yR))
                 end
                 if LHS
-                    addpoints(ccc1,LstepCount-1,yL)
+                    addpoints(ccc1,LstepCount-1,abs(yL))
                 end
                 drawnow
             catch
                 %nop
             end
+            
         end
+        
+        
         %Set next speed command to be sent, as either from memory or scheduled
         smoothReturn=true;
         
@@ -595,6 +604,7 @@ try %So that if something fails, communications are closed properly
                 if ~toneplayed
                     display('Start tone played')
                     datlog.audioCues.start(RstepCount)=now;
+                    datlog.audioCues.startTime{RstepCount}=datetime(now,'ConvertFrom','datenum');
                     sound(tone,4096)
                     toneplayed=true;
                     endTonePlayed=false;
@@ -690,7 +700,8 @@ try %So that if something fails, communications are closed properly
                 %Next step won't be self-controlled for EITHER belt. OR
                 %THERE HAS ALREADY BEEN 1 CLICK
                 
-                
+               
+               
                 %% New Stuff from Carly and Marcela
                 if RFBClicker==1 || LFBClicker==1
                     %                     display('Lama')
@@ -703,11 +714,54 @@ try %So that if something fails, communications are closed properly
                     %                     end
                     
                     datlog.audioCues.stop(RstepCount)=now; %Marcela added so the click time is counted as an end cue 12-10-19
+                    datlog.audioCues.stopTime{RstepCount}=datetime(now,'ConvertFrom','datenum'); %Added this just in case
+                    
+                    if contains(lower(profilename),'familiarization')
+                        
+                        B = ~isnan(velL(LstepCount-9:LstepCount));
+                        Index = find(B, 1, 'last');
+                        Index = LstepCount - (length(B) - Index);
+                        
+                        figure(1);
+                        
+                        if velL(~isnan(velL)) >= 0 %%%HERE!
+                            
+                            if velL(Index) < velR(Index) & LFBClicker==1  &  RFBClicker==0
+                                
+                                feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
+                                
+                            elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0
+                            
+                                feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
+                                
+                            else
+                                
+                                feedB = text(35,0.2,'Incorrect', 'FontSize', 75, 'Color', 'r');
+                             
+                            end
+                            
+                        else
+                            
+                            warning('FIX THIS!!!!');
+                            warning('FIX THIS!!!!');
+                            warning('FIX THIS!!!!');
+                            warning('FIX THIS!!!!');
+                            warning('FIX THIS!!!!');
+                            
+                        end
+                        
+                        
+                        
+                    end
                     
                     RFBClicker=0;
                     LFBClicker=0;
                     
+                    
+                    
                     %                     display(['Right before the click: OLD Rcount', num2str(RstepCount), ' OLD Lcount:', num2str(LstepCount)])
+                    
+                    
                     
                     NonSelfControlL=find(~isnan(velL))-1;
                     NonSelfControlR=find(~isnan(velR))-1;
@@ -716,10 +770,11 @@ try %So that if something fails, communications are closed properly
                     %RstepCount=NonSelfControlR(find(NonSelfControlR>=RstepCount, 1,  'first'));
                     %LstepCount=NonSelfControlL(find(NonSelfControlL>=LstepCount, 1,  'first'));
                     
+                    addLog.keypress{counter,3}=addSteps;
+                    
                     RstepCount=RstepCount+addSteps;
                     LstepCount=LstepCount+addSteps;
                     
-                    %                     display(['ALERT! There has been a click: New Rcount', num2str(RstepCount), ' New Lcount:', num2str(LstepCount)])
                     stop(fastbeep)
                     endTonePlayed=true;
                     
@@ -727,6 +782,7 @@ try %So that if something fails, communications are closed properly
                     if ~endTonePlayed
                         stop(fastbeep)
                         datlog.audioCues.stop(RstepCount)=now;
+                        datlog.audioCues.stopTime{RstepCount}=datetime(now,'ConvertFrom','datenum');
                         sound(endTone,4096)
                         endTonePlayed=true;
                     end
@@ -745,7 +801,7 @@ try %So that if something fails, communications are closed properly
                 
                 enableMemory=false;
             end
-            
+ 
         end
         
         aux=(now-lastSent)*86400; %Time elapsed in secs
@@ -759,7 +815,7 @@ try %So that if something fails, communications are closed properly
             sendTreadmillPacket(payload,t);
             lastSent=now;
             datlog.TreadmillCommands.sent(frameind.Value,:) = [sentR,sentL,cur_incl,lastSent];%record the command
-            disp(['Packet sent, Lspeed = ' num2str(sentL) ', Rspeed = ' num2str(sentR)])
+%             disp(['Packet sent, Lspeed = ' num2str(sentL) ', Rspeed = ' num2str(sentR)])
             old_velR.Value = sentR;
             old_velL.Value = sentL;
         end
