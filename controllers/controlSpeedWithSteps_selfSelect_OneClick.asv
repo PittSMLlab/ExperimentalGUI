@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc,numAudioCountDown)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -15,11 +15,6 @@ global LFBClicker
 LFBClicker=0;
 global fastbeep
 
-global counter
-
-if ~ismember(-1, numAudioCountDown) %-1 has to be included, if not throw error
-    error('Incorrect input given. -1 must be included.\n')
-end
 
 
 if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
@@ -54,21 +49,6 @@ if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
             
     end    
    fig = findall(groot,'Type','figure'); %This will list all the open figures in Matlab, most likely the AdaptationGUI will be in the end of the list
-end
-
-if numAudioCountDown %Added by Shuqi, 01/19/2022
-    [audio_data,audio_fs]=audioread('TMStartIn3.mp3');
-    AudioTMStart3 = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs]=audioread('TMStopIn3.mp3');
-    AudioTMStop3 = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs]=audioread('2.mp3');
-    AudioCount2 = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs]=audioread('1.mp3');
-    AudioCount1 = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs]=audioread('now.mp3');
-    AudioNow = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs]=audioread('TMChangeIn3.mp3');
-    AudioTMChange3 = audioplayer(audio_data,audio_fs);
 end
 
 paramLHS=0;
@@ -150,21 +130,21 @@ if length(iL)-length(iL2)==1
 end
 
 
-counterTemp=1;
+counter=1;
 for i=1:length(iL)
     pp=patch([iL(i) iL2(i) iL2(i) iL(i)],[yl(1) yl(1) yl(2) yl(2)],[0 .3 .6],'FaceAlpha',.2,'EdgeColor','none');
     uistack(pp,'bottom')
     if (velL(iL(i))-velR(iL(i)))==0
         try
-            auxT=signList(counterTemp);
+            auxT=signList(counter);
         catch
             if mode==0
                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
             end
-            signList(counterTemp)=1;
-            auxT=signList(counterTemp);
+            signList(counter)=1;
+            auxT=signList(counter);
         end
-        counterTemp=counterTemp+1;
+        counter=counter+1;
     else
         auxT=sign(velR(iL(i))-velL(iL(i)));
     end
@@ -173,7 +153,7 @@ end
 aux1=diff(isnan(velR));
 iL=find(aux1==1);
 iL2=find(aux1==-1);
-counterTemp=1;
+counter=1;
 
 %Temporal Fix Marcela :S 11/08/2019
 if length(iL)-length(iL2)==1
@@ -185,15 +165,15 @@ for i=1:length(iL)
     uistack(pp,'bottom')
     if (velL(iL(i))-velR(iL(i)))==0
         try
-            auxT=-signList(counterTemp);
+            auxT=-signList(counter);
         catch
             if mode==0
                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
             end
-            signList(counterTemp)=1;
-            auxT=-signList(counterTemp);
+            signList(counter)=1;
+            auxT=-signList(counter);
         end
-        counterTemp=counterTemp+1;
+        counter=counter+1;
     else
         auxT=sign(velL(iL(i))-velR(iL(i)));
     end
@@ -320,44 +300,17 @@ catch ME
     datlog.errormsgs{end+1} = ME;%store specific error
     disp(ME);
 end
-
 try
-    
-if numAudioCountDown %Added by Shuqi, 01/19/2022
-    fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-    play(AudioTMStart3);
-    pause(2.5);
-    play(AudioCount2);
-    pause(1);
-    play(AudioCount1);
-    pause(1);
-    play(AudioNow)
-end
-fprintf(['Open TM Comm. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-t = openTreadmillComm();
-fprintf(['Done Opening. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-
+    t = openTreadmillComm();
 catch ME
     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
     datlog.errormsgs{end+1} = ME;
     disp(ME);
-%     log=['Error ocurred when opening communications with Nexus & Treadmill'];
-%     listbox{end+1}=log;
-%     disp(log);
+    %     log=['Error ocurred when opening communications with Nexus & Treadmill'];
+    %     listbox{end+1}=log;
+    %     disp(log);
 end
-
-% try %Marcela Commented
-%     t = openTreadmillComm();
-% catch ME
-%     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
-%     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
-%     datlog.errormsgs{end+1} = ME;
-%     disp(ME);
-%     %     log=['Error ocurred when opening communications with Nexus & Treadmill'];
-%     %     listbox{end+1}=log;
-%     %     disp(log);
-% end
 
 try %So that if something fails, communications are closed properly
     % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
@@ -407,20 +360,6 @@ try %So that if something fails, communications are closed properly
     old_velL = libpointer('doublePtr',velL(1));
     frameind = libpointer('doublePtr',1);
     framenum = libpointer('doublePtr',0);
-    
-    if numAudioCountDown %Added by Shuqi, 01/19/2022
-        countDownPlayed = repmat(false, 1, 5*length(numAudioCountDown)-3);
-        %count down 3 times: 3-2, the last 1 will only run once (code will break out the loop)
-        %and the "now" will only be said once at the end no need to
-        %track; if there are speed changes in between, will have 4 counts for
-        %each: 3-2-1-now
-        countDownIdx = 1;
-        countDownIdxOffset = 0;
-        if length(numAudioCountDown) > 1 % there is speed change in between
-            speedChangeStride = numAudioCountDown(1); %set to first target
-        end
-        prevChangeTime = datetime('now');
-    end
     
     %Get first frame
     MyClient.GetFrame();
@@ -610,60 +549,6 @@ try %So that if something fails, communications are closed properly
                     
                 end
         end
-        
-        if numAudioCountDown %Added by Shuqi, 01/19/2022
-        if length(numAudioCountDown) > 1 && speedChangeStride ~= -1 %there is speed change in the middle and there is more change incoming (if -1 means next is TM end)
-            if (LstepCount == speedChangeStride-3 || RstepCount == speedChangeStride-3) && ~countDownPlayed(1+countDownIdxOffset)
-                fprintf(['Change at ', num2str(speedChangeStride),'-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                play(AudioTMChange3);
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride-1 || RstepCount == speedChangeStride-1) && ~countDownPlayed(2+countDownIdxOffset)
-                fprintf(['Change-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                play(AudioCount2);
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride || RstepCount == speedChangeStride) && ~countDownPlayed(3+countDownIdxOffset)
-                fprintf(['Change at ', num2str(speedChangeStride),' Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                disp(countDownPlayed)
-                play(AudioCount1)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride+1 || RstepCount == speedChangeStride+1) && ~countDownPlayed(4+countDownIdxOffset)
-                fprintf(['Change Stride +1. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                play(AudioNow)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount >= speedChangeStride+2 && RstepCount >= speedChangeStride+2) && ~countDownPlayed(5+countDownIdxOffset) && seconds(datetime('now') - prevChangeTime) > 3 %don't try this again untill 3s has passed
-                %both legs are above speedChangeStride+1, finished the
-                %change, move on to next target
-                countDownIdxOffset = countDownIdxOffset + 5; %finished one change, don't do this again
-                speedChangeStride = numAudioCountDown(countDownIdxOffset/5+1); %move on to the next change target
-                fprintf('Done change. Next target: %d\n', speedChangeStride)
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-                prevChangeTime = datetime('now');
-            end
-        end
-        
-        if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-1)
-            fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioTMStop3);
-            countDownPlayed(countDownIdx) = true; %This should only be run once
-            countDownIdx = countDownIdx + 1;
-        elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end)
-            fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount2);
-            countDownPlayed(countDownIdx) = true; %This should only be run once
-            countDownIdx = countDownIdx + 1;
-        end
-    end
-        
-        
         %ll=findobj(ghandle.profileaxes,'Type','Line');
         if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
             try
@@ -916,12 +801,6 @@ try %So that if something fails, communications are closed properly
         
         aux=(now-lastSent)*86400; %Time elapsed in secs
         if LstepCount >= N && RstepCount >= N%if taken enough steps, stop
-            
-            if numAudioCountDown %Added by Shuqi, 01/19/2022
-                fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                play(AudioCount1);
-            end
-            
             break
             %only send a command if it is different from the previous one. Don't
             %overload the treadmill controller with commands (only one command
@@ -1005,9 +884,6 @@ try %stopping the treadmill
         set(ghandle.Status_textbox,'BackgroundColor','red');
         pause(1)%provide a little time to collect the last steps and so forth
         smoothStop(t);
-        if numAudioCountDown %Added by Shuqi, 01/19/2022
-            play(AudioNow)
-        end
         %see if the treadmill should be stopped when the STOP button is pressed
     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value')==1 && STOP == 1
         
