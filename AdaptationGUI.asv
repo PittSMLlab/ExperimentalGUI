@@ -85,6 +85,7 @@ global lastKeyPress
 lastKeyPress=now;
 global keyWasReleased
 keyWasReleased=true;
+global addStepsNaN;
 
 % Added by Marcela 10/04/2019
 [rclicksound,rFrequency]=audioread('RightClick.mp3');
@@ -860,6 +861,7 @@ global rclicksound
 global lclicksound
 global rFrequency
 global lFrequency
+
 global fastbeep
 
 %Get key:
@@ -872,7 +874,7 @@ if enableMemory && isAllowed && keyWasReleased
     counter=counter+1;
     addLog.keypress{counter,1}=keypress;
     addLog.keypress{counter,2}=now;
-    addLog.keypressHeader={'Choice', 'Time', 'RStepCount', 'LStepCount', 'AddSteps'};
+    addLog.keypress{counter,3}=add;
     addLog.keyTime{counter,1}=datetime(now,'ConvertFrom','datenum');
     
     %Take action:

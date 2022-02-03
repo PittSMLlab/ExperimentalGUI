@@ -776,11 +776,11 @@ try %So that if something fails, communications are closed properly
                     %RstepCount=NonSelfControlR(find(NonSelfControlR>=RstepCount, 1,  'first'));
                     %LstepCount=NonSelfControlL(find(NonSelfControlL>=LstepCount, 1,  'first'));
                     
+%                     addStepsNaN = addSteps;
                     addLog.keypress{counter,3}=RstepCount;
                     addLog.keypress{counter,4}=LstepCount;
-                    addLog.keypress{counter,5}=addSteps;
-                     
-%                     disp( [num2str(RstepCount),num2str(LstepCount), 'Add Steps: ', num2str(addSteps)]);
+                     addLog.keypress{counter,5}=addSteps;
+                    disp( ['Add Steps: ', num2str(addSteps), '   Counter: ', num2str(counter)]);
                     
                     
                     RstepCount=RstepCount+addSteps;
