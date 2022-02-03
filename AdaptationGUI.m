@@ -420,7 +420,7 @@ switch(selection)
          
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,numAudioCountDown); %
         
     case 8 %providing audio feedback to the participants during overground walking
         disp('Overground audio speed feedback');
