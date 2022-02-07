@@ -417,7 +417,7 @@ switch(selection)
         mean(listofss)./1000
         
     case 7
-         
+        
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
@@ -434,7 +434,7 @@ switch(selection)
         % % %         ssrecord
         
     case 9
-        
+        global numAudioCountDown
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
