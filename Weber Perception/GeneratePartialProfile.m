@@ -1,4 +1,6 @@
 %% Run if the Wii controller stopped working
+clear all
+clc
 
 prompt = {'Copy the directory where new profiles will be located:', 'Is it the first time it happens in this condition? input y/n', 'What stride where they on (choose the smaller number)?'};
 dlgtitle = 'fileName';
@@ -25,7 +27,7 @@ handrail = questdlg('Where is the handrail located in the current session?', ...
 
 if indicator
     
-    path =  ['Y:\Marcela\Perception Studies\Weber Perception\Profiles\' handrail];
+    path =  ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\Perception Studies\Weber Perception\' handrail];
     
 else
     
@@ -34,7 +36,7 @@ else
 end
 
 
-listCond = {'FamiliarizationSlow', 'FamiliarizationFast','slowBlock','mirrorSlowBlock','indicatorBlock','mirrorFastBlock'};
+listCond = {'FamiliarizationSlow', 'FamiliarizationFast','slowBlock','mirrorSlowBlock','fastBlock','mirrorFastBlock'};
 
 
 
@@ -106,7 +108,9 @@ if tf == 1
         
     end
     
-    save([newFolder '\' listCond{indx} num2str(j) '.mat']);    
+    
+     save([newFolder '\' listCond{indx} num2str(j) '.mat'],'velL','velR');    
+     
     
 end
 
