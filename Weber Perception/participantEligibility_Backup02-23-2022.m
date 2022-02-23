@@ -24,7 +24,7 @@ if isempty(iter)
     error('You must input number of trials');
 end
 
-% profile=['C:\Users\gonza\OneDrive - University of Pittsburgh\Desktop\WeberPerception\Prueba\']; %' fileName '.mat'
+% profile=['C:\Users\gonza\Desktop\WeberPerception\Prueba\']; %' fileName '.mat'
 
 profile=['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\datlogs\'];
 
@@ -32,40 +32,22 @@ cd(profile);
 
 %% Select the file and summarize the information on the datalog.
 
-flag = false;
+for i = 1:iter
+    
+    [curName,~] = uigetfile;
+    load([profile curName],'datlog');
+    [aux]=datlogSummarizeTemp(datlog);
+    t=table(i*ones(size(aux.date,1),1), [1; zeros(size(aux.date,1)-1,1)],'VariableNames',{'blockNo', 'isFirstInBlock'});  
+    aux=cat(2,aux,t);
+    
+    if i == 1        
+        trialData = aux;        
+    else        
+        trialData = cat(1, trialData, trialData);        
+    end    
+    
+end
 
-while ~flag
-
-    [curName,fileP] = uigetfile('*.*','MultiSelect','on');
-
-    if length(curName) ~= iter
-
-        warning('You selected the wrong amount of files');        
-
-    else
-        
-        for i = 1:iter
-            
-            load([fileP curName{i}],'datlog');
-            [aux]=datlogSummarizeTemp(datlog);
-            t=table(i*ones(size(aux.date,1),1), [1; zeros(size(aux.date,1)-1,1)],'VariableNames',{'blockNo', 'isFirstInBlock'});
-            aux=cat(2,aux,t);
-%             %             temp = readtable([fileP curName{i}]);
-%             
-%             temp.isFirstInBlock=[1; zeros(size(temp,1)-1,1)];
-%             
-            if i == 1
-                trialData = aux;
-            else
-                trialData = cat(1, trialData, aux);
-            end
-            
-        end
-        
-    flag = true;
-    end
-
-end 
 
 writetable(trialData,[profile subID '_interimResults.csv']);
 
@@ -75,8 +57,6 @@ writetable(trialData,[profile subID '_interimResults.csv']);
 % [trialData]=datlogSummarizeTemp(datlog);
 % % rootDir=profile(1:46); %This need to change once I get the location of the datalogs in the lab computer
 % writetable(trialData,[profile fileName '.csv']);
-
-
     
 %% This file assumes the existence of csv files that summarize block results. If this is not the case, run processDatlogs.m
 
@@ -126,61 +106,10 @@ end
 trialData=t; %Here we will remove the non-response trials
 trialData=trialData(~trialData.noResponse,:);
 
-
-
-%% Figure 2: proportion of left choices as function of Weber Fraction of the slow blocks
-
+%% Logistic fit for slow session 
 f1=figure(1);
 sSize=40;
 [cmap,unsignedMap]=probeColorMap(23);
-
-% Get probe sizes
-B=findgroups(trialData.pertSize); %pertSize>0 means vR>vL
-pp=unique(trialData.pertSize); 
-
-hold on
-set(gca,'Colormap',cmap);
-S=splitapply(@(x) sum(x==-1)/sum(~isnan(x)),trialData.initialResponse,B); %Not counting NR responses
-E=splitapply(@(x) nanstd(x==-1)/sqrt(sum(~isnan(x))),trialData.initialResponse,B); %Not counting NR responses
-ss=scatter(pp,S,sSize,pp,'filled','MarkerEdgeColor','w');
-grid on;
-ylabel('proportion of left choices') 
-axis([-0.300 0.300 0 1]) 
-X=trialData;
-errorbar(pp,S,E,'k','LineStyle','none')
-X.pertSign=sign(X.pertSize);
-
-set(gca,'Colormap',unsignedMap);
-ll=findobj(gca,'Type','Line');
-set(ll(1:end-1),'Color',.7*ones(1,3));
-uistack(ll(1:end-1),'bottom')
-uistack(ss,'top')
-ylabel('proportion of "left" choices') 
-xlabel('R slower       same        L slower')
-title('Logistic Regression')
-set(gca,'XLim',[-0.300 0.300]) 
-
-
-%Add fits:
-frml='leftResponse~pertSize'; %Perhaps we should go right ahead and just do the perturbation size?
-mm0=fitglm(X,frml,'Distribution','binomial','Link','logit')
-%Automated step-down to drop non-sig terms. By default uses a deviance criterion equivalent to LRT test under Wilk's approximation
-% mm0=mm0.step('Upper',frml,'Criterion','Deviance','PEnter',0,'PRemove',0.05,'Nsteps',Inf)
-
-if mm0.Coefficients.pValue(end)<0.05
-    mm0.plotPartialDependence('pertSize');
-    set(ll,'Color','k','LineWidth',2);
-    f = msgbox({'You may continue the experiment';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]});
-else
-    warning('STOP EXPERIMENT! Perturbation sign is not a significant predictor');
-    f = msgbox({'STOP Experiment! No significant predictors in the model.';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]}); 
-end
-
-
-%% Logistic fit for slow session 
-% f1=figure(1);
-% sSize=40;
-% [cmap,unsignedMap]=probeColorMap(23);
 
 % %% Figure 1: proportion of left choices as function of Weber Fraction of the slow blocks
 % 
@@ -227,3 +156,48 @@ end
 % end
 % 
 % hold off;
+
+%% Figure 2: proportion of left choices as function of Weber Fraction of the slow blocks
+
+% Get probe sizes
+B=findgroups(trialData.pertSize); %pertSize>0 means vR>vL
+pp=unique(trialData.pertSize); 
+% pp=pp(~isnan(pp));
+
+hold on
+set(gca,'Colormap',cmap);
+S=splitapply(@(x) sum(x==-1)/sum(~isnan(x)),trialData.initialResponse,B); %Not counting NR responses
+E=splitapply(@(x) nanstd(x==-1)/sqrt(sum(~isnan(x))),trialData.initialResponse,B); %Not counting NR responses
+ss=scatter(pp,S,sSize,pp,'filled','MarkerEdgeColor','w');
+grid on;
+ylabel('proportion of left choices') 
+axis([-0.300 0.300 0 1]) 
+X=trialData;
+errorbar(pp,S,E,'k','LineStyle','none')
+X.pertSign=sign(X.pertSize);
+
+set(gca,'Colormap',unsignedMap);
+ll=findobj(gca,'Type','Line');
+set(ll(1:end-1),'Color',.7*ones(1,3));
+uistack(ll(1:end-1),'bottom')
+uistack(ss,'top')
+ylabel('proportion of "left" choices') 
+xlabel('R slower       same        L slower')
+title('Logistic Regression')
+set(gca,'XLim',[-0.300 0.300]) 
+
+
+%Add fits:
+frml='leftResponse~pertSize'; %Perhaps we should go right ahead and just do the perturbation size?
+mm0=fitglm(X,frml,'Distribution','binomial','Link','logit')
+%Automated step-down to drop non-sig terms. By default uses a deviance criterion equivalent to LRT test under Wilk's approximation
+% mm0=mm0.step('Upper',frml,'Criterion','Deviance','PEnter',0,'PRemove',0.05,'Nsteps',Inf)
+
+if mm0.Coefficients.pValue(end)<0.05
+    mm0.plotPartialDependence('pertSize');
+    set(ll,'Color','k','LineWidth',2);
+    f = msgbox({'You may continue the experiment';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]});
+else
+    warning('STOP EXPERIMENT! Perturbation sign is not a significant predictor');
+    f = msgbox({'STOP Experiment! No significant predictors in the model.';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]}); 
+end

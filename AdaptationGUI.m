@@ -897,7 +897,7 @@ if enableMemory && isAllowed && keyWasReleased
                 display('RightClick')
         end
     else %firstpress=true
-        firstPress=false;
+        firstPress=false; %firstPress=false; MGR and KF 02/18/2022
     end
     
         %%  Update the feedback figure
