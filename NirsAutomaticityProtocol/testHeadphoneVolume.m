@@ -7,8 +7,10 @@ info = audiodevinfo;
 inputID = nan;
 for i = 1:length(info.input)
     if contains(info.input(i).Name, 'Plantronics BT600')
+%     if contains(info.input(i).Name, 'Smart AirPods Pro')
         info.input(i)
         fprintf('Found plantronics input %d \n', info.input(i).ID)
+%         fprintf('Found Airpodsinput %d \n', info.input(i).ID)
         inputID = info.input(i).ID;
     end
 end
@@ -40,4 +42,4 @@ end
 % play(replay)
 % sound(audioData)
 % sound(recordedData, Fz)
-% audiowrite('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\datlogs\TestSound.wav', recordedData, Fz)
+audiowrite('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\datlogs\TestSound1.wav', recordedData, Fz)

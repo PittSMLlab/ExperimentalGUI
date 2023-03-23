@@ -27,18 +27,22 @@ catch
 end
 
 if length(RHS)>length(LHS) %This means we started counting events at an RTO, and therefore RTOs mark new strides for the GUI and datlog
-    pTO=RTO; %Primary event
-    sTO=LTO; %Secondary event  
+%     pTO=RTO; %Primary event
+%     sTO=LTO; %Secondary event  
+    pHS=RHS; %Primary event
+    sHS=LHS; %Secondary event
     
 else %LTOs mark new strides
-    pTO=LTO;
-    sTO=RTO;
+%     pTO=LTO;
+%     sTO=RTO;
+    pHS=LHS; %Primary event
+    sHS=RHS;
 end
 
-vR=interp1(vReadT,vRread,pTO(:,4),'nearest');
-vL=interp1(vReadT,vLread,pTO(:,4),'nearest');
-vR=interp1(vSentT,vRsent,pTO(:,4),'previous'); %Last sent speed BEFORE the event
-vL=interp1(vSentT,vLsent,pTO(:,4),'previous'); %Last sent speed BEFORE the event
+vR=interp1(vReadT,vRread,pHS(:,4),'nearest');
+vL=interp1(vReadT,vLread,pHS(:,4),'nearest');
+vR=interp1(vSentT,vRsent,pHS(:,4),'previous'); %Last sent speed BEFORE the event
+vL=interp1(vSentT,vLsent,pHS(:,4),'previous'); %Last sent speed BEFORE the event
 vD=vR-vL;
 
 
@@ -51,10 +55,21 @@ vD=vR-vL;
 
 % Not sure if this is the best way to do it
 inds = [];
+
 for i = 1:length(audiostart)
     
-    [minValue,closestIndex] = min(abs(pTO(:,4)-audiostart(i)));
+%     [minValue,closestIndex] = min(abs(pTO(:,4)-audiostart(i)));  
+    [minValue,closestIndex] = min(abs(pHS(:,4)-audiostart(i)));   
     inds = [inds; closestIndex];
+    
+    
+    %Voy a mirar el pert sie en ese indice y en el que le sigue, el que le
+    %sigue tiene que estar en allowed y ser menor que ese, y el del indice
+    %tiene que estar en los allowed 
+    
+    
+    
+    
     
 end 
 
@@ -78,7 +93,8 @@ pressedKeys=pressedKeys(sortIdxs);
 reactionTime=nan(size(inds,1),1);
 reactionStride=nan(size(inds,1),1);
 
-pertSize=vD(inds(:,1),1); 
+pertSize=vD(inds(:,1),1);
+ 
 
 %%
 
@@ -88,7 +104,7 @@ reactionSign=nan(size(inds,1),1); %Positive if vR>vL
 accurateReaction=nan(size(inds,1),1);
 %goodTrial=zeros(size(inds));
 pressTrial=nan(size(allPressT,1),1);
-startCue=pTO(inds(:,1),4);
+startCue=pHS(inds(:,1),4);
 %endCue=pTO(inds(:,2),4);
 
 
@@ -101,7 +117,7 @@ for i=1:size(inds,1)
     
         aux(i,1)=find(allPressT > startCue(i)-1,1,'first'); %Pablo previoulsy had a minus 1 for the start cue
         
-        aux2(i,1)=find(pTO(:,4) > allPressT(aux(i,1)),1,'first');
+        aux2(i,1)=find(pHS(:,4) > allPressT(aux(i,1)),1,'first');
 
         if ~isempty(aux) && (aux2(i,1)-inds(i,1))<=pDuration
             reactionTime(i)=allPressT(aux(i,1))-startCue(i);
@@ -161,7 +177,8 @@ end
 %trial #, date+time, startTime, endTime, pertSize, reactionTime, reactionStride, initialResponse, 
 
 startTime=audiostart;
-endTime=audiostop;
+endTime=nan(length(startTime),1); %Added for the times the controller stops and I have to stop the trial before if get to the end tone or a response
+endTime(1:length(audiostop),1)=audiostop;
 date=datenum(datlog.buildtime);
 
 initialResponse=reactionSign;

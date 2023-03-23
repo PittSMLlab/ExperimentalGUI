@@ -1,5 +1,5 @@
 %% set up trial condition and dominant leg for each participant
-intervention = true; %true for visit 3, false for visit 2 and 4
+intervention = false; %true for visit 3, false for visit 2 and 4
 dominantRight = true; %true if right dominant, false if left dominant
 
 %% Set up GUI and run exp
@@ -11,9 +11,26 @@ global numAudioCountDown
 
 [audio_data,audio_fs]=audioread('TimeIsUp.mp3');
 AudioTimeUp = audioplayer(audio_data,audio_fs);
-            
-currCond = inputdlg('What is the current condition number (1st column on the datasheet): ');
-currCond = str2num(currCond{1});
+
+if intervention
+    maxCond = 15;
+else
+    maxCond = 14;
+end
+
+%%
+currCond = 0;
+
+while currCond < maxCond
+button=questdlg('Auto continue with next condition?');
+if strcmp(button,'Yes') %automatically advance to next condition.
+    currCond = currCond + 1;
+else 
+    %manually chose conditions
+    currCond = inputdlg('What is the current condition number (1st column on the datasheet): ');
+    currCond = str2num(currCond{1});
+end
+
 if ~intervention
     %% pre-post intervention
     switch currCond
@@ -306,5 +323,4 @@ else %intervention
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)    
     end
 end
-
-%%
+end

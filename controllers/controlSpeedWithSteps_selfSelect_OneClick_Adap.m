@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -27,16 +27,6 @@ global fastbeep
     
 %end
 
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %% Carly is Testing...
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %%  Set up the feedback figure
-% FB=figure('Color', 'k', 'ToolBar', 'none', 'Position', [1921 1 1920 1039]); hold on
-% patch([0 1 1 0 0], [0 0 1 1 0], 'k')
-% text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
-% RFB=patch([.8 1 .8 .8], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
-% LFB=patch([.2 0 .2 .2], [0 .15 .3 0], 'k', 'EdgeColor', [.3 .3 .3]);
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 paramLHS=0;
 paramRHS=0;
@@ -258,17 +248,42 @@ velR(end+1)=0;
 
 %Initialize nexus & treadmill communications
 try
-    % [MyClient] = openNexusIface();
-    Client.LoadViconDataStreamSDK();
-    MyClient = Client();
-    Hostname = 'localhost:801';
-    out = MyClient.Connect(Hostname);
-    out = MyClient.EnableMarkerData();
-    out = MyClient.EnableDeviceData();
-    %MyClient.SetStreamMode(StreamMode.ServerPush);
-    MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+%     % [MyClient] = openNexusIface();
+%     Client.LoadViconDataStreamSDK();
+%     MyClient = Client();
+%     Hostname = 'localhost:801';
+%     out = MyClient.Connect(Hostname);
+%     out = MyClient.EnableMarkerData();
+%     out = MyClient.EnableDeviceData();
+%     %MyClient.SetStreamMode(StreamMode.ServerPush);
+%     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+%     mn={'LHIP','RHIP','LANK','RANK'};
+%     altMn={'LGT','RGT','LANK','RANK'};
+    
+    HostName = 'localhost:801';
+    addpath( '..\dotNET' );
+    dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    
+    if dssdkAssembly == "" %DMMO
+        [ file, path ] = uigetfile( '*.dll' );
+        dssdkAssembly = fullfile( path, file );
+      
+    end
+    
+    NET.addAssembly(dssdkAssembly);
+    MyClient = ViconDataStreamSDK.DotNET.Client();
+    MyClient.Connect( HostName );
+    % Enable some different data types
+    out =MyClient.EnableSegmentData();
+    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
     mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
+    
+    
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
     datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
@@ -317,7 +332,7 @@ try %So that if something fails, communications are closed properly
     datlog.inclineang = cur_incl;
     
     %Send first speed command & store
-    acc=1000; %Try with different accelerations 1000, 2000, 3000
+    acc=3000; %Try with different accelerations 1000, 2000, 3000
     [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
     memoryR=velR(1);
     memoryL=velL(1);
@@ -380,15 +395,30 @@ try %So that if something fails, communications are closed properly
                 set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
                 set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
             end
-
+            
             %Read forces
             Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
             Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
-            if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+            %             if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+            %                 %Fz_L.Result
+            %                 Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+            %                 Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+            %                 if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+            %                     %Fz_L.Result
+            %                     %Fz_R.Result.Value
+            %                     %Fz_L.Result.Value
+            %                     STOP = 1;  %stop, the GUI can't find the forceplate values
+            %                     disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+            %                     datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
+            %                 end
+            %             end
+            
+            if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
                 %Fz_L.Result
                 Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
                 Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-                if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+                %                 if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+                if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
                     %Fz_L.Result
                     %Fz_R.Result.Value
                     %Fz_L.Result.Value
@@ -399,7 +429,7 @@ try %So that if something fails, communications are closed properly
             end
             new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
             new_stanceR=Fz_R.Value<-FzThreshold;
-        end        
+        end
         
         LHS=new_stanceL && ~old_stanceL;
         RHS=new_stanceR && ~old_stanceR;
@@ -523,19 +553,19 @@ try %So that if something fails, communications are closed properly
                 end
         end
         %ll=findobj(ghandle.profileaxes,'Type','Line');
-        if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
-            try
-                if RHS
-                    %addpoints(ccc2,RstepCount-1,yR)
-                end
-                if LHS
-                    %addpoints(ccc1,LstepCount-1,yL)
-                end
-                drawnow
-            catch
-                %nop
-            end
-        end
+%         if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
+%             try
+%                 if RHS
+%                     %addpoints(ccc2,RstepCount-1,yR)
+%                 end
+%                 if LHS
+%                     %addpoints(ccc1,LstepCount-1,yL)
+%                 end
+%                 drawnow
+%             catch
+%                 %nop
+%             end
+%         end
         %Set next speed command to be sent, as either from memory or scheduled
         smoothReturn=true;
         
@@ -556,7 +586,7 @@ try %So that if something fails, communications are closed properly
             if (RstepCount<N-1 && ~isnan(velR(RstepCount-1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount-1)))
                 %Next STRIDE will be self-controlled for AT LEAST one of the belts
                 if mode==0 && signS==0 %Determine the sign of keypresses if it hasn't been determined yet
-                    firstPress=true; %Set to ignore first keypress, it is unset automatically after first keypress by AdaptationGUI.m
+                    firstPress=true; %Set to ignore first keypress, it is unset automatically after first keypress by AdaptationGUI.m %changed from True KF
                     signS=sign(velR(RstepCount-1)-velL(LstepCount-1));
                     if signS==0 %Null perturbation case
                         if ~isempty(signList)
@@ -672,7 +702,7 @@ try %So that if something fails, communications are closed properly
                 if RFBClicker==1 || LFBClicker==1
                 
                     %                     datlog.audioCues.stop(RstepCount)=now; %Marcela added so the click time is counted as an end cue 12-10-19
-                    
+%                     pause(10);
                     RFBClicker=0;
                     LFBClicker=0;
                     

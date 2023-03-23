@@ -27,7 +27,7 @@ handrail = questdlg('Where is the handrail located in the current session?', ...
 
 if indicator
     
-    path =  ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\Perception Studies\Weber Perception\' handrail];
+    path =  ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\Perception Studies\Weber Perception Slowest\' handrail];
     
 else
     
@@ -36,7 +36,7 @@ else
 end
 
 
-listCond = {'FamiliarizationSlow', 'FamiliarizationFast','slowBlock','mirrorSlowBlock','fastBlock','mirrorFastBlock'};
+listCond = {'FamiliarizationSlowest', 'FamiliarizationSlow','slowestBlock','mirrorSlowestBlock','slowBlock','mirrorSlowBlock'};
 
 
 

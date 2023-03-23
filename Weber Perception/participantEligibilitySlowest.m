@@ -1,8 +1,9 @@
 %% load datlog
+close all
 clc
 clear
 
-prompt = {'Subject ID:','How many trials were there?:','Is it a fast block? Answer y/n is yes or no respectively', 'Remove first stimulus of the block? y/n'};
+prompt = {'Subject ID:','How many trials were there?:','Is it a slow block? Answer y/n is yes or no respectively', 'Remove first stimulus of the block? y/n'};
 dlgtitle = 'fileName';
 dims = [1 45];
 definput = {'', '','',''};
@@ -10,13 +11,13 @@ answer = inputdlg(prompt,dlgtitle,dims,definput);
 
 subID = answer{1};
 iter = str2num(answer{2});
-fast = answer{3};
+slow = answer{3};
 first = answer{4};
 
-if fast == 'y' | fast == 'Y' | fast == 'yes' | fast == 'Yes'
-    fast = true;
-elseif fast == 'n' | fast == 'N' | fast == 'no' | fast == 'No'
-    fast = false;
+if slow == 'y' | slow == 'Y' | slow == 'yes' | slow == 'Yes'
+    slow = true;
+elseif slow == 'n' | slow == 'N' | slow == 'no' | slow == 'No'
+    slow = false;
 else
     error('You did not specify which type of block is it');
 end
@@ -113,15 +114,15 @@ t.incorrectResponses=t.initialResponse==sign(t.pertSize) & ~t.nullTrials;
 t.copyPertSize = t.pertSize;
 t.copyPrevSize = t.prevSize;
 
-if fast
+if slow
     
-    t.pertSize=t.pertSize./1400; 
-    t.prevSize=t.prevSize./1400; 
+    t.pertSize=t.pertSize./1050; 
+    t.prevSize=t.prevSize./1050; 
     
 else 
     
-    t.pertSize=t.pertSize./1050; 
-    t.prevSize=t.prevSize./1050;
+    t.pertSize=t.pertSize./700; 
+    t.prevSize=t.prevSize./700;
     
 end
     
@@ -170,7 +171,7 @@ uistack(ss,'top')
 ylabel('proportion of "left" choices') 
 xlabel('R slower       same        L slower')
 title('Logistic Regression')
-set(gca,'XLim',[-0.300 0.300]) 
+set(gca,'XLim',[-0.500 0.500]) 
 
 
 %Add fits:

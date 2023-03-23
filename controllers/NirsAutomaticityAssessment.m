@@ -7,15 +7,16 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
 %% Parameter for randonization order 
-randomization_order = [3 2 1 4 6 5]; %for visit 2, random number between 7 -12
-startingAlphabet = 'B';
+randomization_order = [3 5 1 2 6 4]; %for visit 2, random number between 7 -12
+startingAlphabet ='b';
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = 1; 
-recordData = true; %usually true, could turn off for debugging
 restDuration = 20; %default 20s rest, could change for debugging
 
 %% Set up task sequence, recordings and main loop
+recordData = false; %usually false now bc of headset problems, could turn off for debugging
+
 if current_iteration == 0
     if strcmp(startingAlphabet, 'A')
         event_list = [3 1 2 4 5]; %walk, stand alpha A, walk alpha, stand 3 A, walk 3A
@@ -33,7 +34,7 @@ else
     if strcmp(startingAlphabet, 'A')
         all_events = [2 4 3 1 5;4 3 2 1 5;3 1 2 4 5; 3 2 4 5 1;3 4 1 2 5;2 3 5 4 1];
     else
-       all_events= [7 8 3 6 9; 8 3 7 6 9; 3 6 7 8 9; 3 7 8 9 6; 3 8 6 7 9; 7 3 9 8 6]; %fixed order, only change the order to index these.
+        all_events= [7 8 3 6 9; 8 3 7 6 9; 3 6 7 8 9; 3 7 8 9 6; 3 8 6 7 9; 7 3 9 8 6]; %fixed order, only change the order to index these.
     end
     event_list = all_events(randomization_order(current_iteration),:);
     %1 = stand and alphabet A, 2 = walk and alphabet A, 3 = walk, 4 = stand and

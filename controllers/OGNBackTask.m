@@ -1,4 +1,23 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc,giveFeedback)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGNBackTask(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc, block)
+%% familarization of each condition (incremental order) maybe 30s window, avg 2.5s/letter, 12 letters.
+% each trial time will vary depends on the randomization (vary in a 9.6s
+% window), make sure first and last have no hit?, always take the middle 28
+% or 30s for analysis. 
+% then 4 more sets more of randomize the order of load (randomize and use the same for all
+% people, full randomize, or 123456-654321 
+% pregenerate 6 sequences of 12 digits per load condition, avoid 0-1-2-3 or 3-2-1-0, or
+% 1-1-1-1, have 25% of hit, 3 correct response 
+% given load level & trial#, load sequence, play - pause random btw 2350ms
+% - 3150ms (have the answer within this window, maybe randomize between 1-2s around 1.5s) - next letter
+% when done: stop and rest for 20s. 
+% Send to NIRS the events from beginning of instruction to next instruction
+% (like now). 
+% if on TM. send times of instruction. start of ramp, start of steady
+% speed, end of steady speed, and end of ramp/start of rest. 
+
+% maybe randomize the order of the sequence to present to participant
+% for now assume everyone has the same sequence.
+
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -6,19 +25,61 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Spe
 %The first value for velL and velR is the initial desired speed, and new
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
+%%fixme: document 
 
-%%
+% FIXME: add another global var to control to pass the gui to avoid playing
+% sound after clicking.
+%% Parameter for randonization order 
+randomization_order = [ 8 7 6 5 4 3 2 1;
+    1     3     4     8     2     7     5     6;
+     5     1     8     6     2     7     4     3;
+     5     1     8     4     2     3     7     6;
+     7     2     4     3     1     6     8     5]; 
+ %order to present the n-th back, row = block
 
+%% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
+oxysoft_present = false; 
+restDuration = 5; %default 20s rest, could change for debugging
+btwStimuliDuration = 2; %1.5s btw stimulus presentation.
+
+%% Set up task sequence, recordings and main loop
+recordData = false; %usually false now bc of headset problems, could turn off for debugging
+
+if block == 0 %familiarization, use the last row for familiarizaton for now.
+    nOrders = 1:8; %walk, then walk 1-7
+%     restDuration = 20;
+    % Pop up window to confirm parameter setup
+    button=questdlg('Please confirm that oxysoft_present is 1 (NIRS connected) and rest duration is 20.');  
+    if ~strcmp(button,'Yes')
+       return; %Abort starting the trial
+    end
+else
+    nOrders = randomization_order(block,:); 
+end
+
+if recordData
+    Fz = 48000;
+    %try input 0 or 1, and output 2
+    recObj = audiorecorder(Fz, 16, 1, 1); %Only need to change the last number, the input IDs
+    record(recObj);
+end
+
+Oxysoft = nan;
+if oxysoft_present
+    Oxysoft = actxserver('OxySoft.OxyApplication');
+end
+
+%% set up from previous code
 global feedbackFlag
 if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
     ff=figure('Units','Normalized','Position',[1 0 1 1]);
     pp=gca;
     axis([0 length(velL)  0 2]);
     ccc1=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[0 0 1],'MarkerEdgeColor','none');
-    ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');
-    
+    ccc2=animatedline('Parent',pp,'Marker','o','LineStyle','none','MarkerFaceColor',[1 0 0],'MarkerEdgeColor','none');    
 end
 
+%TODO: to clean up    
 paramLHS=0;
 paramRHS=0;
 lastParamLHS=0;
@@ -49,15 +110,10 @@ else
     save([d '\..\calibrations\lastCalibration.mat'],'paramCalibFunc','paramComputeFunc')
 end
 
-if nargin < 9 || isempty(giveFeedback)
-    giveFeedback = true; %default true
-end
-
 if nargin<5 || isempty(mode)
     error('Need to specify control mode')
 end
 if nargin<6
-    %disp('no sign list')
     signList=[];
 end
 signCounter=1;
@@ -67,6 +123,7 @@ global STOP
 global memory
 global enableMemory
 global firstPress
+global RFBClicker
 STOP = false;
 fo=4000;
 signS=0; %Initialize
@@ -132,6 +189,7 @@ for i=1:length(iL)
     text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
 end
 
+t1 = [];
 % %initialize a data structure that saves information about the trial,
 datlog = struct();
 datlog.buildtime = now;%timestamp
@@ -158,7 +216,12 @@ datlog.stepdata.LHSdata = zeros(length(velL)+50,3);
 datlog.stepdata.LTOdata = zeros(length(velL)+50,3);
 datlog.stepdata.paramLHS = zeros(length(velR)+50,1);
 datlog.stepdata.paramRHS = zeros(length(velL)+50,1);
-datlog.walkTime = [];
+datlog.audioCues.start = [];
+datlog.audioCues.audio_instruction_message = {};
+datlog.audioCues.recording={};
+datlog.response.header = {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime','RelativeTime'};
+datlog.response.data = [];
+
 histL=nan(1,50);
 histR=nan(1,50);
 histCount=1;
@@ -199,6 +262,7 @@ end
 if nargin<3
     FzThreshold=40; %Newtons (40 is minimum for noise not to be an issue)
 elseif FzThreshold<40
+    %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 40N instead');
     FzThreshold=40;
@@ -226,7 +290,6 @@ try
 %     out = MyClient.EnableDeviceData();
 %     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
 
-    %New code DMMO  
     HostName = 'localhost:801';
 %     fprintf( 'Loading SDK...' );
     addpath( '..\dotNET' );
@@ -239,11 +302,15 @@ try
 
     NET.addAssembly(dssdkAssembly);
     MyClient = ViconDataStreamSDK.DotNET.Client();
-    out= MyClient.Connect( HostName );
+    MyClient.Connect( HostName );
     % Enable some different data types
+    out =MyClient.EnableSegmentData();
     out =MyClient.EnableMarkerData();
-    out=MyClient.EnableDeviceData();    
+    out=MyClient.EnableUnlabeledMarkerData();
+    out=MyClient.EnableDeviceData();
+    
     MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
+    
     
     mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
@@ -254,7 +321,7 @@ catch ME
     disp(ME);
 end
 % try
-%     t = openTreadmillComm();
+% %     t = openTreadmillComm();
 % catch ME
 %     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
 %     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
@@ -267,33 +334,15 @@ try %So that if something fails, communications are closed properly
     datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
     
     %Initiate variables
-    new_stanceL=false;
-    new_stanceR=false;
-    phase=0; %0= Double Support, 1 = single L support, 2= single R support
-    LstepCount=1;
-    RstepCount=1;
     RTOTime(N) = now;
     LTOTime(N) = now;
     RHSTime(N) = now;
     LHSTime(N) = now;
     commSendTime=zeros(2*N-1,6);
     commSendFrame=zeros(2*N-1,1);
-    % stepFlag=0;
-
-    %Mean speed 1 m/s
-    fastest = 6.3636; %7 meters/ 1.1 m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
-    slowest = 7.778; % 7 meters/ 0.9 m/s
-%     
-    % Mean speed is 0.75 m/s
-%     fastest = 8.2353; %7 meters/ 0.8 m/s
-%     slowest = 10.7692; % 7 meters/ 0.6 m/s
-%     
-    
-    y_max = 4500;
-    y_min = -2500;
- 
-    inout1 = 0; %initialize both variables to 0
-    inout2 = 0;
+    disp('nirs range')
+    y_max = 4250;%0 treadmill, max = 4.25meter ~= 13.94 ft = 6-7 tiles
+    y_min = -2300;%0 treadmill, min = 2.3meter ~=7.55 ft = 3-4 tiles 
     
     LHS_time = 0;
     RHS_time = 0;
@@ -302,14 +351,57 @@ try %So that if something fails, communications are closed properly
     HS_frame = 0;
     pad = 50;
     
-    if giveFeedback
-        audioids = {'fast','good','slow'};
-        instructions = containers.Map();
-        for i = 1 : length(audioids)
-            [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
-            instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
-        end
+    %Connect to Oxysoft
+    disp('Initial Setup')
+    %set up audio players
+    audioids = {'walk','walk0','walk1','walk2','walk3','walk4','walk5','walk6',...
+        'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+    eventCodeCharacter = {'W','A','B','C','D','E','F','G','O','R','R'}; %I-connected, R- rest or stop and rest,
+    %O-trialend(relax), W-walk, A-G for walk0-7, H,J-N,P-T for 0-10
+    numberCodeCharacter = {'H','J','K','L','M','N','P','Q','S','T'};
+    instructions = containers.Map();
+    for i = 1 : length(audioids)
+%         disp(strcat(audioids{i},'.mp3'))
+        [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
+        instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
     end
+    % Write event I with description 'Instructions' to Oxysoft
+    datlog = nirsEvent('', 'I', ['Connected',num2str(block)], instructions, datlog, Oxysoft, oxysoft_present);
+    enableMemory = false; %setting up trials, doesn't allow clicking.
+
+    %start with a rest block
+    disp('Rest');
+    currentIndex = 1; %current index for the n in the block
+    nirsRestEventString = generateNbackRestEventString(nOrders, currentIndex);
+    datlog = nirsEvent('rest', 'R', nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
+    pause(restDuration);
+    
+    if nOrders(currentIndex) == 1 %1 is walk only
+        datlog = nirsEvent(audioids{nOrders(currentIndex)},eventCodeCharacter{nOrders(currentIndex)},audioids{nOrders(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+        enableMemory = false;
+    else
+        %load the sequence for first n in the block, the norders start with
+        %1=walk, 2=walk0, so load norders - 2 (e.g. 0-backsequences) 
+        load([num2str(nOrders(currentIndex)-2) '-backSequences.mat'])
+        currSequence = fullSequence(block+1,:);
+        totalNums = size(fullSequence,2);
+        enableMemory = false; %doesn't allow clicking when giving n-back instructions for what n to do.
+        datlog = nirsEvent(audioids{nOrders(currentIndex)},eventCodeCharacter{nOrders(currentIndex)},audioids{nOrders(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+        %pause for instruction to finish before reading the numbers
+        pause(4)
+        sequenceComplete = false; %reset variables
+        numIndex = 1;
+        currNumInStr = num2str(currSequence(numIndex));
+        datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
+        numIndex = numIndex + 1;
+        enableMemory = true; %allow clicking now, first number started.
+            %read and log in datalog but not send to NIRS (%FIXME: need to
+            %figure out if this is sufficient to figure out frames of
+            %walking in post processing)
+    end
+    tStart=clock; %start the clock for stop in 20s or next letter in 1.5s
+    currentIndex = currentIndex + 1; %started one of the walking task, increment currentIndex.
+    
     %Send first speed command & store
     commSendTime(1,:)=clock;
 
@@ -345,11 +437,21 @@ try %So that if something fails, communications are closed properly
         %Read frame, update necessary structures4
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
-    
+        
+        if RFBClicker == 1 %subject responsed, check if correct
+            RFBClicker =0; %reset the value
+%             {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime','RelativeTime'}
+            responseT = clock - tStart;
+            responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
+            datlog.response.data(end+1,:) = [now, block,nOrders(currentIndex-1)-2,ismember(numIndex-1, fullTargetLocs(block+1,:)),numIndex - 1,currSequence(numIndex-1),responseT];
+            fprintf('Clicked.')
+            datlog.response.data(end,:)
+        end
+        
         if framenum.Value~= datlog.framenumbers.data(frameind.Value,1) %Frame num value changed, reading data
             frameind.Value = frameind.Value+1; %Frame counter
             datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
-            
+                        
             %Read markers:
             sn=MyClient.GetSubjectName(0).SubjectName;
             l=1;
@@ -360,7 +462,7 @@ try %So that if something fails, communications are closed properly
             md_LANK=MyClient.GetMarkerGlobalTranslation(sn,mn{3});
             md_RANK=MyClient.GetMarkerGlobalTranslation(sn,mn{4});
 
-            if strcmp(md.Result,'Success') %md.Result.Value==2 %DMMO %%Success getting marker
+            if strcmp(md.Result,'Success') %md.Result.Value==2 %%Success getting marker
                 aux=double(md.Translation);
 
 
@@ -370,7 +472,7 @@ try %So that if something fails, communications are closed properly
                 RANK_pos = double(md_RANK.Translation);
             else
                 md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
-                if strcmp(md.Result,'Success')% md.Result.Value==2 %DMMO
+                if strcmp(md.Result,'Success') % md.Result.Value==2
                     aux=double(md.Translation);
                     LHIP_pos = double(md_LHIP.Translation);
                     RHIP_pos = double(md_RHIP.Translation);
@@ -407,8 +509,8 @@ try %So that if something fails, communications are closed properly
             if n<0
                 error('inconsistent frame numbering')
             end
-
-
+                
+                
             %% added by Yashar to count steps OG and for verbal feedback action
 
             set(ghandle.text25,'String',num2str(framenum.Value/100));
@@ -473,35 +575,88 @@ try %So that if something fails, communications are closed properly
 
                     addpoints(ppp3,sumiL,OG_speed_left)
                 end
-                
+                    
             elseif body_y_pos(frameind.Value) <= y_min
                 %reach one end (computer side)
-                t1 = clock;
-                inout1 = 1;
-
+%                 t1(end+1,:) = clock;
+%                 disp('Reaching t1')
             elseif body_y_pos(frameind.Value) >= y_max
                 %reach the door side
-                t2 = clock;
-                inout2 = 1;
+%                 t2 = clock;
+%                 disp('Reaching t2')
             end
+            
+            tEnd = clock;
+            t_diff = tEnd - tStart;
+            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+            
+            %time to play next number, if it's not a walk trial; for last
+            %letter in the sequence, mark it as trialComplete
+            if nOrders(currentIndex-1) ~=1 && (t_diff >= btwStimuliDuration-0.02 && t_diff <= btwStimuliDuration +0.02) 
+                if numIndex <= totalNums
+                    currNumInStr = num2str(currSequence(numIndex));
+%                     enableMemory = true; %trial started, allow clicking (perhaps not needed)
+                    datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
+                    numIndex = numIndex + 1;
+                    tStart = clock;
+                else %waited 1.5s after the last number, now can play stop and rest.
+                    sequenceComplete = true;
+                end
+            end
+            
+            if (nOrders(currentIndex-1) >1 && sequenceComplete) || (nOrders(currentIndex-1) ==1 && (t_diff >= restDuration-0.1 && t_diff <= restDuration +0.1))
+                %if walk+DT, stop after full sequence is played. 
+                %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
+                %stop from 19.5 ~ 20.49 seconds
+                fprintf('time diff: %f',t_diff)
 
-            if inout1 == 1 && inout2 == 1
-                t_diff = t1-t2;
-                walk_duration = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-                datlog.walkTime(end+1) = walk_duration;
-                inout1 = 0;
-                inout2 = 0;
-                if (giveFeedback)
-                    if walk_duration < fastest
-                        play(instructions('fast'));
-                    elseif walk_duration > slowest
-                        play(instructions('slow'));
+                nirsRestEventString = generateNbackRestEventString(nOrders, currentIndex);
+                datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
+                enableMemory = false; %doesn't allow click during stop and rest
+                pause(restDuration);
+
+                if currentIndex > length (nOrders) %end of the block
+%                     currentIndex = 1; %reset the current index
+%                     trialIndex = trialIndex + 1;
+%                     if (trialIndex >  size(nOrders,1))
+                        STOP = 1;
+                        datlog = nirsEvent('relax','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
+                        enableMemory = false; %not allow click after trial end.
+%                     else  %Restart a trial, currently should never be here
+%                         warning('Check your code. Should not be in this code block.');
+%                     end
+                end
+                
+                if STOP ~=1
+                    if nOrders(currentIndex) == 1 %next block is walk only
+                        datlog = nirsEvent(audioids{nOrders(currentIndex)},eventCodeCharacter{nOrders(currentIndex)},audioids{nOrders(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+                        enableMemory = false; %doesn't allow clicking for walk only trials.
+                        sequenceComplete = false; %reset variables
+                        numIndex = 1;
                     else
-                        play(instructions('good'));
+                        %load the sequence for next n in the block, the norders start with
+                        %1=walk, 2=walk0, so load norders - 2 (e.g. 0-backsequences) 
+                        load([num2str(nOrders(currentIndex)-2) '-backSequences.mat'])
+                        currSequence = fullSequence(block+1,:); %first row used for familiarization
+                        totalNums = size(fullSequence,2);
+                        datlog = nirsEvent(audioids{nOrders(currentIndex)},eventCodeCharacter{nOrders(currentIndex)},audioids{nOrders(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
+                        enableMemory = false; %doesn't allow clicking when giving n-back instructions
+                        %pause to wait for the instruction to play before
+                        %saying first number.
+                        pause(4)
+                        numIndex = 1;
+                        sequenceComplete = false; %reset variables
+                        currNumInStr = num2str(currSequence(numIndex));
+                        datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
+                        numIndex = numIndex + 1;
+                        enableMemory = true; %n-back trial starts, allow clicking.
                     end
-                end 
-            end            
+                    tStart=clock; %start the clock for stop in 20s or next letter in 1.5s
+                    currentIndex = currentIndex + 1;
+                end
+            end                        
         end
+%     end
     end %While, when STOP button is pressed
     if STOP
         datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
@@ -536,8 +691,7 @@ end
 
 disp('closing comms');
 try
-    %     keyboard
-    disp('Closing Nexus Client')
+    disp('Closing Nexus Client') 
     disp(clock);
     closeNexusIface(MyClient);
 %     closeTreadmillComm(t);
@@ -588,7 +742,44 @@ for z = 1:temp-1
     datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 
-datlog.walkTime = datlog.walkTime';
+%convert keypress? %FIXME: is this needed? Shuqi added 8/16/2022, copied from marcela's code
+global addLog
+try
+    aux = cellfun(@(x) (x-datlog.framenumbers.data(1,2))*86400,addLog.keypress(:,2),'UniformOutput',false);
+    addLog.keypress(:,2)=aux;
+    addLog.keypress=addLog.keypress(cellfun(@(x) ~isempty(x),addLog.keypress(:,1)),:); %Eliminating empty entries
+    datlog.addLog=addLog;
+catch ME
+    ME
+end
+
+%convert response times? FIXME: is it needed?
+
+%convert audio times
+datlog.audioCues.start = datlog.audioCues.start';
+datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
+temp = isnan(datlog.audioCues.start);
+disp('\nConverting datalog, current starts \n'); 
+disp(datlog.audioCues.start);
+datlog.audioCues.start=datlog.audioCues.start(~temp);
+datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
+datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom','datenum');
+
+%convert response time to relative time to vicon frame 1 and add date time format.
+temp = isnan(datlog.response.data(:,1)); %time is nan
+datlog.response.data = datlog.response.data(~temp,:);
+datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time
+datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+
+
+if recordData
+    stop(recObj);
+    audioData = getaudiodata(recObj);
+    datlog.audioCues.recording{end+1} = audioData;
+    datlog.audioCues.recording=datlog.audioCues.recording';
+    audiowrite([savename, '_Recording.wav'],audioData, Fz);
+    audioinfo([savename, '_Recording.wav'])
+end
 %Get rid of graphical objects we no longer need:
 if exist('ff','var') && isvalid(ff)
     close(ff)

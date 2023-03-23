@@ -236,12 +236,6 @@ global allowedKeys
 %CARLY MARCELA
 global RFBClicker
 global LFBClicker
-%Shuqi
-global playClickerSound
-
-%default true (for perception studies). If running N-Back where click
-%should not follow sound, set to false.
-playClickerSound = true;
 
 %check which function to call when Execute is pressed.
 fnames = get(handles.popupmenu2,'string');
@@ -313,20 +307,18 @@ if get(handles.Nexus_checkbox,'Value')==1
 %      XServer.AppActivate('AdaptationGUI');
 
 % %**************New method triggering Nexus with UDP Packet
-%     if pathflag == 1
-%     [dontcare,sessionpath] = uigetfile('*.*','Please select a trial in the database being used:');
-%     else
-%     end
-%     keyboard
-%%
-% %         nexuspath = 'C:\Users\Public\Documents\Vicon\Nexus Sample Data\WDA8_22\Will\Session 7\';
-%         startmsg = ['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStart><Name VALUE="Trial0' num2str(TrialNum,2) '"/><Notes VALUE=""/><Description VALUE=""/><DatabasePath VALUE="' sessionpath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum) '"/></CaptureStart>'];
-%         startmsg = native2unicode(startmsg,'UTF-8');
-%         myudp = dsp.UDPSender('RemoteIPAddress','255.255.255.255','RemoteIPPort',30,'LocalIPPortSource','Property','LocalIPPort',31);
-%         %send udp start packet
-%         step(myudp,int8(startmsg));
-%         pathflag = 0;
-        %%
+% %     if pathflag == 1
+% %     [dontcare,sessionpath] = uigetfile('*.*','Please select a trial in the database being used:');
+% %     else
+% %     end
+% % %     keyboard
+% % %         nexuspath = 'C:\Users\Public\Documents\Vicon\Nexus Sample Data\WDA8_22\Will\Session 7\';
+% %         startmsg = ['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStart><Name VALUE="Trial' num2str(TrialNum) '"/><Notes VALUE=""/><Description VALUE=""/><DatabasePath VALUE="' sessionpath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum) '"/></CaptureStart>'];
+% %         startmsg = native2unicode(startmsg,'UTF-8');
+% %         myudp = dsp.UDPSender('RemoteIPAddress','255.255.255.255','RemoteIPPort',30,'LocalIPPortSource','Property','LocalIPPort',31);
+% %         %send udp start packet
+% %         step(myudp,int8(startmsg));
+% %         pathflag = 0;
 % 
 % 
 %      %current method of triggering, matlab sends command via serial port.
@@ -452,48 +444,11 @@ switch(selection)
         mode=1;
         currIterationAnswer = inputdlg('What is the current_iteration: ');
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
+
     case 11
         global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_AudioCountDown(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
-       
-    case 12 
-                [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
 
-        disp('the mean ratio for the R leg is:');
-        disp(RatiomeanR);
-        disp('the mean ratio  for the L leg is:');
-        disp(RatiomeanL);
-        disp('the stdev ratio for the R leg is:');
-        disp(Rstd);
-        disp('the stdev ratio for the L leg is:');
-        disp(Lstd);
-        disp('the mean of RHS');
-        disp(alphaRmean);
-        disp('the mean of LHS');
-        disp(alphaLmean);
-        disp('the stdev  R leg is:');
-        disp(alphaRstd);
-        disp('the stdev e L leg is:');
-        disp(alphaLstd);
-        disp('X mean R leg')
-        disp(XmeanR)
-        disp('X mean L leg')
-        disp(XmeanL)
-        disp('Ratio R leg with X@LHS')
-        disp(RatioXmeanR')
-        disp('Ratio L leg with X@RHS')
-        disp(RatioXmeanL)
-        disp('R scale with X')
-        disp(RsciX)
-        disp('L scale with X')
-        disp(LsciX)
-    case 13
-        disp('NBackOG Protocol');
-        mode=1;
-        allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
-        playClickerSound = false;
-        currIterationAnswer = inputdlg('What is the current_iteration (0=familarization): ');
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGNBackTask(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));       
 end
                
 pause(1.5); %Wait three seconds before stopping software collection
@@ -907,15 +862,12 @@ global rFrequency
 global lFrequency
 global fastbeep
 
-%Added by Shuqi 8/16/2022, skip clicker sound if doing N-back clicking.
-global playClickerSound
-
 %Get key:
 keypress = eventdata.Key;
 isAllowed=any(strcmp(keypress,allowedKeys));
-% disp('Detect click')
+
 if enableMemory && isAllowed && keyWasReleased 
-    disp('Detect click and if yes')
+
     %Add to counter & record keypress in log
     counter=counter+1;
     addLog.keypress{counter,1}=keypress;
@@ -980,17 +932,17 @@ if enableMemory && isAllowed && keyWasReleased
 %back to the previous perception study uncommment the previous Play tone
 %secttion and comment this one.
 %
-if playClickerSound
-    if RFBClicker==1
-       sound(rclicksound, rFrequency);
-    elseif LFBClicker==1
-       sound(lclicksound, lFrequency);
-    end
+if RFBClicker==1
+   sound(rclicksound, rFrequency);
+elseif LFBClicker==1
+   sound(lclicksound, lFrequency);
 end
+
 %   play(fastbeep);
 
    lastKeyPress=now;
    keyWasReleased=false;
+   
    
 
 end
