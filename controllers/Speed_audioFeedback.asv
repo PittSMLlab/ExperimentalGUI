@@ -186,7 +186,7 @@ datlog.Markers.LANKvar = nan(300*length(velR)+7200,36);
 datlog.Markers.RANKvar = nan(300*length(velR)+7200,36);
 datlog.stepdata.paramComputeFunc=func2str(paramComputeFunc);
 datlog.OGspeed.labels = {'Fast: +1', 'Good: 0', 'Slow: -1'};
-datlog.OGspeed.Performance = []; 
+datlog.OGspeed.Performance = 
 if mode==4
     datlog.stepdata.paramCalibFunc=func2str(paramCalibFunc);
 end
@@ -496,13 +496,13 @@ try %So that if something fails, communications are closed properly
                 if (giveFeedback)
                     if walk_duration < fastest
                         play(instructions('fast'));
-                        datlog.OGspeed.Performance(end+1,1) = 1; 
+                        datlog.OGspeed.Performance[end+1] = 1;
                     elseif walk_duration > slowest
                         play(instructions('slow'));
-                        datlog.OGspeed.Performance(end+1,1) = -1;
+                        datlog.OGspeed.Performance[end+1] = -1;
                     else
                         play(instructions('good'));
-                        datlog.OGspeed.Performance(end+1,1) = 0;
+                        datlog.OGspeed.Performance[end+1] = 0;
                     end
                 end 
             end            
