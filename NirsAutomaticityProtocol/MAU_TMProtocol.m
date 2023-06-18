@@ -1,5 +1,5 @@
 %% set up trial condition and dominant leg for each participant
-intervention = true; %true for visit 3, false for visit 2 and 4
+intervention = false; %true for visit 3, false for visit 2 and 4
 dominantRight = true; %true if right dominant, false if left dominant
 
 %% Set up GUI and run exp
@@ -158,6 +158,8 @@ if ~intervention
             end
             numAudioCountDown = [50 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            pause(60); %1.5mins
+            play(AudioTimeUp); 
         case 12 %neg short
             handles.popupmenu2.set('Value',11) %OPEN Loop
             if dominantRight
@@ -305,6 +307,8 @@ else %intervention
             end
             numAudioCountDown = [50 90 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            pause(60); %1.5mins
+            play(AudioTimeUp); 
         case 13 %neg short
             handles.popupmenu2.set('Value',11) %OPEN Loop
             if dominantRight
