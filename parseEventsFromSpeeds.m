@@ -1,10 +1,21 @@
-function [eventSteps, eventNames, restSteps] = parseEventsFromSpeeds(velL, velR)
-% generate 2 arrays of the same size, 1st one is steps where an event
+function [eventSteps, eventNames] = parseEventsFromSpeeds(velL, velR)
+% Parase speeds and generate 2 arrays of the same size, 1st one is steps where an event
 % occurs and should be logged, 2nd is a cell array with the corresponding
-% evenet names, last array is a vector of steps of rest, this is listed
-% separately bc rest usually requires counting down from 3-2-1-now and need
-% special handling.
-    
+% evenet names (Rest, Split, PostTied, Mid, or AccRamp).
+% both leg 0 = Rest
+% leg speed different btw L and R, and btw previous step: ramp
+% leg speed diff btw L and R but same as previous step: split
+% leg speed same and !=0: mid or post depending on previous cnodition.
+%
+%Input:
+%   velL: column double vector of the left belt speed
+%   velR: column double vector of the right belt speed. 
+%Output:
+%   eventSteps: number array, steps where an event occurs and should be
+%           logged.
+%   eventName: cell array with the corresponding evenet names (Rest, Split, PostTied, Mid, or AccRamp).
+%       both arrays have the same size.
+
     moving = ~(velL == 0 | velR == 0);
     split = (velL - velR)~=0;
     ramp = [0;diff(abs(velR - velL)) > 0];
