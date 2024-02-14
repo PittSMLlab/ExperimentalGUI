@@ -1,5 +1,5 @@
 % --- Executes on button press in profilebrowse.
-function manualLoadProfile(hObject, eventdata, handles, profileNameStr)
+function manualLoadProfile(hObject, eventdata, handles, profileNameStr, velR, velL)
 % hObject    handle to profilebrowse (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -16,10 +16,13 @@ function manualLoadProfile(hObject, eventdata, handles, profileNameStr)
 % [ff,dd,~] = uigetfile([d '\profiles\']);
 % profilename=[dd ff];
 try
-    load(profileNameStr);
-
+    if nargin == 4 %if no velL and no velR provided
+        load(profileNameStr);
+    else
+        disp('Skipping profile, loading velL and velR directly')
+    end
+    
     t = [0:length(velL)-1];
-
     set(handles.profileaxes,'NextPlot','replace')
     plot(handles.profileaxes,t,velL,'b',t,velR,'r','LineWidth',2);
     if isrow(velL) && isrow(velR)

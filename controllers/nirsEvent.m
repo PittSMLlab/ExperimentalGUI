@@ -19,12 +19,18 @@ function datlog = nirsEvent(eventAudioKey, eventIdNirs, eventDisplayString, inst
     % Oxysoft present and connected or nos
     %
     disp(eventDisplayString)
+    clock
     %         fopen(ss);fclose(ss);
+    %if the event doesn't need audio instruction, will skip playing and
+    %simply send the event to NIRS.
     if (isKey(instructions, eventAudioKey))
         play(instructions(eventAudioKey));
     end
+    %some event might happen without audio cue but log the timing and
+    %display anyway.
     datlog.audioCues.start(end+1)=now;
     datlog.audioCues.audio_instruction_message{end+1} = eventDisplayString;
+
     if nirsPresent
         Oxysoft.WriteEvent(eventIdNirs,eventDisplayString) %FIXME: uncomment        
     end
