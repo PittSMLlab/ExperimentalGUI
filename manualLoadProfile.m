@@ -1,20 +1,14 @@
-% --- Executes on button press in profilebrowse.
+% Adapted from AdaptationGUI > profilebrowse_Callback --- Executes on button press in profilebrowse.
 function manualLoadProfile(hObject, eventdata, handles, profileNameStr, velR, velL)
 % hObject    handle to profilebrowse (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-% global flasher
-% stop(flasher);
-% delete(flasher)
-
-% set(handles.Status_textbox,'String','Plotting');
-% set(handles.Status_textbox,'BackgroundColor','Yellow');
-% pause(0.25);
-% 
-% [d,n,e]=fileparts(which(mfilename));
-% [ff,dd,~] = uigetfile([d '\profiles\']);
-% profilename=[dd ff];
+%           -- these inputs are kept the same as in AdaptationGUI, matlab
+%           needs it. 
+%profileNameStr:    profile to load
+%velR:       vector of right belt speeds. OPTIONAL. if this arg exist, will
+%            ignore the profileNameStr
+%velL:       vector of left belt speeds. OPTIONA.
 try
     if nargin == 4 %if no velL and no velR provided
         load(profileNameStr);

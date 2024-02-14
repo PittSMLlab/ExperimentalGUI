@@ -5,7 +5,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %When to do NIRS event is determined by parsing the velL and velR (0 speeds
 %are treated as rest, parse will also find tied, ramp, split, and post)
 %
-%--- Doc from the OPEN loop controller ----
+%--- Doc from the OPEN loop controller (controlSpeedWithSteps_edit1 with audio countdown) ----
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
