@@ -51,7 +51,7 @@ ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be
 
 %% Set up nirs communication. 
 %these parameters should only be changed if you know what you are doing.
-oxysoft_present = true; %always true, unless debugging without the NIRS instrument.
+oxysoft_present = false; %always true, unless debugging without the NIRS instrument.
 restDuration = 20; %default 20s rest, could change for debugging
 
 Oxysoft = nan; %initialize to nan, unless present.
@@ -78,10 +78,10 @@ instructions('Mid') = instructions('TMStartNow'); %save TM will start now also i
 restIdx = strcmp(nirsEventNames, 'Rest');
 restSteps = nirsEventSteps(restIdx); %this is safe to call even if there is no rest in the protocol.
 
-%% ask user what tranIdx iteration they would like to start with
+%% ask user what trainIdx iteration they would like to start with
 if length(restSteps) > 1 %at least 2 rest exist, then ask which one to start from.
-    trainIdx = inputdlg('Which split tranIdx would you like to start from (Valid entries: 1-6. Enter 1 if starting from the beginning)? ');
-    disp(['Starting the Split tranIdx from ' trainIdx{1}]);
+    trainIdx = inputdlg('Which split trainIdx would you like to start from (Valid entries: 1-6. Enter 1 if starting from the beginning)? ');
+    disp(['Starting the Split trainIdx from ' trainIdx{1}]);
     trainIdx = str2num(trainIdx{1});
     if trainIdx > 1 %skipping some beginning trains
         restSteps = restSteps(trainIdx:end);
@@ -291,7 +291,6 @@ commSendTime(1,:)=clock;
 datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command   
 datlog.messages{end+1} = ['First speed command sent' num2str(now)];
 datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))];
-
 %% Main loop
 
 old_velR = libpointer('doublePtr',velR(1));
@@ -339,11 +338,11 @@ while ~STOP %only runs if stop button is not pressed
     old_stanceR=new_stanceR;
     
     %Read frame, update necessary structures
-
+    
     MyClient.GetFrame();
     framenum.Value = MyClient.GetFrameNumber().FrameNumber;
     datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
-    
+
     %Read treadmill, if enough time has elapsed since last read
     aux=(datevec(now)-datevec(lastRead));
     if aux(6)>.1 || any(aux(1:5)>0)  %Only read if enough time has elapsed
@@ -356,7 +355,7 @@ while ~STOP %only runs if stop button is not pressed
     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
     
     frameind.Value = frameind.Value+1;
-    
+        
     %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
     Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
     Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
@@ -372,7 +371,8 @@ while ~STOP %only runs if stop button is not pressed
     else
         set(ghandle.figure1,'Color',[1,1,1]);
     end
-%% This section was on    
+    
+    %% This section was on
 %     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
     if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
         Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
@@ -474,7 +474,7 @@ while ~STOP %only runs if stop button is not pressed
                 %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
             end
     end
-   
+    
     %check if should log NIRS events
     if nextNirsEventIdx <= length(nirsEventSteps)
         if (LstepCount == nirsEventSteps(nextNirsEventIdx) || RstepCount == nirsEventSteps(nextNirsEventIdx)) && need2LogEvent
@@ -580,7 +580,7 @@ while ~STOP %only runs if stop button is not pressed
     
     old_velR.Value = velR(RstepCount);
     old_velL.Value = velL(LstepCount);
-    
+
     if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
         need2LogEvent = false;
         %for all rest except for the 1st (starting with a rest TM is not
@@ -600,14 +600,19 @@ while ~STOP %only runs if stop button is not pressed
 %         pause(restDuration);
         %instead of a full 20s pause, run a WHILE loop here so that the program wouldn't hang and would
         % respond to STOP in the rest break.
-        lastRead = clock;
+        restStarted = clock;
         restDone = false;
         while ~restDone && ~STOP
-            aux=clock-lastRead; %aux 1x6 array in year, month, day, hour, min, sec
-            if aux(6)>=restDuration || any(aux(1:5)>0) %enough time to rest has passed. moving on, should never be in the second or loop situation
+            t_diff=clock-restStarted; %aux 1x6 array in year, month, day, hour, min, sec
+            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %compute difference in seconds
+%             t_diff = etime(clock, lastRead); %this sometimes would error
+%             out.
+            if t_diff >= restDuration-0.5%aux(6)>=restDuration || any(aux(1:5)>0) %enough time to rest has passed. moving on, should never be in the second or loop situation
                 restDone = true;
+                t_diff
             else
-                pause(0.5); %pause for a bit so we are not doing the while loop nonstop.
+                pause(0.8); %pause for a bit so we are not doing the while loop nonstop.
+                [~,~,~] = readTreadmillPacket(t); %this is to maintain communication with the treamdill to avoid lag after the break.
             end
         end
         if STOP %anytime if STOP is pressed, quit the while loop 
@@ -619,7 +624,6 @@ while ~STOP %only runs if stop button is not pressed
         need2LogEvent = true;
         nextRestIdx = nextRestIdx + 1;
     end
-   
 end %While, when STOP button is pressed
 
 if STOP
@@ -797,10 +801,9 @@ end
 
 temp = find(isnan(datlog.TreadmillCommands.sent(end:-1:1,4)),1,'last');
 datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(1:end-temp,:);
- for z = 1:size(datlog.TreadmillCommands.sent,1)
-     datlog.TreadmillCommands.sent(z,4) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
- end
-
+for z = 1:size(datlog.TreadmillCommands.sent,1)
+    datlog.TreadmillCommands.sent(z,4) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
+end
 
 disp('saving datlog...');
 try
