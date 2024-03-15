@@ -51,8 +51,16 @@ ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be
 
 %% Set up nirs communication. 
 %these parameters should only be changed if you know what you are doing.
-oxysoft_present = false; %always true, unless debugging without the NIRS instrument.
+oxysoft_present = true; %always true, unless debugging without the NIRS instrument.
 restDuration = 20; %default 20s rest, could change for debugging
+
+% Pop up window to confirm parameter setup, this is helpful in case
+% debugging happened btw experiment session to avoid mistakenly forget to
+% log fNIRS.
+button=questdlg('Confirm that NIRS is recording, oxysoft_present is 1, rest duration is 20.');  
+if ~strcmp(button,'Yes')
+   return; %Abort starting the tri
+end
 
 Oxysoft = nan; %initialize to nan, unless present.
 if oxysoft_present
@@ -80,7 +88,7 @@ restSteps = nirsEventSteps(restIdx); %this is safe to call even if there is no r
 
 %% ask user what trainIdx iteration they would like to start with
 if length(restSteps) > 1 %at least 2 rest exist, then ask which one to start from.
-    trainIdx = inputdlg('Which split trainIdx would you like to start from (Valid entries: 1-6. Enter 1 if starting from the beginning)? ');
+    trainIdx = inputdlg('Which split trainIdx would you like to start from (Valid entries: 1-3. Enter 1 if starting from the beginning)? ');
     disp(['Starting the Split trainIdx from ' trainIdx{1}]);
     trainIdx = str2num(trainIdx{1});
     if trainIdx > 1 %skipping some beginning trains
@@ -101,7 +109,7 @@ end
 
 nirsEventSteps([restIdx]) =[]; %remove rest from this array
 nirsEventNames([restIdx])=[];
-
+need2LogEvent = false; %initialize to false;
 if ~isempty(restSteps)
     need2LogEvent = true;
 end
@@ -225,20 +233,6 @@ catch ME
 end
 
 try %So that if something fails, communications are closed properly
-
-%if no rest (regular adapt block), start with audio count down.
-if isempty(restSteps) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
-    fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-    play(AudioTMStart3);
-    pause(2.5);
-    play(AudioCount2);
-    pause(1);
-    play(AudioCount1);
-    pause(1);
-    play(AudioNow)
-    %log it without saying "TM will start now" again.
-    datlog = nirsEvent('Mid_noaudio', 'M', ['Mid' num2str(nextRestIdx-1)], instructions, datlog, Oxysoft, oxysoft_present);
-end
     
 % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
 MyClient.GetFrame();
@@ -280,6 +274,19 @@ disp(etime(datevec(time2),datevec(time1)));
 
 disp('File creation time');
 
+%if no rest (regular adapt block), start with audio count down.
+if isempty(restSteps) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
+    fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+    play(AudioTMStart3);
+    pause(2.5);
+    play(AudioCount2);
+    pause(1);
+    play(AudioCount1);
+    pause(1);
+    play(AudioNow)
+    %log it without saying "TM will start now" again.
+    datlog = nirsEvent('Mid_noaudio', 'M', ['Mid' num2str(nextRestIdx-1)], instructions, datlog, Oxysoft, oxysoft_present);
+end
 
 %Send first speed command & store
 acc=3500;
@@ -534,30 +541,41 @@ while ~STOP %only runs if stop button is not pressed
             end
         end %end conditional block for when there is step change in the middle
         
-        if ~countDownPlayed(end-3) && ((LstepCount == N-4 || RstepCount == N-4) || ...
+        if ~countDownPlayed(end-3) && ( ...
                 (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-4 || RstepCount == restSteps(nextRestIdx)-4)))
             fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
             %log in NIRS that audio count down is happening.
             datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
             play(AudioTMStop3); %takes 2 seconds to say "treadmill will stop in"
             countDownPlayed(end-3) = true; %This should only be run once
-        elseif ~countDownPlayed(end-2) && ((LstepCount == N-2 || RstepCount == N-2)|| ...
+        elseif ~countDownPlayed(end-2) && (...
                 (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-2 || RstepCount == restSteps(nextRestIdx)-2)))
             fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
             play(AudioCount2);
             countDownPlayed(end-2) = true; %This should only be run once
-        elseif ~countDownPlayed(end-1) && ((LstepCount == N-1 || RstepCount == N-1) || ...
+         elseif ~countDownPlayed(end-1) && (...
                  (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-1 || RstepCount == restSteps(nextRestIdx)-1)))
             fprintf(['-1 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
             play(AudioCount1);
             countDownPlayed(end-1) = true; %This should only be run once
+        end
+        
+        %Trial will end soon.
+        if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
+            fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+            play(AudioTMStop3);
+            countDownPlayed(end-3) = true; %This should only be run once
+        elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
+            fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+            play(AudioCount2);
+            countDownPlayed(end-2) = true; %This should only be run once
         end
     end 
     
     if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
         if numAudioCountDown %adapted from open loop audiocoudntdown
             fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioNow);
+            play(AudioCount1);
         end
         break
     %only send a command if it is different from the previous one. Don't
@@ -618,9 +636,16 @@ while ~STOP %only runs if stop button is not pressed
         if STOP %anytime if STOP is pressed, quit the while loop 
             break; %break the while loop
         end
-        %done, advance step count to the next walking event.
-        LstepCount = nirsEventSteps(nextNirsEventIdx);
-        RstepCount = nirsEventSteps(nextNirsEventIdx); %it appears that we always take coded stride - 1 steps (but that's how it is in open loop controller too bc stepcount started at 1 intead of 0)
+        %done, advance step count to the next walking event.(notice that
+        %assumes there is always an event immediately after the rest, 
+        %(e.g., rest is at step 200, there will be an event at step 250,
+        %and rest duration is coded as 50 steps).
+        if nextNirsEventIdx <= length(nirsEventSteps) %assign stepCont to next event, only if there is still more event coming.
+            LstepCount = nirsEventSteps(nextNirsEventIdx);
+            RstepCount = nirsEventSteps(nextNirsEventIdx); %it appears that we always take coded stride - 1 steps (but that's how it is in open loop controller too bc stepcount started at 1 intead of 0)  
+        else %otherwise assume rest is the last thing the script will do.
+            STOP = true; %manually set stop to the experiments. Otherwise 
+        end
         need2LogEvent = true;
         nextRestIdx = nextRestIdx + 1;
     end
@@ -643,7 +668,7 @@ end
 % to relax. This log could happen 1-2 seconds before TM fully stops which
 % is ok bc stopping usually could be perturbing and this probably marks a
 % better steady state ending. 
-% audio cue here would be too early and may not be necessary (see Alt Option below). 
+% audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below). 
 datlog = nirsEvent('relax_noaudio','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
 
 catch ME
@@ -671,10 +696,9 @@ try %stopping the treadmill
         pause(.5) %Do we need this? what for? -- Pablo 26/2/2018
         fprintf(['Trying to close TM1. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
         smoothStop(t);
-%         if numAudioCountDown %no need to say now again, changed the logic
-%         to say it earlier at stepN
-%             play(AudioNow)
-%         end
+        if numAudioCountDown %no need to say now again, changed the logic to say it earlier at stepN
+            play(AudioNow)
+        end
     %see if the treadmill should be stopped when the STOP button is pressed
     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value')==1 && STOP == 1
         set(ghandle.Status_textbox,'String','Stopping');
@@ -683,12 +707,15 @@ try %stopping the treadmill
         fprintf(['Trying to close TM2. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
         smoothStop(t);
     end
+
+    %Say  "Relax" without sending another event to NIRS (last arg always false).
+    %Alt Option: this could be a good time to say "Relax" and the time
+    %point would be exactly when TM stopped, but logging timing is better right after the last stride without audio and before the closing routine above.
+    %the activity during the closing routine shouldn't really be analyzed.
+%     datlog = nirsEvent('relax','O','Trial_End_TMStop', instructions, datlog, Oxysoft, false);
+
     %Check if treadmill stopped, if not, try again:
     pause(1)
-    %Alt Option: this could be a good time to say "Relax" and the time
-    %point would be exactly when TM stopped, but perhaps better to log
-    %right after the last stride without audio and before the closing routine above.
-%     datlog = nirsEvent('relax','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
     fprintf(['Trying to close TM3. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])        
     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
     stopped = cur_speedR==0 && cur_speedL==0;
