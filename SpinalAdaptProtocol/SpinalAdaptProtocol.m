@@ -8,9 +8,9 @@
 %manual change before each condition. 
 
 %% EXPERIMENTER: Before each experiment, ENTER subject-specific speed and leg info 
-subjectID = 'TestCode';
-slow = 0.5977;
-fast = 1.1954;
+subjectID = 'SAH03';
+slow = 0.5592;
+fast = 1.1183;
 
 fastLeg = 'R';%Allowed entries: R or L, if don't know yet, leave as random and choose generate baseline only
 
@@ -50,7 +50,7 @@ handles = guidata(AdaptationGUI);
 global profilename
 global numAudioCountDown
 
-maxCond = 16;
+maxCond = 17;
 pauseTime2min30 = 115; %2.5min, with the vicon stop/start timing ends up about 2.5mins
 pauseTime1min = 40;
 % pauseTime5m = 265; %4.5min,with the vicon stop/start timing ends up about 5mins
@@ -159,29 +159,40 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %~2.5mins
             play(AudioTimeUp);
-        case 14 %post 2
-            handles.popupmenu2.set('Value',11) %open loop with countdown
-            profilename = [profileDir 'Post.mat'];manualLoadProfile([],[],handles,profilename)
+        case 14 %post 1
+            handles.popupmenu2.set('Value',14) %open loop with countdown with NIRS
+            profilename = [profileDir 'Post1.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post-Adapt 200 strides'); 
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
-            numAudioCountDown = [150 -1];
+            numAudioCountDown = [-1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 15 %neg short first
+        case 15 %post 2
+            handles.popupmenu2.set('Value',14) %NIRS open loop with countdown
+            profilename = [profileDir 'Post2.mat'];manualLoadProfile([],[],handles,profilename)
+            button=questdlg('Confirm trial and profile is Post-Adapt 100 strides with rest'); 
+            if ~strcmp(button,'Yes')
+              return; %Abort starting the exp
+            end
+            numAudioCountDown = [-1];
+            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            pause(pauseTime1min); %~2.5mins
+            play(AudioTimeUp);
+        case 16 %neg short first
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'NegShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is NegShort'); 
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
-            numAudioCountDown = [150 -1];
+            numAudioCountDown = [50 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 16 %then pos short
+        case 17 %then pos short
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'PosShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is PosShort'); 
@@ -190,6 +201,5 @@ while currCond < maxCond
             end
             numAudioCountDown = [100 130 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-
     end  
 end

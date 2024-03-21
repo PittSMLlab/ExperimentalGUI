@@ -70,7 +70,8 @@ end
 %Connect to Oxysoft
 disp('Initial Setup')
 %Event code hardcoded: I-connected, O-Relax, T-TMStopCountDown, R-Rest
-%Event code from initial letter in nirsEventNames: A-AccRamp, S-Split, M-Mid, P-PostTied, 
+%Event code from initial letter in nirsEventNames: A-AccRamp (to start), S-Split,
+%M-Mid, P-PostTied, D-DccRamp2Split
 %set up audio players
 audioids = {'relax','rest','stopAndRest','TMStartNow'};
 instructions = containers.Map(); 
@@ -79,7 +80,10 @@ for i = 1 : length(audioids)
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
     instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
 end
-instructions('Mid') = instructions('TMStartNow'); %save TM will start now also into key Mid. When log event Mid will also play audio.
+
+%this should be changed if the protocol is changing to no ramp, straight to start, then the event would be 'Mid'
+tmStartEventName = 'AccRamp';
+instructions(tmStartEventName) = instructions('TMStartNow'); %save TM will start now also into key Mid. When log event Mid will also play audio.
 
 %% Parse the speeds to get steps where NIRS should be logged
 [nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL, velR);
@@ -274,8 +278,8 @@ disp(etime(datevec(time2),datevec(time1)));
 
 disp('File creation time');
 
-%if no rest (regular adapt block), start with audio count down.
-if isempty(restSteps) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
+%if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
+if (isempty(restSteps) || velL(1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
     fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     play(AudioTMStart3);
     pause(2.5);
@@ -289,7 +293,7 @@ if isempty(restSteps) && numAudioCountDown %No rest, will start right away. Add 
 end
 
 %Send first speed command & store
-acc=3500;
+acc=1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
 % acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
 [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
 sendTreadmillPacket(payload,t);
@@ -492,7 +496,7 @@ while ~STOP %only runs if stop button is not pressed
             % wait till 2 steps later to log event again to avoid same
             % event logged multiple times.
             need2LogEvent = false;
-            if strcmp(nirsEventString,'Mid') %starting TM?
+            if strcmp(nirsEventString,tmStartEventName) %starting TM again, give an audio cue.
                 pause(2); %give some time for the instruction to play.
             end
         elseif LstepCount >= nirsEventSteps(nextNirsEventIdx)+1 && RstepCount >= nirsEventSteps(nextNirsEventIdx)+1
@@ -609,7 +613,7 @@ while ~STOP %only runs if stop button is not pressed
         end
         
         %make sure TM is at zero and hold it there.
-        [payload] = getPayload(0,0,500,500,cur_incl);
+        [payload] = getPayload(0,0,acc,acc,cur_incl);
         sendTreadmillPacket(payload,t);
         pause(1.5); %give some time for the previous instruction to finish.
         %this function plays the audio, sends event to NIRS, and logs it in datlog
