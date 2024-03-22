@@ -1,7 +1,8 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown)
 %This is the adapted from Open loop controller with audio feedback, added
 %NIRS events for tied, ramp, split, rest (optional, if exists, always rest
-%for 20 seconds).
+%for 20 seconds). Also send H reflex stimulations every 10 strides during
+%mid stance throughout the protocol.
 %When to do NIRS event is determined by parsing the velL and velR (0 speeds
 %are treated as rest, parse will also find tied, ramp, split, and post)
 %
@@ -22,6 +23,29 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 % [25,225,-1] means to play count down for speed change at stride 25 and
 % 225, and then at also count down for treadmill start and stop. The last
 % -1 is required in the array.
+
+%% Set up parameters to communication with NIRS and Arduino (for H-reflex)
+%These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
+oxysoft_present = true; %always true, unless debugging without the NIRS instrument.
+restDuration = 20; %default 20s rest, could change for debugging
+hreflex_present = true; %default true, unless debugging without Hreflex stimulator.
+
+%% Open the port to talk to Arduino
+if hreflex_present
+    arduinoPort = serial('COM4','BAUD',600); %assume it's at com4 and baud rate 600, which is plenty
+    fprintf('Opening ArduinoPort')
+    fopen(arduinoPort); %if this doens't work bc port is busy, check that all Arduino softwares are closed.
+    fprintf('Doen Opening ArduinoPort')
+
+    stimInterval = 10; %stimulate every 10 strides
+    canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
+
+    %find time from HS to midstance based on interpolation function from Omar
+    %in young healthy participant. If it's older adutls or clinical
+    %populations, this need to be changed. 
+    stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
+    stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000; %in sec
+end
 
 %% load GUI handle, audio mp3 files for countdown.
 global PAUSE%pause button value
@@ -50,10 +74,6 @@ end
 ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be updated
 
 %% Set up nirs communication. 
-%these parameters should only be changed if you know what you are doing.
-oxysoft_present = true; %always true, unless debugging without the NIRS instrument.
-restDuration = 20; %default 20s rest, could change for debugging
-
 % Pop up window to confirm parameter setup, this is helpful in case
 % debugging happened btw experiment session to avoid mistakenly forget to
 % log fNIRS.
@@ -322,6 +342,8 @@ if numAudioCountDown %Adapted from open loop audio countdown
     end
     prevChangeTime = datetime('now');
 end
+tic;
+
 while ~STOP %only runs if stop button is not pressed
     while PAUSE %only runs if pause button is pressed
         pause(.2);
@@ -438,6 +460,11 @@ while ~STOP %only runs if stop button is not pressed
                 %plot cursor
                 plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                 drawnow;
+                
+                %for Hreflex, stim is allowed after HS, and time when did HS happen
+                canStim = true;
+                tic;
+                
                 if LTO %In case DS is too short and a full cycle misses the phase switch
                     phase=2;
                     LstepCount=LstepCount+1;
@@ -457,6 +484,11 @@ while ~STOP %only runs if stop button is not pressed
                 %plot cursor
                 plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                 drawnow;
+                
+                %for Hreflex, stim is allowed after HS, and time when did HS happen
+                canStim = true;
+                tic;
+                
                 if RTO %In case DS is too short and a full cycle misses the phase switch
                     phase=1;
                     RstepCount=RstepCount+1;
@@ -486,6 +518,23 @@ while ~STOP %only runs if stop button is not pressed
             end
     end
     
+    if hreflex_present %only do this if has the stimulator
+        timeSinceHS = toc;
+        if (~mod(RstepCount,stimInterval) && phase == 2 && canStim && timeSinceHS >= stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay)
+            fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this. 
+            canStim = false; %don't stim again untill LHS.
+%             fprintf('\nR Stim:')
+%             disp(timeSinceHS);
+        end
+
+        if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)
+            fprintf(arduinoPort,2); %stim left
+            canStim = false; %don't stim right away.
+%             fprintf('\nL Stim:')
+%             disp(timeSinceHS);
+        end
+    end
+    
     %check if should log NIRS events
     if nextNirsEventIdx <= length(nirsEventSteps)
         if (LstepCount == nirsEventSteps(nextNirsEventIdx) || RstepCount == nirsEventSteps(nextNirsEventIdx)) && need2LogEvent
@@ -511,6 +560,10 @@ while ~STOP %only runs if stop button is not pressed
             if (LstepCount == speedChangeStride-3 || RstepCount == speedChangeStride-3) && ~countDownPlayed(1+countDownIdxOffset)
                 fprintf(['Change at ', num2str(speedChangeStride),'-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
                 fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
+                
+                %log in NIRS that audio count down is happening. FIXME
+                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+            
                 play(AudioTMChange3);
                 countDownPlayed(countDownIdx) = true; %This should only be run once
                 countDownIdx = countDownIdx + 1;
@@ -567,6 +620,8 @@ while ~STOP %only runs if stop button is not pressed
         %Trial will end soon.
         if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
             fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+            %log in NIRS that audio count down is happening.
+            datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
             play(AudioTMStop3);
             countDownPlayed(end-3) = true; %This should only be run once
         elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
@@ -691,6 +746,11 @@ catch ME
     disp(ME);
 end
 
+if hreflex_present %if hreflex, close communication with arduino.
+    fprintf('Closing Arduino Port');
+    fclose(arduinoPort);
+    fprintf('Done Closing Arduino Port\n');
+end
 try %stopping the treadmill
 %see if the treadmill is supposed to stop at the end of the profile
     if get(ghandle.StoptreadmillEND_checkbox,'Value')==1 && STOP ~=1

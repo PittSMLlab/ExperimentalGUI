@@ -82,20 +82,20 @@ while currCond < maxCond
     
     switch currCond
         case 1 %TM base tied
-            handles.popupmenu2.set('Value',11) %OPEN Loop with count down.
+            handles.popupmenu2.set('Value',14) %Nirs, Hreflex, Open Loop with count down.
             profilename = [profileDir, 'TMBaseFast.mat'];
             manualLoadProfile([],[],handles,profilename)
-            button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is TMBaseFast'); 
+            button=questdlg('Confirm controller is Nirs, Hreflex, Open loop controller with audio countdown and profile is TMBaseFast'); 
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
             numAudioCountDown = [-1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
         case 2 %TM base slow
-            handles.popupmenu2.set('Value',11) %OPEN Loop with count down.
+            handles.popupmenu2.set('Value',14) %Nirs, Hreflex, OPEN Loop with count down.
             profilename = [profileDir, 'TMBaseSlow.mat'];
             manualLoadProfile([],[],handles,profilename)
-            button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is TMBaseSlow'); 
+            button=questdlg('Confirm controller is Nirs, Hreflex, Open loop controller with audio countdown and profile is TMBaseSlow'); 
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end

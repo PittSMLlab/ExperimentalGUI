@@ -27,14 +27,14 @@ function varargout = AdaptationGUI(varargin)
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @AdaptationGUI_OpeningFcn, ...
-                   'gui_OutputFcn',  @AdaptationGUI_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @AdaptationGUI_OpeningFcn, ...
+    'gui_OutputFcn',  @AdaptationGUI_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
-%     gui_State.gui_Callback = str2funedc(varargin{1});
-       gui_State.gui_Callback = str2func(varargin{1});
+    %     gui_State.gui_Callback = str2funedc(varargin{1});
+    gui_State.gui_Callback = str2func(varargin{1});
 end
 
 if nargout
@@ -117,7 +117,7 @@ guidata(hObject, handles);
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = AdaptationGUI_OutputFcn(hObject, eventdata, handles) 
+function varargout = AdaptationGUI_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -126,7 +126,7 @@ function varargout = AdaptationGUI_OutputFcn(hObject, eventdata, handles)
 %startup function
 % clc
 % global TrialNum
-% 
+%
 % TrialNum = 0;
 global SSspeed
 global SSstdev
@@ -179,19 +179,19 @@ function SelectProfile_menu_Callback(hObject, eventdata, handles)
 %this callback opens the speed profile selected, makes a plot so the user
 %can see what they will be telling the various devices to do
 % global profilename
-% 
+%
 % set(handles.Status_textbox,'String','Plotting');
 % set(handles.Status_textbox,'BackgroundColor','Yellow');
 % pause(0.25);
-% 
+%
 % value = get(hObject,'Value');
 % profilename = get(hObject,'String');
 % profilename = profilename{value};
-% 
+%
 % load(profilename);
-% 
+%
 % t = [0:length(velL)-1];
-% 
+%
 % set(handles.profileaxes,'NextPlot','replace')
 % plot(handles.profileaxes,t,velL,'b',t,velR,'r','LineWidth',2);
 % ylim([min([velL velR])-1,max([velL velR])+1]);
@@ -199,10 +199,10 @@ function SelectProfile_menu_Callback(hObject, eventdata, handles)
 % xlabel('Stride Count');
 % legend('Left Foot','Right Foot');
 % set(handles.profileaxes,'NextPlot','add')
-% 
+%
 % set(handles.Status_textbox,'String','Ready');
 % set(handles.Status_textbox,'BackgroundColor','Green');
-% 
+%
 % guidata(hObject, handles);
 % Hints: contents = cellstr(get(hObject,'String')) returns SelectProfile_menu contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from SelectProfile_menu
@@ -268,17 +268,17 @@ set(handles.Status_textbox,'BackgroundColor','Yellow');
 % robot = Robot;
 startedEMG_flag=false; %turned on by Dulce 3/12/2020
 if get(handles.EMGWorks_checkbox,'Value')==1
-   startedEMG_flag=true; 
-   
-   if get(handles.EMGWorks_checkbox,'Value')==1
-       button=questdlg('Please confirm that EMGworks is in trigger mode');  %added by DMMO 3/13/2020
-       if ~strcmp(button,'Yes')
-           return; %Abort starting of treadmill
-       end
-   else
-       %           pause(3);
-   end
-   
+    startedEMG_flag=true;
+    
+    if get(handles.EMGWorks_checkbox,'Value')==1
+        button=questdlg('Please confirm that EMGworks is in trigger mode');  %added by DMMO 3/13/2020
+        if ~strcmp(button,'Yes')
+            return; %Abort starting of treadmill
+        end
+    else
+        %           pause(3);
+    end
+    
     disp(['Opening EMGWorks Port '  datestr(datetime('now'))])
     ss = serial('COM14');
     fopen(ss);
@@ -286,13 +286,13 @@ if get(handles.EMGWorks_checkbox,'Value')==1
     fclose(ss);
     disp(['Done Opening EMGWorks Port '  datestr(datetime('now'))])
     
-       
-%     %Do something
-%     startedEMG_flag=true;
-%     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
-%     pause(.3)
-%     XServer.SendKeys('^a'); %Start acquisition (it should already be in the acquisition phase of the workflow
-%     XServer.AppActivate('AdaptationGUI'); %This window
+    
+    %     %Do something
+    %     startedEMG_flag=true;
+    %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
+    %     pause(.3)
+    %     XServer.SendKeys('^a'); %Start acquisition (it should already be in the acquisition phase of the workflow
+    %     XServer.AppActivate('AdaptationGUI'); %This window
 end
 startedNexus_flag=false;
 if get(handles.Nexus_checkbox,'Value')==1
@@ -301,61 +301,61 @@ if get(handles.Nexus_checkbox,'Value')==1
     
     %**************wait for keyboard press before starting nexus and
     %everything else
-%     pause;
-%     
-%     Solution 1: get a click on start button. Only works if Nexus is maximized
-%     XServer.AppActivate('Vicon Nexus 1.8.5');
-%     pause(.3)
-%      robot.mouseMove(1700, 685); %Coordinates in screen when all tabs are minimized on Nexus capture panel
-%      robot.mousePress(InputEvent.BUTTON1_MASK);%Left-button, right= 3
-%      pause(.1)
-%      robot.mouseRelease(InputEvent.BUTTON1_MASK);
-%      XServer.AppActivate('AdaptationGUI');
-
-% %**************New method triggering Nexus with UDP Packet
-%     if pathflag == 1
-%     [dontcare,sessionpath] = uigetfile('*.*','Please select a trial in the database being used:');
-%     else
-%     end
-%     keyboard
-%%
-% %         nexuspath = 'C:\Users\Public\Documents\Vicon\Nexus Sample Data\WDA8_22\Will\Session 7\';
-%         startmsg = ['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStart><Name VALUE="Trial0' num2str(TrialNum,2) '"/><Notes VALUE=""/><Description VALUE=""/><DatabasePath VALUE="' sessionpath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum) '"/></CaptureStart>'];
-%         startmsg = native2unicode(startmsg,'UTF-8');
-%         myudp = dsp.UDPSender('RemoteIPAddress','255.255.255.255','RemoteIPPort',30,'LocalIPPortSource','Property','LocalIPPort',31);
-%         %send udp start packet
-%         step(myudp,int8(startmsg));
-%         pathflag = 0;
-        %%
-% 
-% 
-%      %current method of triggering, matlab sends command via serial port.
-%      %MOnitor in Nexus watched for pulse to toggle start/stop. 
-%      %use orange wire out of serial port to pin 64 on AD board
-      
-      disp(['Opening Vicon Port '  datestr(datetime('now'))])
-      s = serial('COM1'); % vicon 
-      fopen(s);
-      pause(0.1);
-      fclose(s);%this set of commands pulses the voltage high then low, signaling start/stop capture in nexus
-      disp(['Done Opening Vicon Port '  datestr(datetime('now'))])
-%       
-      if get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==0
-%            if get(handles.waitForNexusChkBox,'Value')==1
-          button=questdlg('Please confirm that Nexus has started capture', 'Nexus confirm dialog');
-          if ~strcmp(button,'Yes')
-              return; %Abort starting of treadmill
-          end
-      elseif get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==1 %added by DMMO 3/13/2020
-               button=questdlg('Please confirm that Nexus & EMGworks has started capture', 'Nexus confirm dialog');  %added by DMMO 3/13/2020
-          if ~strcmp(button,'Yes')  %added by DMMO 3/13/2020
-              return; %Abort starting of treadmill
-          end
-      else
-%           pause(3);
-      end
-      
-      %Deleting old plots:
+    %     pause;
+    %
+    %     Solution 1: get a click on start button. Only works if Nexus is maximized
+    %     XServer.AppActivate('Vicon Nexus 1.8.5');
+    %     pause(.3)
+    %      robot.mouseMove(1700, 685); %Coordinates in screen when all tabs are minimized on Nexus capture panel
+    %      robot.mousePress(InputEvent.BUTTON1_MASK);%Left-button, right= 3
+    %      pause(.1)
+    %      robot.mouseRelease(InputEvent.BUTTON1_MASK);
+    %      XServer.AppActivate('AdaptationGUI');
+    
+    % %**************New method triggering Nexus with UDP Packet
+    %     if pathflag == 1
+    %     [dontcare,sessionpath] = uigetfile('*.*','Please select a trial in the database being used:');
+    %     else
+    %     end
+    %     keyboard
+    %%
+    % %         nexuspath = 'C:\Users\Public\Documents\Vicon\Nexus Sample Data\WDA8_22\Will\Session 7\';
+    %         startmsg = ['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStart><Name VALUE="Trial0' num2str(TrialNum,2) '"/><Notes VALUE=""/><Description VALUE=""/><DatabasePath VALUE="' sessionpath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum) '"/></CaptureStart>'];
+    %         startmsg = native2unicode(startmsg,'UTF-8');
+    %         myudp = dsp.UDPSender('RemoteIPAddress','255.255.255.255','RemoteIPPort',30,'LocalIPPortSource','Property','LocalIPPort',31);
+    %         %send udp start packet
+    %         step(myudp,int8(startmsg));
+    %         pathflag = 0;
+    %%
+    %
+    %
+    %      %current method of triggering, matlab sends command via serial port.
+    %      %MOnitor in Nexus watched for pulse to toggle start/stop.
+    %      %use orange wire out of serial port to pin 64 on AD board
+    
+    disp(['Opening Vicon Port '  datestr(datetime('now'))])
+    s = serial('COM1'); % vicon
+    fopen(s);
+    pause(0.1);
+    fclose(s);%this set of commands pulses the voltage high then low, signaling start/stop capture in nexus
+    disp(['Done Opening Vicon Port '  datestr(datetime('now'))])
+    %
+    if get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==0
+        %            if get(handles.waitForNexusChkBox,'Value')==1
+        button=questdlg('Please confirm that Nexus has started capture', 'Nexus confirm dialog');
+        if ~strcmp(button,'Yes')
+            return; %Abort starting of treadmill
+        end
+    elseif get(handles.waitForNexusChkBox,'Value')==1 && get(handles.EMGWorks_checkbox,'Value')==1 %added by DMMO 3/13/2020
+        button=questdlg('Please confirm that Nexus & EMGworks has started capture', 'Nexus confirm dialog');  %added by DMMO 3/13/2020
+        if ~strcmp(button,'Yes')  %added by DMMO 3/13/2020
+            return; %Abort starting of treadmill
+        end
+    else
+        %           pause(3);
+    end
+    
+    %Deleting old plots:
     ll=findobj(handles.profileaxes,'Type','Line');
     delete(ll(1:end-2));
     ll=findobj(handles.profileaxes,'Type','AnimatedLine');
@@ -363,24 +363,24 @@ if get(handles.Nexus_checkbox,'Value')==1
     
     %Give some time between Nexus start and treadmill start
     pause(.1)
-
+    
 end
 
 %switch between the available functions to call
-    aux=regexp(profilename,'\');
-    shortName=profilename(aux(end)+1:end-4);
+aux=regexp(profilename,'\');
+shortName=profilename(aux(end)+1:end-4);
 switch(selection)
-
+    
     case 1%control speed with steps
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1(round(velL*1000), round(velR*1000), forceThreshold, shortName); %
-
+        
     case 2
         mode=1; %Signed
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
         
     case 3
-        mode=0; %Unsigned 
+        mode=0; %Unsigned
         allowedKeys={'numpad8','numpad2','uparrow','downarrow'};
         if ~exist('signList','var')
             signList=[];
@@ -406,7 +406,7 @@ switch(selection)
         ssrecord(1) = [];%delete useless zero at beginning
         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
-      
+        
         
     case 6
         newline = sprintf('\n');
@@ -424,7 +424,7 @@ switch(selection)
         disp('mean selected speed: ');
         mean(listofss)./1000
         
-    case 7
+    case 7 % Perceptual trial wnds when a click is recorded but the task length is determined by strides
         
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
@@ -445,7 +445,7 @@ switch(selection)
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
-    
+        
     case 10
         disp('AutomaticityAssessmentProtocol');
         mode=1;
@@ -454,10 +454,10 @@ switch(selection)
     case 11
         global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_AudioCountDown(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
-       
-    case 12 
-                [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
-
+        
+    case 12
+        [RatioR,RatioL,RatiomeanR,RatiomeanL,Rstd,Lstd,alphaR,alphaL,alphaRmean,alphaLmean,alphaRstd,alphaLstd,betameanR,betameanL,Rsci,Lsci,XmeanR,XmeanL,RatioXmeanR,RatioXmeanL,RsciX,LsciX] = Dulce_grad_betarev2(round(velL*1000), round(velR*1000), forceThreshold);
+        
         disp('the mean ratio for the R leg is:');
         disp(RatiomeanR);
         disp('the mean ratio  for the L leg is:');
@@ -486,45 +486,53 @@ switch(selection)
         disp(RsciX)
         disp('L scale with X')
         disp(LsciX)
+        
     case 13
         disp('NBackOG Protocol');
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         playClickerSound = false;
         currIterationAnswer = inputdlg('What is the current_iteration (0=familarization): ');
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGNBackTask(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));       
-    case 14 %support open loop while logging events to NIRS, optionally could have timed rest breaks in between, event timing will be auto generated by parsing the velL and velR.
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGNBackTask(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currIterationAnswer{1}));
+        
+    case 14 %support open loop while logging events to NIRS & stimulate every 10 strides (specified inside the controller), optionally could have timed rest breaks in between, event timing will be auto generated by parsing the velL and velR.
         disp('Short Split Train Nirs Protocol')
         global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
-
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
+        
+        
+    case 15 % Perceptual trial wnds when a click is recorded but the task length is determined by time
+        mode=1;
+        allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_WeberPerceptionFaster(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
+        
 end
 
 pause(1.5); %Wait three seconds before stopping software collection
 %Stop capture Nexus & EMGWorks
 if startedEMG_flag
-%     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
-%     XServer.SendKeys('^s'); %Stop acquisition 
-%     XServer.AppActivate('AdaptationGUI'); %This window
-      disp(['Stopping EMG Port '  datestr(datetime('now'))])
-      fopen(ss);
-      pause(0.1);
-      fclose(ss);
-      disp(['Done Stopping EMG Port '  datestr(datetime('now'))])
+    %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
+    %     XServer.SendKeys('^s'); %Stop acquisition
+    %     XServer.AppActivate('AdaptationGUI'); %This window
+    disp(['Stopping EMG Port '  datestr(datetime('now'))])
+    fopen(ss);
+    pause(0.1);
+    fclose(ss);
+    disp(['Done Stopping EMG Port '  datestr(datetime('now'))])
 end
 if startedNexus_flag
-%     XServer.AppActivate('Vicon Nexus 1.8.5');
-%     pause(.3)
-%      robot.mouseMove(1700, 685); %Coordinates in screen
-%      robot.mousePress(InputEvent.BUTTON1_MASK);%Left-button, right= 3
-%      pause(.1)
-%      robot.mouseRelease(InputEvent.BUTTON1_MASK);
-%      XServer.AppActivate('AdaptationGUI');
-
-%***************New method, use UDP packet to stop Nexus collection
-%       stopmsg=['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStop RESULT="SUCCESS"><Name VALUE="Trial' num2str(TrialNum) '"/><DatabasePath VALUE="' nexuspath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum*10) '"/></CaptureStop>']; %311
-%       step(myudp,int8(stopmsg));
-% 
+    %     XServer.AppActivate('Vicon Nexus 1.8.5');
+    %     pause(.3)
+    %      robot.mouseMove(1700, 685); %Coordinates in screen
+    %      robot.mousePress(InputEvent.BUTTON1_MASK);%Left-button, right= 3
+    %      pause(.1)
+    %      robot.mouseRelease(InputEvent.BUTTON1_MASK);
+    %      XServer.AppActivate('AdaptationGUI');
+    
+    %***************New method, use UDP packet to stop Nexus collection
+    %       stopmsg=['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStop RESULT="SUCCESS"><Name VALUE="Trial' num2str(TrialNum) '"/><DatabasePath VALUE="' nexuspath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum*10) '"/></CaptureStop>']; %311
+    %       step(myudp,int8(stopmsg));
+    %
     disp(['Closing Vicon Port '  datestr(datetime('now'))])
     fopen(s);
     pause(0.1);
@@ -694,7 +702,7 @@ function EMGWorks_checkbox_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of EMGWorks_checkbox
 
 
-% --- Executes when selecting the audio_feedback controller. 
+% --- Executes when selecting the audio_feedback controller.
 function AudioFeedback_checkbox_Callback(hObject, eventdata, handles)
 % hObject    handle to provide audio feedback in over ground walking (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -771,30 +779,30 @@ pause(0.25);
 profilename=[dd ff];
 try
     load(profilename);
-
-t = [0:length(velL)-1];
-
-set(handles.profileaxes,'NextPlot','replace')
-plot(handles.profileaxes,t,velL,'b',t,velR,'r','LineWidth',2);
-if isrow(velL) && isrow(velR)
-    ylim([min([velL velR])-1,max([velL velR])+1]);
-else
-    ylim([min([velL;velR])-1,max([velL;velR])+1]);
-end
-% ylim([0 2.0]);
-
-xlabel('Stride Count');
-ylabel('Speed (m/s)');
-legend('Left Foot','Right Foot','AutoUpdate','off');
-set(handles.profileaxes,'NextPlot','add')
-
-set(handles.Status_textbox,'String','Ready');
-set(handles.Status_textbox,'BackgroundColor','Green');
-set(handles.totalLstepsBox,'String',num2str(length(velL)));
-set(handles.totalRstepsBox,'String',num2str(length(velL)));
-clear velL velR;
-
-set(handles.Execute_button,'Enable','on');
+    
+    t = [0:length(velL)-1];
+    
+    set(handles.profileaxes,'NextPlot','replace')
+    plot(handles.profileaxes,t,velL,'b',t,velR,'r','LineWidth',2);
+    if isrow(velL) && isrow(velR)
+        ylim([min([velL velR])-1,max([velL velR])+1]);
+    else
+        ylim([min([velL;velR])-1,max([velL;velR])+1]);
+    end
+    % ylim([0 2.0]);
+    
+    xlabel('Stride Count');
+    ylabel('Speed (m/s)');
+    legend('Left Foot','Right Foot','AutoUpdate','off');
+    set(handles.profileaxes,'NextPlot','add')
+    
+    set(handles.Status_textbox,'String','Ready');
+    set(handles.Status_textbox,'BackgroundColor','Green');
+    set(handles.totalLstepsBox,'String',num2str(length(velL)));
+    set(handles.totalRstepsBox,'String',num2str(length(velL)));
+    clear velL velR;
+    
+    set(handles.Execute_button,'Enable','on');
 catch
     
 end
@@ -807,9 +815,9 @@ function Incline_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 % global InclineAngle
 
-% uiwait(msgbox(['Warning! You are about to change the written incline angle of the treadmill!' sprintf('\n') sprintf('\n') 'This should not be done unless the treadmill has already been moved to the new angle and locked.' sprintf('\n') 'Failure to comply will result in serious damage!'],'Wait!','warn'));   
+% uiwait(msgbox(['Warning! You are about to change the written incline angle of the treadmill!' sprintf('\n') sprintf('\n') 'This should not be done unless the treadmill has already been moved to the new angle and locked.' sprintf('\n') 'Failure to comply will result in serious damage!'],'Wait!','warn'));
 % InclineAngle = str2double(inputdlg('Please enter the new angle'));
-% 
+%
 % set(handles.Angle,'String',num2str(InclineAngle));
 
 
@@ -903,7 +911,7 @@ global allowedKeys
 %CARLY MARCELA
 global RFBClicker
 global LFBClicker
- 
+
 %Added by Marcela 10/04/2019
 global rclicksound
 global lclicksound
@@ -918,7 +926,7 @@ global playClickerSound
 keypress = eventdata.Key;
 isAllowed=any(strcmp(keypress,allowedKeys));
 % disp('Detect click')
-if enableMemory && isAllowed && keyWasReleased 
+if enableMemory && isAllowed && keyWasReleased
     disp('Detect click and if yes')
     %Add to counter & record keypress in log
     counter=counter+1;
@@ -932,10 +940,10 @@ if enableMemory && isAllowed && keyWasReleased
         global memory
         r=floor(2*rand); %Random integer in 0-2 interval
         e=3+r;
-        switch keypress 
-            case {'uparrow','numpad8'} 
+        switch keypress
+            case {'uparrow','numpad8'}
                 memory=memory+1i*e;
-            case {'downarrow','numpad2'} 
+            case {'downarrow','numpad2'}
                 memory=memory-1i*e;
             case {'leftarrow','numpad4','pageup'}
                 memory=memory-e;
@@ -952,51 +960,51 @@ if enableMemory && isAllowed && keyWasReleased
         firstPress=false; %firstPress=false; MGR and KF 02/18/2022
     end
     
-        %%  Update the feedback figure
-% % % % % % % 
-% % % % % % %         if strcmp(keypress, 'pagedown')==1 || strcmp(keypress, 'numpad6')==1 || strcmp(keypress, 'rightarrow')==1%IF I get info that they clicked Right
-% % % % % % %         RFBClicker=1;
-% % % % % % %         LFBClicker=0;
-% % % % % % %         elseif strcmp(keypress, 'pageup')==1 || strcmp(keypress, 'numpad4')==1 || strcmp(keypress, 'leftarrow')==1%If I get info that they clicked Left
-% % % % % % %         RFBClicker=0;
-% % % % % % %         LFBClicker=1;
-% % % % % % % %         else
-% % % % % % % %             RFBClicker=0; %ITS NEVER GETTING HERE!!!
-% % % % % % % %             LFBClicker=0;
-% % % % % % %         end
-
-%% 
-% % % % % % % % %Play tone: %Uncomment to go back to previous perception
-% study (PAblo's)
-% % % % % % % %fo=2000;
-% % % % % % % %tone=sin(2*pi*[1:32]*fo/8192); %4ms tone
-% % % % % % % %Fs=8192;
-
-% % % % % %     Fs=48000; 
-% % % % %    beep()
-% % % % % 
-% % % % % %     sound(tone,Fs)
-% % % % %     %now
-% % % % %     lastKeyPress=now;
-% % % % %     keyWasReleased=false;
-
-%% Play tone (Added by Marcela for the Weber Perception 10/04/2019). If you want to go
-%back to the previous perception study uncommment the previous Play tone
-%secttion and comment this one.
-%
-if playClickerSound
-    if RFBClicker==1
-       sound(rclicksound, rFrequency);
-    elseif LFBClicker==1
-       sound(lclicksound, lFrequency);
+    %%  Update the feedback figure
+    % % % % % % %
+    % % % % % % %         if strcmp(keypress, 'pagedown')==1 || strcmp(keypress, 'numpad6')==1 || strcmp(keypress, 'rightarrow')==1%IF I get info that they clicked Right
+    % % % % % % %         RFBClicker=1;
+    % % % % % % %         LFBClicker=0;
+    % % % % % % %         elseif strcmp(keypress, 'pageup')==1 || strcmp(keypress, 'numpad4')==1 || strcmp(keypress, 'leftarrow')==1%If I get info that they clicked Left
+    % % % % % % %         RFBClicker=0;
+    % % % % % % %         LFBClicker=1;
+    % % % % % % % %         else
+    % % % % % % % %             RFBClicker=0; %ITS NEVER GETTING HERE!!!
+    % % % % % % % %             LFBClicker=0;
+    % % % % % % %         end
+    
+    %%
+    % % % % % % % % %Play tone: %Uncomment to go back to previous perception
+    % study (PAblo's)
+    % % % % % % % %fo=2000;
+    % % % % % % % %tone=sin(2*pi*[1:32]*fo/8192); %4ms tone
+    % % % % % % % %Fs=8192;
+    
+    % % % % % %     Fs=48000;
+    % % % % %    beep()
+    % % % % %
+    % % % % % %     sound(tone,Fs)
+    % % % % %     %now
+    % % % % %     lastKeyPress=now;
+    % % % % %     keyWasReleased=false;
+    
+    %% Play tone (Added by Marcela for the Weber Perception 10/04/2019). If you want to go
+    %back to the previous perception study uncommment the previous Play tone
+    %secttion and comment this one.
+    %
+    if playClickerSound
+        if RFBClicker==1
+            sound(rclicksound, rFrequency);
+        elseif LFBClicker==1
+            sound(lclicksound, lFrequency);
+        end
     end
-end
-%   play(fastbeep);
-
-   lastKeyPress=now;
-   keyWasReleased=false;
-   
-
+    %   play(fastbeep);
+    
+    lastKeyPress=now;
+    keyWasReleased=false;
+    
+    
 end
 
 function figure1_WindowKeyReleaseFcn(hObject, eventdata, handles)
@@ -1013,7 +1021,7 @@ isAllowed=any(strcmp(keypress,allowedKeys));
 if isAllowed
     keyWasReleased=true;
 end
- 
+
 
 % --- Executes on mouse press over figure background, over a disabled or
 % --- inactive control, or over an axes background.
@@ -1049,7 +1057,7 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % addLog.keypress{counter,2}=now;
 % global memory
 %     r=round(5*rand());
-%     switch keypress 
+%     switch keypress
 %         case 'uparrow' %Increase both belts
 %             %memory=memory+1i*5+1i*r;
 %         case 'downarrow' %Decrease both belts
@@ -1057,7 +1065,7 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 %         case {'leftarrow','numpad4'} %Increase L, decrease R
 %             memory=memory-5-r;
 %         case {'rightarrow','numpad6'} %Increase R, decrease L
-%             memory=memory+5+r;    
+%             memory=memory+5+r;
 %     end
 % end
 
