@@ -39,12 +39,16 @@ if hreflex_present
 
     stimInterval = 10; %stimulate every 10 strides
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
-
-    %find time from HS to midstance based on interpolation function from Omar
-    %in young healthy participant. If it's older adutls or clinical
-    %populations, this need to be changed. 
-    stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
-    stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000; %in sec
+    durSSL = zeros(2,1);    % two left single stance durations
+    durSSR = zeros(2,1);    % two right single stance durations
+    stimDelayL = now; %in units of now
+    stimDelayR = now;
+    
+%     %Hreflex Alt Sol. find time from HS to midstance based on interpolation function from Omar
+%     %in young healthy participant. If it's older adutls or clinical
+%     %populations, this need to be changed. 
+%     stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
+%     stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000;%in sec
 end
 
 %% load GUI handle, audio mp3 files for countdown.
@@ -176,6 +180,10 @@ datlog.TreadmillCommands.read = nan(300*length(velR)+7200,4);
 datlog.TreadmillCommands.sent = nan(20*length(velR)+100,4);%nan(length(velR)+50,4);
 datlog.audioCues.start = []; %initialize audioCue log fields.
 datlog.audioCues.audio_instruction_message = {};
+datlog.stim.header = {'Step#','StimDelayTarget(SerialDate#)','TimeSinceContraTOSerialDate#)'};
+datlog.stim.L = [];
+datlog.stim.header = {'Step#','StimDelayTarget(SerialDate#)','TimeSinceLTOSerialDate#)'};
+datlog.stim.R = [];
 
 %do initial save
 try
@@ -183,14 +191,20 @@ try
 catch ME
     disp(ME);
 end
+
 %Default threshold
 if nargin<3
-    FzThreshold=30; %Newtons (30 is minimum for noise not to be an issue)
+    % TODO: Left force plate is getting very noisy. 30N is not enough to be robust. 
+    FzThreshold=100; %Newtons (30 is minimum for noise not to be an issue)
 elseif FzThreshold<30
 %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
 end
+
+FzThreshold = 100; %impose 100 threshold because the force plates noise is +-60N sometimes.
+datlog.messages{end+1} = 'Fz threshold is always set to 100N to be robust to noise even at low speed.';
+disp("Fz threshold is always set to 100N to be robust to noise even at low speed.")
 
 %Check that velL and velR are of equal length
 N=length(velL)+1;
@@ -407,16 +421,16 @@ while ~STOP %only runs if stop button is not pressed
     
     %% This section was on
 %     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
-    if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
-        Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
-        Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-%         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
-            if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
-            STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
-            disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
-            datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
-        end
+if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
+    Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+    Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+    %         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+    if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
+        STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
+        disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+        datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
     end
+end
 %%
     %read from treadmill
 %     [RBS,LBS,theta] = getCurrentData(t);
@@ -456,6 +470,16 @@ while ~STOP %only runs if stop button is not pressed
                 datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
 %                 RHSTime(RstepCount) = TimeStamp;
                 RHSTime(RstepCount) = now;
+                % RHS marks the end of single stance R
+                durSSL(1) = durSSL(2);  % overwrite previous SSL duration
+                durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
+                % delay of left leg stimulation from RTO is mean of single
+                % stance duration divided by two (since targeting mid-point
+                % of single stance for stimulus pulse)
+                
+                % Weighting most recent SSL duration more
+                % heavily (e.g., 75% since likely more predictive)
+                stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
                 set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
@@ -480,6 +504,13 @@ while ~STOP %only runs if stop button is not pressed
                 datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
 %                 LHSTime(LstepCount) = TimeStamp;
                 LHSTime(LstepCount) = now;
+                % LHS marks the end of single stance R
+                durSSR(1) = durSSR(2);  % overwrite previous SSR duration
+                durSSR(2) = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
+                % delay of right leg stimulation from LTO is mean of single
+                % stance duration divided by two (since targeting mid-point
+                % of single stance for stimulus pulse)
+                stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
                 set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
@@ -519,17 +550,31 @@ while ~STOP %only runs if stop button is not pressed
     end
     
     if hreflex_present %only do this if has the stimulator
-        timeSinceHS = toc;
-        if (~mod(RstepCount,stimInterval) && phase == 2 && canStim && timeSinceHS >= stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay)
+        % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
+        timeSinceLTO = now - LTOTime(LstepCount);
+%         timeSinceHS = toc; %Hreflex Alt Sol. 
+
+        if (~mod(RstepCount-2,stimInterval) && phase == 2 && canStim && (timeSinceLTO >= 0.95*stimDelayR))
+%         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
+%         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol. 
             fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this. 
             canStim = false; %don't stim again untill LHS.
+            datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
+
 %             fprintf('\nR Stim:')
 %             disp(timeSinceHS);
         end
 
-        if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)
+        % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
+        timeSinceRTO = now - RTOTime(RstepCount);
+        % Changed to using ONLY RstepCount to force stimulation order
+        % of left and right within one stride
+        if (~mod(RstepCount-2,stimInterval) && phase == 1 && canStim && (timeSinceRTO >= 0.95*stimDelayL))
+%         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol. 
             fprintf(arduinoPort,2); %stim left
             canStim = false; %don't stim right away.
+            datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
+
 %             fprintf('\nL Stim:')
 %             disp(timeSinceHS);
         end
