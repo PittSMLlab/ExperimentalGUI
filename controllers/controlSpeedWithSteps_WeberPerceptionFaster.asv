@@ -1018,14 +1018,14 @@ try %So that if something fails, communications are closed properly
                             
                             %                           feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
                             feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            correctResponses = correctResponses + 1;
+                            
                             % figure(fig(end));
                             
                         elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0
                             
                             %feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
                             feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            correctResponses = correctResponses + 1;
+                            
                             %figure(fig(end));
                             
                         elseif ~(RFBClicker==0 & LFBClicker==0)
@@ -1038,16 +1038,33 @@ try %So that if something fails, communications are closed properly
                         
                     end
                     
-                    if famNoFB % for the familiarizations where there is no feedback, print how many correct they had
+                    if famNoFB 
                         
                         B = ~isnan(velL(LstepCount-9:LstepCount));
                         Index = find(B, 1, 'last');
                         Index = LstepCount - (length(B) - Index);
+
                         
-                        if velL(Index) < velR(Index) & LFBClicker==1  &  RFBClicker==0                            
-                            correctResponses = correctResponses + 1; 
-                        elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0                            
-                            correctResponses = correctResponses + 1;                            
+                        if velL(Index) < velR(Index) & LFBClicker==1  &  RFBClicker==0
+                            
+                            correct 
+                            feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
+                            
+                            % figure(fig(end));
+                            
+                        elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0
+                            
+                            %feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
+                            feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
+                            
+                            %figure(fig(end));
+                            
+                        elseif ~(RFBClicker==0 & LFBClicker==0)
+                            %feedB = text(35,0.2,'Incorrect', 'FontSize', 75, 'Color', 'r');
+                            feedB = text(35,0.7,'Incorrect', 'FontSize', 75, 'Color', 'r');
+                            
+                            %figure(fig(end));
+                            
                         end
                         
                     end
@@ -1400,10 +1417,4 @@ try
     save([d '\..\datlogs\lastDatlog.mat'],'datlog');
 catch ME
     disp(ME);
-end
-
-if famNoFB | familiarization
-    msg = ['Participant had: ' num2str(correctResponses) ' correct'];
-    h = msgbox(msg);
-%     disp(['Participant had: ' num2str(correctResponses) ' correct']);
 end

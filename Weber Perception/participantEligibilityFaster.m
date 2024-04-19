@@ -2,24 +2,23 @@
 clc
 clear
 
-prompt = {'Subject ID:','How many trials were there?:','Is it a faster block? Answer y/n is yes or no respectively', 'Remove first stimulus of the block? y/n'};
+prompt = {'Subject ID:','How many trials were there?:', 'Remove first stimulus of the block? y/n'};
 dlgtitle = 'fileName';
 dims = [1 45];
-definput = {'', '','',''};
+definput = {'', '',''};
 answer = inputdlg(prompt,dlgtitle,dims,definput);
 
 subID = answer{1};
 iter = str2num(answer{2});
-fast = answer{3};
-first = answer{4};
+first = answer{3};
 
-if fast == 'y' | fast == 'Y' | fast == 'yes' | fast == 'Yes'
-    fast = true;
-elseif fast == 'n' | fast == 'N' | fast == 'no' | fast == 'No'
-    fast = false;
-else
-    error('You did not specify which type of block is it');
-end
+% if fast == 'y' | fast == 'Y' | fast == 'yes' | fast == 'Yes'
+%     fast = true;
+% elseif fast == 'n' | fast == 'N' | fast == 'no' | fast == 'No'
+%     fast = false;
+% else
+%     error('You did not specify which type of block is it');
+% end
 
 if first == 'y' | first == 'Y' | first == 'yes' | first == 'Yes'
     first = true;
@@ -113,17 +112,17 @@ t.incorrectResponses=t.initialResponse==sign(t.pertSize) & ~t.nullTrials;
 t.copyPertSize = t.pertSize;
 t.copyPrevSize = t.prevSize;
 
-if fast
-    
-    t.pertSize=t.pertSize./1750; 
-    t.prevSize=t.prevSize./1750; 
-    
-else 
-    
-    t.pertSize=t.pertSize./1050; 
-    t.prevSize=t.prevSize./1050;
-    
-end
+% if fast
+%     
+%     t.pertSize=t.pertSize./1750; 
+%     t.prevSize=t.prevSize./1750; 
+%     
+% else 
+%     
+%     t.pertSize=t.pertSize./1050; 
+%     t.prevSize=t.prevSize./1050;
+%     
+% end
     
 
 % % Undesired perturbation sizes, profile mistake or post-processing
@@ -149,6 +148,7 @@ sSize=40;
 % Get probe sizes
 B=findgroups(trialData.pertSize); %pertSize>0 means vR>vL
 pp=unique(trialData.pertSize); 
+pp(isnan(pp))=[];
 
 hold on
 set(gca,'Colormap',cmap);
@@ -157,7 +157,7 @@ E=splitapply(@(x) nanstd(x==-1)/sqrt(sum(~isnan(x))),trialData.initialResponse,B
 ss=scatter(pp,S,sSize,pp,'filled','MarkerEdgeColor','w');
 grid on;
 ylabel('proportion of left choices') 
-axis([-0.300 0.300 0 1]) 
+axis([-300 300 0 1]) 
 X=trialData;
 errorbar(pp,S,E,'k','LineStyle','none')
 X.pertSign=sign(X.pertSize);
@@ -170,7 +170,7 @@ uistack(ss,'top')
 ylabel('proportion of "left" choices') 
 xlabel('R slower       same        L slower')
 title('Logistic Regression')
-set(gca,'XLim',[-0.300 0.300]) 
+set(gca,'XLim',[-300 300]) 
 
 
 %Add fits:
@@ -178,14 +178,28 @@ frml='leftResponse~pertSize'; %Perhaps we should go right ahead and just do the 
 mm0=fitglm(X,frml,'Distribution','binomial','Link','logit')
 %Automated step-down to drop non-sig terms. By default uses a deviance criterion equivalent to LRT test under Wilk's approximation
 % mm0=mm0.step('Upper',frml,'Criterion','Deviance','PEnter',0,'PRemove',0.05,'Nsteps',Inf)
+mm0.plotPartialDependence('pertSize');
 
-if mm0.Coefficients.pValue(end)<0.05
-    mm0.plotPartialDependence('pertSize');
-    set(ll,'Color','k','LineWidth',2);
-    f = msgbox({'You may continue the experiment';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]});
-else
+% if mm0.Coefficients.pValue(end)<0.05
+%     set(ll,'Color','k','LineWidth',2);
+%     f = msgbox({'You may continue the experiment';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]});
+% else
+%     warning('STOP EXPERIMENT! Perturbation sign is not a significant predictor');
+%     f = msgbox({'STOP Experiment! No significant predictors in the model.';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]}); 
+% end
+% 
+
+%% Calculate the overall accuracy
+
+overallAcc =  sum(trialData.correctResponses)/length(trialData.correctResponses)*100;
+
+if mm0.Coefficients.pValue(end)>=0.05 %| overallAcc < 65 
     warning('STOP EXPERIMENT! Perturbation sign is not a significant predictor');
-    f = msgbox({'STOP Experiment! No significant predictors in the model.';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]}); 
+    f = msgbox({'STOP Experiment! No significant predictors in the model.';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['Overall Accuracy: ' num2str(overallAcc)]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]}); 
+else
+    set(ll,'Color','k','LineWidth',2);
+    f = msgbox({'You may continue the experiment';  ['p-value: ' num2str(mm0.Coefficients.pValue(end))]; ['Overall Accuracy: ' num2str(overallAcc)]; ['R-squared: ' num2str(mm0.Rsquared.Ordinary)]; ['R-squared adjusted: ' num2str(mm0.Rsquared.Adjusted)]});
+
 end
 
 
