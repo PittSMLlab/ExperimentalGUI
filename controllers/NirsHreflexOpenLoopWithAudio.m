@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown, isCalibration, oxysoft_present,hreflex_present)
 %This is the adapted from Open loop controller with audio feedback, added
 %NIRS events for tied, ramp, split, rest (optional, if exists, always rest
 %for 20 seconds). Also send H reflex stimulations every 10 strides during
@@ -23,21 +23,48 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 % [25,225,-1] means to play count down for speed change at stride 25 and
 % 225, and then at also count down for treadmill start and stop. The last
 % -1 is required in the array.
+%Feature Improvement TODO: at this point, the arguments: isCalibration, oxysoft_present, hreflex_present are not really accesible when going
+%through the UI flow of using AdaptationGUI, it's only setible via code and
+%setting params to be global. 
 
 %% Set up parameters to communication with NIRS and Arduino (for H-reflex)
 %These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
-oxysoft_present = true; %always true, unless debugging without the NIRS instrument.
-restDuration = 20; %default 20s rest, could change for debugging
-hreflex_present = true; %default true, unless debugging without Hreflex stimulator.
+if nargin < 6 %isCalib not provided, default false.
+    isCalibration = false;
+end
 
+if nargin < 7
+    oxysoft_present = true; %default always true, unless debugging without the NIRS instrument.
+end
+
+if nargin < 8 
+    hreflex_present = true; %default true, unless debugging without Hreflex stimulator.
+end
+
+restDuration = 20; %default 20s rest, could change for debugging
+
+if isCalibration %calibrating Hreflex, don't try to connect to NIRS
+    oxysoft_present = false;
+end
 %% Open the port to talk to Arduino
 if hreflex_present
     arduinoPort = serial('COM4','BAUD',600); %assume it's at com4 and baud rate 600, which is plenty
     fprintf('Opening ArduinoPort')
     fopen(arduinoPort); %if this doens't work bc port is busy, check that all Arduino softwares are closed.
     fprintf('Doen Opening ArduinoPort')
-
-    stimInterval = 10; %stimulate every 10 strides
+    
+    if isCalibration
+        stimInterval = 5; %stimulate every 5 strides in calibration to get more data points.
+        %load 2 sound to play to tell experimener L and R stim happened,
+        %the L/R assignment is rather arbitrary
+        
+        [audio_data,audio_fs]=audioread('L.mp3');
+        CalibAudioL = audioplayer(audio_data,audio_fs);
+        [audio_data,audio_fs]=audioread('R.mp3');
+        CalibAudioR = audioplayer(audio_data,audio_fs);
+    else
+        stimInterval = 10; %stimulate every 10 strides
+    end
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
     durSSL = zeros(2,1);    % two left single stance durations
     durSSR = zeros(2,1);    % two right single stance durations
@@ -182,7 +209,6 @@ datlog.audioCues.start = []; %initialize audioCue log fields.
 datlog.audioCues.audio_instruction_message = {};
 datlog.stim.header = {'Step#','StimDelayTarget(SerialDate#)','TimeSinceContraTOSerialDate#)'};
 datlog.stim.L = [];
-datlog.stim.header = {'Step#','StimDelayTarget(SerialDate#)','TimeSinceLTOSerialDate#)'};
 datlog.stim.R = [];
 
 %do initial save
@@ -470,7 +496,7 @@ end
                 datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
 %                 RHSTime(RstepCount) = TimeStamp;
                 RHSTime(RstepCount) = now;
-                % RHS marks the end of single stance R
+                % RHS marks the end of single stance L
                 durSSL(1) = durSSL(2);  % overwrite previous SSL duration
                 durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
                 % delay of left leg stimulation from RTO is mean of single
@@ -554,10 +580,13 @@ end
         timeSinceLTO = now - LTOTime(LstepCount);
 %         timeSinceHS = toc; %Hreflex Alt Sol. 
 
-        if (~mod(RstepCount-2,stimInterval) && phase == 2 && canStim && (timeSinceLTO >= 0.95*stimDelayR))
+        if (mod(RstepCount,stimInterval)==4 && phase == 2 && canStim && (timeSinceLTO >= 0.95*stimDelayR))
 %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
 %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol. 
             fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this. 
+            if isCalibration %play sound
+                play(CalibAudioR);
+            end
             canStim = false; %don't stim again untill LHS.
             datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
 
@@ -569,9 +598,12 @@ end
         timeSinceRTO = now - RTOTime(RstepCount);
         % Changed to using ONLY RstepCount to force stimulation order
         % of left and right within one stride
-        if (~mod(RstepCount-2,stimInterval) && phase == 1 && canStim && (timeSinceRTO >= 0.95*stimDelayL))
+        if (mod(RstepCount,stimInterval)==4 && phase == 1 && canStim && (timeSinceRTO >= 0.95*stimDelayL))
 %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol. 
             fprintf(arduinoPort,2); %stim left
+            if isCalibration %play sound
+                play(CalibAudioL);
+            end
             canStim = false; %don't stim right away.
             datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
 
@@ -911,6 +943,9 @@ end
 %convert command times
 temp = find(isnan(datlog.TreadmillCommands.read(:,4)),1,'first');
 datlog.TreadmillCommands.read(temp:end,:) = [];
+for z = 1:size(datlog.TreadmillCommands.read,1) %compute relative time and fill in the last column
+    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2)));
+end
 
 %convert audio times
 datlog.audioCues.start = datlog.audioCues.start';
@@ -935,10 +970,15 @@ for z = 1:temp-1
     datlog.TreadmillCommands.read(z,4) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
 end
 
-temp = find(isnan(datlog.TreadmillCommands.sent(end:-1:1,4)),1,'last');
-datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(1:end-temp,:);
+%this is not working, sent will always be a sparse array interleaved with
+%nans, the old code find the first nan and erase all after which is not
+%correct.
+% temp = find(isnan(datlog.TreadmillCommands.sent(end:-1:1,4)),1,'last');
+% datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(1:end-temp,:);
+temp = all(isnan(datlog.TreadmillCommands.sent(:,4)),2);
+datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.sent,1)
-    datlog.TreadmillCommands.sent(z,4) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
 end
 
 disp('saving datlog...');

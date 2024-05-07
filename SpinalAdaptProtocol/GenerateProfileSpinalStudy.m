@@ -29,10 +29,25 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         velR = velL;
         save([profileDir 'TMBaseSlow.mat'],'velL' ,'velR')
 
-        %base OG 
-        velL = zeros(500,1);
+        %base OG slow
+        velL = ones(100,1) * slow;
         velR = velL;
-        save([profileDir 'OGTrials.mat'],'velL' ,'velR')
+        save([profileDir 'OGBaseSlow.mat'],'velL' ,'velR')
+
+        %base OG fast
+        velL = ones(100,1) * fast;
+        velR = velL;
+        save([profileDir 'OGBaseFast.mat'],'velL' ,'velR')
+        
+        %calibration fast
+        velL = ones(100,1) * fast;
+        velR = velL;
+        save([profileDir 'CalibrationFast.mat'],'velL' ,'velR')
+        
+        %calibration slow
+        velL = ones(75,1) * slow;
+        velR = velL;
+        save([profileDir 'CalibrationSlow.mat'],'velL' ,'velR')
 
     else
         %1st adapt block, default assume left slow
@@ -68,8 +83,9 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         %generate profile for the split trains, PRE
         rng(100);
         totalTrains = 6; %hard coded for now, always do 6 trains.
-        randTiedSteps = randi([50,60],1,totalTrains - 1);
-        randTiedSteps = randTiedSteps - 10;
+%         randTiedSteps = randi([50,60],1,totalTrains - 1);
+%         randTiedSteps = randTiedSteps - 10;
+        randTiedSteps = [40 45 45 50 40]; %used to be [45    43    44    49    40]
         
         restPadSteps = zeros(50,1); %always pad 50 steps of zero to represent rest.
         ramp = linspace(0.1*fast,fast,11); %ramp is always 10 strides from 10% (at stride 1) to fast speed (at stride 11)
@@ -109,9 +125,10 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         
         
         %generate profile for the split trains, POST
-        rng(10); %post use a different rand seeds.
-        randTiedSteps = randi([50,60],1,totalTrains - 1);
-        randTiedSteps = randTiedSteps - 10;
+%         rng(10); %post use a different rand seeds.
+%         randTiedSteps = randi([50,60],1,totalTrains - 1);
+%         randTiedSteps = randTiedSteps - 10;
+        randTiedSteps = [50 40 50 40 45];%used to be [ 48    40    46    48    45]
         %1st train
         velL = [restPadSteps;ones(45,1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
         velR = [restPadSteps;ones(45,1)*fast;ones(40,1)*fast];

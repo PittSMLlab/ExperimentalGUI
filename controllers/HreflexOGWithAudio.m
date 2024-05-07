@@ -1,17 +1,22 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(velL,velR,~,profilename,mode,signList,paramComputeFunc,paramCalibFunc,giveFeedback)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(velL,velR,~,profilename,mode,signList,paramComputeFunc,paramCalibFunc,giveFeedback, hreflex_present)
 %This function takes two vectors of speeds and assume velL and velR will be the same throughout the whole trial
 %Then computes the desired target time to walk the 7m walkway within the
 %speed range of [0.9*velL, 1.1*velL] (i.e., +-10% of velL). When
-%participant's speed recorded live is within this window, they wil hear
+%participant's speed recorded live is within this window, they will hear
 %audio feedback "Good Job". Otherwise they will hear "Too Fast" or "Too
 %Slow". Audio feedback is always played at each end of the walkway.
 % suppressed input was 'FzThreshold' which is not relevant here
 % TODO: consider making the ankle marker difference threshold an input
 
-%% Set up parameter to communicate with the Arduino (for H-reflex)
-% This parameter should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
-hreflex_present = true; % default true, unless debugging w/out stimulators
+%Args:
+% - hreflex_present: OPTIONAL, default true. Boolean flag indicating if
+%                       Hreflex stim should be sent
 
+%% Set up parameter to communicate with the Arduino (for H-reflex)
+if nargin < 10 %no param given for if hreflex stim should be delivered, default to true.
+    % This parameter should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
+    hreflex_present = true; % default true, unless debugging w/out stimulators
+end
 % default threshold
 threshAnkDiffZ = 50;    % 50 mm difference in ankle markers z-axis
 
@@ -33,6 +38,7 @@ if hreflex_present      % if electrically stimulating for H-reflexes, ...
     
     stimInterval = 10; % stimulate every 10 strides (based on kinematics)
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
+    % tic;                % for the timeSinceLastStim variable
     %     durSSL = zeros(2,1);    % two left single stance durations
     %     durSSR = zeros(2,1);    % two right single stance durations
     %     stimDelayL = now; %in units of now
@@ -908,22 +914,32 @@ try % so that if something fails, communications are closed properly
             
             %% Implementation of H-Reflex Stimulation During OG Walking
             
+            % TODO: there is an issue with the left leg being stimulated
+            % during stance and then the right leg immediately being
+            % stimulated mid-stance when the hip is right above the ankle.
+            % One way to resolve this could be to ensure that the GT, KNEE,
+            % and ANK are colinear. Enforcing the phase constraint was not
+            % working since the hip was already forward of the ankle for
+            % some participants during single stance.
+            
             if hreflex_present  % if H-reflex stimulator is present, ...
+                % timeSinceLastStim = toc;
                 % if ten strides since last stimulation AND current phase
                 % is single stance right leg AND stimulation is enabled AND
                 % GT marker above ANK marker (mid-stance), ...
                 if (mod(RstepCount,stimInterval) == 4 && ...
-                        canStimR && ... % previously had: phase == 2 &&
+                        canStimR && phase == 2 && ... % tried: (timeSinceLastStim > 3) && ... % previously had: phase == 2 &&
                         (abs(RHIP_pos(2) - RANK_pos(2)) <= epsilon))
                     fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
-                    canStimR = false; %don't stim again untill LHS.
+                    canStimR = false; % don't stim again until LHS
+                    % tic;                % reset the stim timer
                     datlog.stim.R(end+1,:) = [RstepCount, abs(RHIP_pos(2) - RANK_pos(2)),RHIP_pos(2),RANK_pos(2)];
                 end
                 
                 % Changed to using ONLY RstepCount to force stimulation
                 % order of left and right within one stride
                 if (mod(RstepCount,stimInterval) == 4 && ...
-                        canStimL && ... % previously had: phase == 1 &&
+                        canStimL && phase == 1 && ... % tried: (timeSinceLastStim > 3) && ... % previously had: phase == 1 &&
                         (abs(LHIP_pos(2) - LANK_pos(2)) <= epsilon))
                     fprintf(arduinoPort,2); %stim left
                     canStimL = false; %don't stim right away.
