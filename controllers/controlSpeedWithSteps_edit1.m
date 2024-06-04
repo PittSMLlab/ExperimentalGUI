@@ -43,7 +43,7 @@ datlog.speedprofile.velL = velL;
 datlog.speedprofile.velR = velR;
 datlog.TreadmillCommands.header = {'RBS','LBS','angle','U Time','Relative Time'};
 datlog.TreadmillCommands.read = nan(300*length(velR)+7200,4);
-datlog.TreadmillCommands.sent = nan(20*length(velR)+100,4);%nan(length(velR)+50,4);
+datlog.TreadmillCommands.sent = nan(300*length(velR)+7200,4);%nan(length(velR)+50,4);
 
 %do initial save
 try
@@ -518,8 +518,11 @@ for z = 1:temp-1
 end
 
 %convert command times
-temp = find(isnan(datlog.TreadmillCommands.read(:,4)),1,'first');
-datlog.TreadmillCommands.read(temp:end,:) = [];
+temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
+datlog.TreadmillCommands.read=datlog.TreadmillCommands.read(~temp,:);
+for z = 1:temp-1
+    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
+end
 
 %Added by Shuqi 1/18/2022
 try
@@ -530,16 +533,12 @@ try
 catch 
     fprintf('Unable to get TM packets start and end time')
 end
-for z = 1:temp-1
-    datlog.TreadmillCommands.read(z,4) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
+
+temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
+datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(~temp,:);
+for z = 1:size(datlog.TreadmillCommands.sent,1)
+    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
 end
-
-temp = find(isnan(datlog.TreadmillCommands.sent(end:-1:1,4)),1,'last');
-datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(1:end-temp,:);
- for z = 1:size(datlog.TreadmillCommands.sent,1)
-     datlog.TreadmillCommands.sent(z,4) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
- end
-
 
 disp('saving datlog...');
 try

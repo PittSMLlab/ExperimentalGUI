@@ -43,9 +43,6 @@ end
 
 restDuration = 20; %default 20s rest, could change for debugging
 
-if isCalibration %calibrating Hreflex, don't try to connect to NIRS
-    oxysoft_present = false;
-end
 %% Open the port to talk to Arduino
 if hreflex_present
     arduinoPort = serial('COM4','BAUD',600); %assume it's at com4 and baud rate 600, which is plenty
@@ -54,10 +51,13 @@ if hreflex_present
     fprintf('Doen Opening ArduinoPort')
     
     if isCalibration
+        oxysoft_present = false; %calibrating Hreflex, don't try to connect to NIRS
         stimInterval = 5; %stimulate every 5 strides in calibration to get more data points.
+        initStep2SkipForCalib = 5; %how many initial step to skip without delivering simulation, this helps to give some time for participants to settle in
+        totalCalibStims = 22; %default [8:2:28] stim current levels x 2 stim at each level
+        
         %load 2 sound to play to tell experimener L and R stim happened,
         %the L/R assignment is rather arbitrary
-        
         [audio_data,audio_fs]=audioread('L.mp3');
         CalibAudioL = audioplayer(audio_data,audio_fs);
         [audio_data,audio_fs]=audioread('R.mp3');
@@ -204,7 +204,7 @@ datlog.speedprofile.velL = velL;
 datlog.speedprofile.velR = velR;
 datlog.TreadmillCommands.header = {'RBS','LBS','angle','U Time','Relative Time'};
 datlog.TreadmillCommands.read = nan(300*length(velR)+7200,4);
-datlog.TreadmillCommands.sent = nan(20*length(velR)+100,4);%nan(length(velR)+50,4);
+datlog.TreadmillCommands.sent = nan(300*length(velR)+7200,4);%nan(length(velR)+50,4);
 datlog.audioCues.start = []; %initialize audioCue log fields.
 datlog.audioCues.audio_instruction_message = {};
 datlog.stim.header = {'Step#','StimDelayTarget(SerialDate#)','TimeSinceContraTOSerialDate#)'};
@@ -580,9 +580,12 @@ end
         timeSinceLTO = now - LTOTime(LstepCount);
 %         timeSinceHS = toc; %Hreflex Alt Sol. 
 
-        if (mod(RstepCount,stimInterval)==4 && phase == 2 && canStim && (timeSinceLTO >= 0.95*stimDelayR))
+        if (mod(RstepCount,stimInterval)==4 && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
 %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
 %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol. 
+            if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                continue
+            end            
             fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this. 
             if isCalibration %play sound
                 play(CalibAudioR);
@@ -598,8 +601,11 @@ end
         timeSinceRTO = now - RTOTime(RstepCount);
         % Changed to using ONLY RstepCount to force stimulation order
         % of left and right within one stride
-        if (mod(RstepCount,stimInterval)==4 && phase == 1 && canStim && (timeSinceRTO >= 0.95*stimDelayL))
+        if (mod(RstepCount,stimInterval)==4 && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
 %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol. 
+            if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                continue
+            end
             fprintf(arduinoPort,2); %stim left
             if isCalibration %play sound
                 play(CalibAudioL);
@@ -941,10 +947,20 @@ for z = 1:temp-1
 end
 
 %convert command times
-temp = find(isnan(datlog.TreadmillCommands.read(:,4)),1,'first');
-datlog.TreadmillCommands.read(temp:end,:) = [];
+temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
+datlog.TreadmillCommands.read=datlog.TreadmillCommands.read(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.read,1) %compute relative time and fill in the last column
     datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2)));
+end
+
+%Added by Shuqi 1/18/2022
+try
+    firstTMTime = datlog.TreadmillCommands.read(1,4);
+    lastTMTime = datlog.TreadmillCommands.read(end,4);
+    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+    fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n'])
+catch 
+    fprintf('Unable to get TM packets start and end time')
 end
 
 %convert audio times
@@ -957,25 +973,7 @@ datlog.audioCues.start=datlog.audioCues.start(~temp);
 datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
 datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom','datenum');
 
-%Added by Shuqi 1/18/2022
-try
-    firstTMTime = datlog.TreadmillCommands.read(1,4);
-    lastTMTime = datlog.TreadmillCommands.read(end,4);
-    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-    fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n'])
-catch 
-    fprintf('Unable to get TM packets start and end time')
-end
-for z = 1:temp-1
-    datlog.TreadmillCommands.read(z,4) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
-end
-
-%this is not working, sent will always be a sparse array interleaved with
-%nans, the old code find the first nan and erase all after which is not
-%correct.
-% temp = find(isnan(datlog.TreadmillCommands.sent(end:-1:1,4)),1,'last');
-% datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(1:end-temp,:);
-temp = all(isnan(datlog.TreadmillCommands.sent(:,4)),2);
+temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
 datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.sent,1)
     datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));

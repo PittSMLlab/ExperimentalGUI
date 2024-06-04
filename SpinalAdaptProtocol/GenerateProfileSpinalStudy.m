@@ -20,12 +20,12 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
     
     if baseOnly
         %base fast
-        velL = ones(100,1) * fast;
+        velL = ones(150,1) * fast;
         velR = velL;
         save([profileDir 'TMBaseFast.mat'],'velL' ,'velR')
 
         %base slow
-        velL = ones(75,1) * slow;
+        velL = ones(150,1) * slow;
         velR = velL;
         save([profileDir 'TMBaseSlow.mat'],'velL' ,'velR')
 
@@ -40,12 +40,12 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         save([profileDir 'OGBaseFast.mat'],'velL' ,'velR')
         
         %calibration fast
-        velL = ones(100,1) * fast;
+        velL = ones(400,1) * fast;
         velR = velL;
         save([profileDir 'CalibrationFast.mat'],'velL' ,'velR')
         
         %calibration slow
-        velL = ones(75,1) * slow;
+        velL = ones(400,1) * slow;
         velR = velL;
         save([profileDir 'CalibrationSlow.mat'],'velL' ,'velR')
 

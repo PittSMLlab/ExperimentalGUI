@@ -8,18 +8,19 @@
 %manual change before each condition. 
 
 %% EXPERIMENTER: Before each experiment, ENTER subject-specific speed and leg info 
-subjectID = 'SAS01V02'; %for stroke participant use SAS01V01 (Sub##V## format)
-slow = 0.4893;
-fast = 0.9786;
+%for stroke participant use SAS01V01 (Sub##V## format)
+subjectID = 'SASTestV01'; %SAH01 for young, SAS01V01 for stroke
+slow = 0.5931;
+fast = 1.1861;
 
-fastLeg = 'L';%Allowed entries: R or L, if don't know yet, leave as random and choose generate baseline only
+fastLeg = 'R';%Allowed entries: R or L, if don't know yet, leave as random and choose generate baseline only
 %for healthy controls, fast = dominant
 %for stroke participant, fast = non-paretic for session1 amd fast = paretic
 %for session 2.
 
 %% ask user if they want to generate profile, if so, baseline or adaptation
 profileDir = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\SpinalAdaptNirsStudy\' subjectID filesep];
-
+button = 'Yes'; %default to yes don't check it
 if contains(subjectID,'V01') %2 visits detected, this is visit 1
     button=questdlg(["Stroke Session 1: Fast leg should be NON-paretic leg, which is " fastLeg " Is that correct?"]);  
 elseif contains(subjectID,'V02') %2 visits detected, this is visit 2
@@ -63,7 +64,7 @@ global profilename
 global numAudioCountDown
 global isCalibration
 
-maxCond = 19;
+maxCond = 17;
 pauseTime2min30 = 115; %2.5min, with the vicon stop/start timing ends up about 2.5mins
 pauseTime1min = 40;
 % pauseTime5m = 265; %4.5min,with the vicon stop/start timing ends up about 5mins
@@ -76,8 +77,8 @@ if strcmp(isCalibBtn,'Yes') %run calibration while walking
     isCalibration = true;
     handles.popupmenu2.set('Value',14) %NirsHreflexOpenLoopWithAudio
     opts.Interpreter = 'tex';
-    opts.Default = 'Fast';
-    profileToGen = questdlg('What TM speed to calibrate on? (Default is fast)',...
+    opts.Default = 'Slow';
+    profileToGen = questdlg('What TM speed to calibrate on? (Default is slow)',...
     '','Fast','Slow',opts); %default choose fast
     switch profileToGen
         case 'Fast'
@@ -108,9 +109,12 @@ while currCond < maxCond
         nextCondButton=questdlg('Auto continue with next condition?');
         if strcmp(nextCondButton,'Yes') %automatically advance to next condition.
             currCond = currCond + 1;
+            if contains(subjectID,'SAH') && ismember(currCond,[3,4]) %Healthy young people & OG trials now
+                currCond = 5; %skip OG for young adults, start from 5 (pre train)
+            end
         elseif strcmp(nextCondButton, 'No')
             %if said No to auto advance, ask where to start
-            currCond = inputdlg('Which condition to start from (1 for baseline, 7 for pretrain, enter the number from the 1st col on the data sheet)? ');
+            currCond = inputdlg('Which condition to start from (1 for baseline, 5 for pretrain, enter the number from the 1st col on the data sheet)? ');
             currCond = str2num(currCond{1});
             disp(['Starting from ' num2str(currCond)]);
         else %cancel
@@ -119,7 +123,7 @@ while currCond < maxCond
     else
         firstCond = false;
         %always ask the first time.
-        currCond = inputdlg('Which condition to start from (1 for baseline, 7 for pretrain, enter the number from the 1st col on the data sheet)? ');
+        currCond = inputdlg('Which condition to start from (1 for baseline, 5 for pretrain, enter the number from the 1st col on the data sheet)? ');
         currCond = str2num(currCond{1});
         disp(['Starting from ' num2str(currCond)]);
     end
@@ -145,7 +149,7 @@ while currCond < maxCond
             end
             numAudioCountDown = [-1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {3,5} %OG Fast
+        case {3} %OG Fast
             handles.popupmenu2.set('Value',16) %OG Audio with HreflexOGWithAudio
             profilename = [profileDir 'OGBaseFast.mat'];
             manualLoadProfile([],[],handles,profilename)
@@ -155,7 +159,7 @@ while currCond < maxCond
                 return; %Always return and quit because now needs experimenter change in OG controller for the next 3 trials.
             end
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {4,6} %OG Slow
+        case {4} %OG Slow
             handles.popupmenu2.set('Value',16) %OG Audio with Hreflex
             profilename = [profileDir 'OGBaseSlow.mat'];
             manualLoadProfile([],[],handles,profilename)
@@ -165,9 +169,9 @@ while currCond < maxCond
                 return; %Always return and quit because now needs experimenter change in OG controller for the next 3 trials.
             end
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {7,8} %pre train
+        case {5,6} %pre train
             handles.popupmenu2.set('Value',14) %NIRS train
-            if currCond == 7 %1st pre train
+            if currCond == 5 %1st pre train
                 profilename = [profileDir 'PreSplitTrain_1.mat'];
             else
                 profilename = [profileDir 'PreSplitTrain_2.mat'];
@@ -180,9 +184,9 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
-        case {14,15} %post nirs train
+        case {12,13} %post nirs train
             handles.popupmenu2.set('Value',14) %NIRS train
-            if currCond == 14 %1st post train
+            if currCond == 12 %1st post train
                 profilename = [profileDir 'PostSplitTrain_1.mat'];
             else
                 profilename = [profileDir 'PostSplitTrain_2.mat'];
@@ -197,11 +201,11 @@ while currCond < maxCond
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
 %             end
-        case {9,10,11,12,13} %1st adapt
+        case {7,8,9,10,11} %1st adapt
             handles.popupmenu2.set('Value',14) %NIRS train
             profilename = [profileDir 'Adapt.mat'];
             manualLoadProfile([],[],handles,profilename)
-            button=questdlg('Confirm trial and profile is Adapt1'); 
+            button=questdlg('Confirm trial and profile is Adapt'); 
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
@@ -209,7 +213,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %~2.5mins
             play(AudioTimeUp);
-        case 16 %post 1
+        case 14 %post 1
             handles.popupmenu2.set('Value',14) %open loop with countdown with NIRS
             profilename = [profileDir 'Post1.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post-Adapt 200 strides'); 
@@ -220,7 +224,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 17 %post 2
+        case 15 %post 2
             handles.popupmenu2.set('Value',14) %NIRS open loop with countdown
             profilename = [profileDir 'Post2.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post-Adapt 100 strides with rest'); 
@@ -231,7 +235,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 18 %neg short first
+        case 16 %neg short first
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'NegShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is NegShort'); 
@@ -242,7 +246,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 19 %then pos short
+        case 17 %then pos short
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'PosShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is PosShort'); 
