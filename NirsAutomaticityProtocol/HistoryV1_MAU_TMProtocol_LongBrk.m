@@ -33,7 +33,7 @@ end
 
 if ~intervention
     %% pre-post intervention
-    profileDir = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\NirsAutomaticityStudy\MAuto3Visits\PrePostIntervention\';
+    profileDir = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\NirsAutomaticityStudy\MAuto3Visits\LongBlockLongBreak\PrePostIntervention\';
     switch currCond
         case {1,8,9} %OG trials w/o audio feedback
             handles.popupmenu2.set('Value',8) %OG Audio
@@ -182,7 +182,7 @@ if ~intervention
 
 else %intervention
     %%
-    profileDir = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\NirsAutomaticityStudy\MAuto3Visits\Intervention\';
+    profileDir = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\NirsAutomaticityStudy\MAuto3Visits\LongBlockLongBreak\Intervention\';
     switch currCond
         case {1,9,10}%{1,9,10,13,15} %OG trials w/o audio feedback
             handles.popupmenu2.set('Value',8) %OG Audio
