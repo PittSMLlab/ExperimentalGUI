@@ -156,7 +156,7 @@ if ~intervention
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
-            numAudioCountDown = [50 -1];
+            numAudioCountDown = [50 90 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(60); %1.5mins
             play(AudioTimeUp); 
@@ -176,7 +176,7 @@ if ~intervention
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
-            numAudioCountDown = [50 -1];
+            numAudioCountDown = [50 90 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)    
     end
 
