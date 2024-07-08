@@ -8,10 +8,18 @@
 %manual change before each condition. 
 
 %% EXPERIMENTER: Before each experiment, ENTER subject-specific speed and leg info 
+ramp2Split = false; %SAH1-16 ramp2Split= true, also there was an coding error such that 
+% 1st train 1st tied-split only has 10 strides tied before split instead of 20 tied as planned in the protocol, 
+% Starting 7/8/2024 try the non-ramp version and also corrected the mistake
+% so 1st train has 20 strides tied before split.
+speedRatio = 0.7; %slow/fast, SAH 1-16 did speedRatio = 0.5; %starting 7/8/2024, try ratio 1:0.7
+
 %for stroke participant use SAS01V01 (Sub##V## format)
-subjectID = 'SASTestV01'; %SAH01 for young, SAS01V01 for stroke
-slow = 0.5931;
-fast = 1.1861;
+subjectID = 'Test'; %SAH01 for young, SAS01V01 for stroke
+
+%if 2:1 ratio, slow=0.5*fast, if 70%, slow = 0.7*fast
+fast = 1.0844;
+slow = fast * speedRatio; 
 
 fastLeg = 'R';%Allowed entries: R or L, if don't know yet, leave as random and choose generate baseline only
 %for healthy controls, fast = dominant
@@ -42,7 +50,7 @@ switch profileToGen
            return; %Abort starting the tri
         end
         GenerateProfileSpinalStudy(slow, fast, true, profileDir); %generate base only. 
-        GenerateProfileSpinalStudy(slow, fast, false, profileDir, fastLeg); %generate the rest after the dominant leg is determined    
+        GenerateProfileSpinalStudy(slow, fast, false, profileDir, fastLeg, ramp2Split); %generate the rest after the dominant leg is determined, and ramp 2 split
     case 'No, I generated them already'
         %continue.
         disp('Profile generated already. Continue with the experiments')

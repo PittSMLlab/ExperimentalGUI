@@ -1,19 +1,25 @@
-function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profileDir, fastLeg)
+function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profileDir, fastLeg, ramp2Split)
 %take info from the nirsTrainInfo to generate profiles for other conditions
 %(non-train) in the protocol and save them
 %Input:
-%   slow, fast: doubles representing speeds 
-%   baseOnly: boolean, generate profile for baseline only, true for 1st
+%   - slow, fast: doubles representing speeds 
+%   - baseOnly: boolean, generate profile for baseline only, true for 1st
 %           section of the experiment (fast/slow leg not decided yet). If
 %           false, will generate the main exp speeds (without the baseline
 %           again)
-%   profDir: string, path to save the profiles to.
-%   fastLeg: string, 'R' or 'L'. OPTIONAL, if baseonly = true, this doesn't
-%   need to be provided.
+%   - profDir: string, path to save the profiles to.
+%   - fastLeg: string, 'R' or 'L'. OPTIONAL, if baseonly = true, this doesn't
+%           need to be provided.
+%   - ramp2Split: boolean, OPTIONAL, default true (gradual 20 strides ramp 2 split). 
+%           If baseonly = true, this doens't need to be provided. 
+%           if true, will have a ramp to split, false will be abrupt to split.
 %
 %Output:
 %   profDir: string path of where the profiles are saved
 
+    if nargin == 5 %provided fast leg but not ramp2split
+        ramp2Split = false;
+    end
     if ~exist(profileDir)
         mkdir(profileDir) %mk directory if doesn't exist yet.
     end
@@ -50,9 +56,16 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         save([profileDir 'CalibrationSlow.mat'],'velL' ,'velR')
 
     else
+        if ramp2Split %20 steps gradual from fast to slow
+            ramp2SplitSteps = linspace(fast,slow,20)'; 
+        else %if no ramp, give empty to build an abrupt transition.
+            ramp2SplitSteps = [];
+        end
+        
         %1st adapt block, default assume left slow
-        velL = [repmat(fast,50,1);linspace(fast,slow,20)';repmat(slow,130,1)];
-        velR = repmat(fast,200,1);
+        velL = [repmat(fast,50,1);ramp2SplitSteps;repmat(slow,130,1)];    
+        velR = [repmat(fast,50,1);ones(size(ramp2SplitSteps))*fast; repmat(fast,130,1)];
+        
         if strcmp(fastLeg, 'L')%if left is fast, swap legs.
             temp = velR;
             velR = velL; %make right go slow
@@ -88,15 +101,20 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         randTiedSteps = [40 45 45 50 40]; %used to be [45    43    44    49    40]
         
         restPadSteps = zeros(50,1); %always pad 50 steps of zero to represent rest.
-        ramp = linspace(0.1*fast,fast,11); %ramp is always 10 strides from 10% (at stride 1) to fast speed (at stride 11)
-        ramp = ramp(1:end-1)'; %exclude the 0 and fast in the end so that stride 1-10 are all moving and ramping
+        ramp2Tied = linspace(0.1*fast,fast,11); %ramp is always 10 strides from 10% (at stride 1) to fast speed (at stride 11)
+        ramp2Tied = ramp2Tied(1:end-1)'; %exclude the last in the end so that stride 1-10 are all moving and ramping
         
         %built 1st train
-        velL = [restPadSteps;ramp;ones(10,1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-        velR = [restPadSteps;ramp;ones(50,1)*fast];
+        if ramp2Split
+            velL = [restPadSteps;ramp2Tied;ones(10,1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [restPadSteps;ramp2Tied;ones(10,1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
+        else %when no ramp, also fix the 1st tied to be 20 steps instead of 10 (coding error for up to SAH16)
+            velL = [restPadSteps;ramp2Tied;ones(20,1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [restPadSteps;ramp2Tied;ones(20,1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
+        end
         for i = 2:3
-            velL = [velL;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-            velR = [velR;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;ones(40,1)*fast];
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
         end
         velL = [velL; restPadSteps];
         velR = [velR; restPadSteps];
@@ -111,8 +129,8 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         velL = [];
         velR = [];
         for i = 4:6
-            velL = [velL;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-            velR = [velR;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;ones(40,1)*fast];
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
         end
         velL = [velL; restPadSteps];
         velR = [velR; restPadSteps];
@@ -130,11 +148,11 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
 %         randTiedSteps = randTiedSteps - 10;
         randTiedSteps = [50 40 50 40 45];%used to be [ 48    40    46    48    45]
         %1st train
-        velL = [restPadSteps;ones(45,1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-        velR = [restPadSteps;ones(45,1)*fast;ones(40,1)*fast];
+        velL = [restPadSteps;ones(45,1)*fast;ramp2SplitSteps; ones(20,1)*slow];
+        velR = [restPadSteps;ones(45,1)*fast;ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
         for i = 2:3
-            velL = [velL;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-            velR = [velR;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;ones(40,1)*fast];
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast;ramp2SplitSteps; ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast;ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
         end
         velL = [velL; restPadSteps];
         velR = [velR; restPadSteps];
@@ -149,8 +167,8 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
         velL = [];
         velR = [];
         for i = 4:6
-            velL = [velL;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;linspace(fast,slow,20)';ones(20,1)*slow];
-            velR = [velR;restPadSteps;ramp;ones(randTiedSteps(i-1),1)*fast;ones(40,1)*fast];
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast;ramp2SplitSteps;ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedSteps(i-1),1)*fast;ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
         end
         velL = [velL; restPadSteps];
         velR = [velR; restPadSteps];
