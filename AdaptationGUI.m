@@ -426,7 +426,7 @@ switch(selection)
         disp('mean selected speed: ');
         mean(listofss)./1000
         
-    case 7 % Perceptual trial wnds when a click is recorded but the task length is determined by strides
+    case 7 % Perceptual trial ends when a click is recorded but the task length is determined by strides
         
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
@@ -438,10 +438,10 @@ switch(selection)
         audioFbBtn=questdlg('Should audio feedback on speed be provided?');  %added by DMMO 3/13/2020
         %Replace overground audio controller with the new one developed by
         %Nate to have better stride counting using the state machine
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'), false); %last arg = hreflex present = false
+%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'), false); %last arg = hreflex present = false (Hreflex OG has its own controller)
         %Previous controller code below (obsolte)
         %be sure to have selected the right profile!!!!!
-%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
 %         ssrecord = [];%delete useless zero at beginning
 %         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
 %         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);
@@ -450,7 +450,13 @@ switch(selection)
     case 9
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
+%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick_Adap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
+        % Now the perceptual trial is controlled by time, a response to the
+        % perceptual task ends the task, we do not ramp down after the
+        % task, save forces in datlog
+        % 06/20/24
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_PercAdap(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %
+              
         
     case 10
         disp('AutomaticityAssessmentProtocol');
@@ -507,7 +513,7 @@ switch(selection)
         global isCalibration %Added by SL 5/7/2024, default false, not a calibration trial
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown, isCalibration);
         
-    case 15 % Perceptual trial wnds when a click is recorded but the task length is determined by time
+    case 15 % Perceptual trial ends when a click is recorded but the task length is determined by time
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_WeberPerceptionFaster(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode); %

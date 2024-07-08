@@ -1,11 +1,15 @@
 function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc,giveFeedback)
-%This function takes two vectors of speeds (one for each treadmill belt)
-%and succesively updates the belt speed upon ipsilateral Toe-Off
-%The function only updates the belts alternatively, i.e., a single belt
-%speed cannot be updated twice without the other being updated
-%The first value for velL and velR is the initial desired speed, and new
-%speeds will be sent for the following N-1 steps, where N is the length of
-%velL
+%This function takes two vectors of speeds and assume velL and velR will be the same throughout the whole trial
+%Then computes the desired target time to walk the 7m walkway within the
+%speed range of [0.9*velL, 1.1*velL] (i.e., +-10% of velL). When
+%participant's speed recorded live is within this window, they will hear
+%audio feedback "Good Job". Otherwise they will hear "Too Fast" or "Too
+%Slow". Audio feedback is always played at each end of the walkway.
+
+%Args:
+%- giveFeedback: boolean, true will play audio feedback "too fast/too
+%slow/good job". If false will not play feedback. Value determined by the
+%user's response to a pop up window (logic in the AdaptationGUI)
 
 %%
 
@@ -282,16 +286,32 @@ try %So that if something fails, communications are closed properly
     commSendFrame=zeros(2*N-1,1);
     % stepFlag=0;
 
-    %Mean speed 1 m/s
-    fastest = 6.3636; %7 meters/ 1.1 m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
-    slowest = 7.778; % 7 meters/ 0.9 m/s
+%     %Mean speed 1 m/s
+%     fastest =  5.3030; %7 meters/ 1.1 m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
+%     slowest =   6.2500; % 7 meters/ 0.9 m/s
 %     
+    %Very Artificial group speed profiles mean speed 1.0268m/s
+%     fastest =6.2122; %7 meters/1.1268m/s
+%     slowest =7.5528; %7 meters/0.9268m/s
+% %     
     % Mean speed is 0.75 m/s
 %     fastest = 8.2353; %7 meters/ 0.8 m/s
 %     slowest = 10.7692; % 7 meters/ 0.6 m/s
-%     
-    
-    y_max = 4500;
+
+    %Moonwalkers
+%     fastest = 5.8715; %fastest should have the smaller number because it is time
+%     slowest = 7.1751;
+   
+%     %stroke mean speed  %DMMO
+%     fastest =  6.54; %7 meters/ FASTEST  m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
+%     slowest =  8.05; % 7 meters/ SLOWEST m/s
+     
+    % 7 meters / speed in m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
+    % fastest should have the smaller number because it is time
+    fastest = 7/(velL(1)/1000*1.1); % assume same speeds throughout, compute time using first stride (i.e., index 1) speed value
+    slowest = 7/(velL(1)/1000*0.9); % assume same speeds throughout, compute time using index 1.
+        
+    y_max = 4500; %in mm relative to the origin (by the treadmill rotator box)
     y_min = -2500;
  
     inout1 = 0; %initialize both variables to 0
