@@ -511,7 +511,11 @@ switch(selection)
         disp('Short Split Train Nirs Protocol')
         global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
         global isCalibration %Added by SL 5/7/2024, default false, not a calibration trial
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown, isCalibration);
+        if exist('stimL','var') && exist('stimR','var')
+            [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown, isCalibration, true, true, stimL,stimR);
+        else
+            [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown, isCalibration, true, true);
+        end
         
     case 15 % Perceptual trial ends when a click is recorded but the task length is determined by time
         mode=1;
@@ -943,7 +947,7 @@ keypress = eventdata.Key;
 isAllowed=any(strcmp(keypress,allowedKeys));
 % disp('Detect click')
 if enableMemory && isAllowed && keyWasReleased
-    disp('Detect click and if yes')
+%     disp('Detect click and if yes')
     %Add to counter & record keypress in log
     counter=counter+1;
     addLog.keypress{counter,1}=keypress;

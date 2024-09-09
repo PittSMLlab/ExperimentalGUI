@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown, isCalibration, oxysoft_present,hreflex_present)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown, isCalibration, oxysoft_present,hreflex_present,stimL,stimR)
 %This is the adapted from Open loop controller with audio feedback, added
 %NIRS events for tied, ramp, split, rest (optional, if exists, always rest
 %for 20 seconds). Also send H reflex stimulations every 10 strides during
@@ -45,7 +45,8 @@ restDuration = 20; %default 20s rest, could change for debugging
 
 %% Open the port to talk to Arduino
 if hreflex_present
-    arduinoPort = serial('COM4','BAUD',600); %assume it's at com4 and baud rate 600, which is plenty
+     %assume it's at com4 and baud rate 600, which is plenty
+    arduinoPort = serial('COM4','BAUD',600);
     fprintf('Opening ArduinoPort')
     fopen(arduinoPort); %if this doens't work bc port is busy, check that all Arduino softwares are closed.
     fprintf('Doen Opening ArduinoPort')
@@ -62,8 +63,12 @@ if hreflex_present
         CalibAudioL = audioplayer(audio_data,audio_fs);
         [audio_data,audio_fs]=audioread('R.mp3');
         CalibAudioR = audioplayer(audio_data,audio_fs);
+    elseif exist('stimL','var') && exist('stimR','var')
+        % if there is a second column in velL and velR indicating whether
+        % to stimulate at that stride, ...
+        stimInterval = nan; % set the interval to NaN
     else
-        stimInterval = 10; %stimulate every 10 strides
+        stimInterval = 10;  % stimulate every 10 strides
     end
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
     durSSL = zeros(2,1);    % two left single stance durations
@@ -137,7 +142,7 @@ tmStartEventName = 'AccRamp';
 instructions(tmStartEventName) = instructions('TMStartNow'); %save TM will start now also into key Mid. When log event Mid will also play audio.
 
 %% Parse the speeds to get steps where NIRS should be logged
-[nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL, velR);
+[nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL(:,1), velR(:,1));
 restIdx = strcmp(nirsEventNames, 'Rest');
 restSteps = nirsEventSteps(restIdx); %this is safe to call even if there is no rest in the protocol.
 
@@ -148,14 +153,18 @@ if length(restSteps) > 1 %at least 2 rest exist, then ask which one to start fro
     trainIdx = str2num(trainIdx{1});
     if trainIdx > 1 %skipping some beginning trains
         restSteps = restSteps(trainIdx:end);
-        velL = velL(restSteps(1):end); %only keep portions of profile that's after the starting rest.
-        velR = velR(restSteps(1):end);
+        velL = velL(restSteps(1):end,:); %only keep portions of profile that's after the starting rest.
+        velR = velR(restSteps(1):end,:);
+        if exist('stimL','var') && exist('stimR','var')
+            stimL = stimL(restSteps(1):end,:); %only keep portions of profile that's after the starting rest.
+            stimR = stimR(restSteps(1):end,:);
+        end
         %now parse the new velL and velR again to get correct event steps and
         %index.
-        [nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL, velR);
+        [nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL(:,1), velR(:,1));
         restIdx = strcmp(nirsEventNames, 'Rest');
         restSteps = nirsEventSteps(restIdx); %this is safe to call even if there is no rest in the protocol.
-        manualLoadProfile([],[],ghandle,[],velL/1000, velR/1000);
+        manualLoadProfile([],[],ghandle,[],velL(:,1)/1000, velR(:,1)/1000);
     end
     trainIdx = trainIdx - 1; %will be used later for audioCue event suffix (typically starts with Rest1, if entered start from TrainIdx3, should log Rest 3 (nextRest=1 + train3-1)
 else
@@ -200,8 +209,8 @@ datlog.stepdata.RTOdata = zeros(length(velR)+50,3);
 datlog.stepdata.LHSdata = zeros(length(velL)+50,3);
 datlog.stepdata.LTOdata = zeros(length(velL)+50,3);
 datlog.inclineang = [];
-datlog.speedprofile.velL = velL;
-datlog.speedprofile.velR = velR;
+datlog.speedprofile.velL = velL(:,1);
+datlog.speedprofile.velR = velR(:,1);
 datlog.TreadmillCommands.header = {'RBS','LBS','angle','U Time','Relative Time'};
 datlog.TreadmillCommands.read = nan(300*length(velR)+7200,4);
 datlog.TreadmillCommands.sent = nan(300*length(velR)+7200,4);%nan(length(velR)+50,4);
@@ -339,7 +348,7 @@ disp(etime(datevec(time2),datevec(time1)));
 disp('File creation time');
 
 %if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
-if (isempty(restSteps) || velL(1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
+if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
     fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     play(AudioTMStart3);
     pause(2.5);
@@ -355,17 +364,17 @@ end
 %Send first speed command & store
 acc=1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
 % acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
-[payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
+[payload] = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
 sendTreadmillPacket(payload,t);
-datlog.TreadmillCommands.firstSent = [velR(RstepCount),velL(LstepCount),acc,acc,cur_incl,now];%record the command
+datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
 commSendTime(1,:)=clock;
-datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command   
+datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command   
 datlog.messages{end+1} = ['First speed command sent' num2str(now)];
-datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))];
+datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 %% Main loop
 
-old_velR = libpointer('doublePtr',velR(1));
-old_velL = libpointer('doublePtr',velL(1));
+old_velR = libpointer('doublePtr',velR(1,1));
+old_velL = libpointer('doublePtr',velL(1,1));
 frameind = libpointer('doublePtr',1);
 framenum = libpointer('doublePtr',0);
 
@@ -481,14 +490,14 @@ end
 %                 RTOTime(RstepCount) = TimeStamp;
                 RTOTime(RstepCount) = now;
                 datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+                set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
             elseif LTO %Go to single R
                 phase=2;
                 LstepCount=LstepCount+1;
 %                 LTOTime(LstepCount) = TimeStamp;
                 LTOTime(LstepCount) = now;
                 datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+                set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
             end
         case 1 %single L
             if RHS
@@ -508,7 +517,7 @@ end
                 stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
                 set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                 %plot cursor
-                plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
+                plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                 drawnow;
                 
                 %for Hreflex, stim is allowed after HS, and time when did HS happen
@@ -521,7 +530,7 @@ end
 %                   LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+                    set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
             end
         case 2 %single R
@@ -539,7 +548,7 @@ end
                 stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
                 set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                 %plot cursor
-                plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
+                plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                 drawnow;
                 
                 %for Hreflex, stim is allowed after HS, and time when did HS happen
@@ -552,7 +561,7 @@ end
 %                 RTOTime(RstepCount) = TimeStamp;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+                    set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                 end
             end
         case 3 %DS, coming from single L
@@ -568,7 +577,7 @@ end
             if RTO
                 phase =1; %To single L
                 RstepCount=RstepCount+1;
-%                 RTOTime(RstepCount) = TimeStamp;
+                %                 RTOTime(RstepCount) = TimeStamp;
                 RTOTime(RstepCount) = now;
                 datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                 %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
@@ -578,30 +587,37 @@ end
     if hreflex_present %only do this if has the stimulator
         % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
         timeSinceLTO = now - LTOTime(LstepCount);
-%         timeSinceHS = toc; %Hreflex Alt Sol. 
-
-        if (mod(RstepCount,stimInterval)==4 && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
-%         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
-%         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol. 
+        %         timeSinceHS = toc; %Hreflex Alt Sol.
+        if isnan(stimInterval)
+            shouldStimR = logical(stimR(RstepCount));
+            shouldStimL = logical(stimL(LstepCount));
+        else
+            shouldStimR = mod(RstepCount,stimInterval) == 4;
+            shouldStimL = mod(LstepCount,stimInterval) == 4;
+        end
+        
+        if (shouldStimR && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
+            %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
+            %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
             if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                 continue
-            end            
-            fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this. 
+            end
+            fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
             if isCalibration %play sound
                 play(CalibAudioR);
             end
             canStim = false; %don't stim again untill LHS.
             datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
-
-%             fprintf('\nR Stim:')
-%             disp(timeSinceHS);
+            
+            %             fprintf('\nR Stim:')
+            %             disp(timeSinceHS);
         end
-
+        
         % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
         timeSinceRTO = now - RTOTime(RstepCount);
         % Changed to using ONLY RstepCount to force stimulation order
         % of left and right within one stride
-        if (mod(RstepCount,stimInterval)==4 && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
+        if (shouldStimL && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
 %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol. 
             if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                 continue
@@ -722,15 +738,15 @@ end
         break
     %only send a command if it is different from the previous one. Don't
     %overload the treadmill controller with commands
-    elseif (velR(RstepCount) ~= old_velR.Value) || (velL(LstepCount) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
-        payload = getPayload(velR(RstepCount),velL(LstepCount),acc,acc,cur_incl);
+    elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
+        payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
         sendTreadmillPacket(payload,t);
-        datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now]; %record the command
-        disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))])
-        if (velR(RstepCount) ~= old_velR.Value)
-         set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+        datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now]; %record the command
+        disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
+        if (velR(RstepCount,1) ~= old_velR.Value)
+         set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
         else %(velL(LstepCount) ~= old_velL.Value)
-         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
         end
     else
         %simply record what the treadmill should be doing
@@ -738,8 +754,8 @@ end
         %Pablo commented out on 26/2/2018 because it is unnecessary and takes time to save later.
     end
     
-    old_velR.Value = velR(RstepCount);
-    old_velL.Value = velL(LstepCount);
+    old_velR.Value = velR(RstepCount,1);
+    old_velL.Value = velL(LstepCount,1);
 
     if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
         need2LogEvent = false;

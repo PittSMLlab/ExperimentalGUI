@@ -15,10 +15,10 @@ ramp2Split = false; %SAH1-16 ramp2Split= true, also there was an coding error su
 speedRatio = 0.7; %slow/fast, SAH 1-16 did speedRatio = 0.5; %starting 7/8/2024, try ratio 1:0.7
 
 %for stroke participant use SAS01V01 (Sub##V## format)
-subjectID = 'Test'; %SAH01 for young, SAS01V01 for stroke
+subjectID = 'Practice'; %SAH01 for young, SAS01V01 for stroke
 
 %if 2:1 ratio, slow=0.5*fast, if 70%, slow = 0.7*fast
-fast = 1.0844;
+fast = 1.100;
 slow = fast * speedRatio; 
 
 fastLeg = 'R';%Allowed entries: R or L, if don't know yet, leave as random and choose generate baseline only
@@ -209,13 +209,25 @@ while currCond < maxCond
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
 %             end
-        case {7,8,9,10,11} %1st adapt
+        case {7,11} %end adapt
             handles.popupmenu2.set('Value',14) %NIRS train
-            profilename = [profileDir 'Adapt.mat'];
+            profilename = [profileDir 'Adapt1And5.mat'];
             manualLoadProfile([],[],handles,profilename)
-            button=questdlg('Confirm trial and profile is Adapt'); 
+            button=questdlg('Confirm trial and profile is Adapt');
             if ~strcmp(button,'Yes')
-              return; %Abort starting the exp
+                return; %Abort starting the exp
+            end
+            numAudioCountDown = [-1];
+            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            pause(pauseTime2min30); %~2.5mins
+            play(AudioTimeUp);
+        case {8,9,10}   % middle adapt
+            handles.popupmenu2.set('Value',14) %NIRS train
+            profilename = [profileDir 'Adapt234.mat'];
+            manualLoadProfile([],[],handles,profilename)
+            button=questdlg('Confirm trial and profile is Adapt');
+            if ~strcmp(button,'Yes')
+                return; %Abort starting the exp
             end
             numAudioCountDown = [-1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
@@ -224,7 +236,7 @@ while currCond < maxCond
         case 14 %post 1
             handles.popupmenu2.set('Value',14) %open loop with countdown with NIRS
             profilename = [profileDir 'Post1.mat'];manualLoadProfile([],[],handles,profilename)
-            button=questdlg('Confirm trial and profile is Post-Adapt 200 strides'); 
+            button=questdlg('Confirm trial and profile is Post-Adapt 200 strides');
             if ~strcmp(button,'Yes')
               return; %Abort starting the exp
             end
