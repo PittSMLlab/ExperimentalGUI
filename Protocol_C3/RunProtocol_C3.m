@@ -25,6 +25,8 @@
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
 participantID = 'Test';
+% TODO: better to have integer '1' or '2' for group/session?
+isGroup1 = true;                        % is in first experimental group?
 isSession1 = true;                      % is current session first session?
 times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
 numLaps_6MWT = 30;                      % number of 6MWT laps
@@ -79,6 +81,7 @@ switch shouldGenProfiles
         disp('No response was provided, quitting the script now.');
         return;
 end
+dirProfile = dirProfileR;
 
 %% Set Up the GUI & Run the Experiment
 % load audio file for announcing the end of the break
@@ -130,22 +133,24 @@ while currTrial < maxTrials % while more trials left to collect, ...
             % open-loop controller with audio count down
             handles.popupmenu2.set('Value',11);
             % TODO: handle case of session 2 possibly different profile dir
-            profilename = fullfile(dirProfileR,'TM_Baseline_Mid1.mat');
+            profilename = fullfile(dirProfile,'TM_Baseline_Mid1.mat');
             manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open loop ' ...
+            % TODO: update dialog prompts with exact name match
+            answer = questdlg(['Confirm controller is open loop ' ...
                 'controller with audio countdown and profile is ' ...
                 'TM_Baseline_Mid1']);
             if ~strcmp(answer,'Yes')% if incorrect controller/profile, ...
                 return;             % abort starting experiment
             end
-            numAudioCountDown = -1;
+            numAudioCountDown = -1; % include final audio countdown
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
+            % No fixed break here - proceed immediately in GUI
         case 2          % TM Baseline Fast (Tied)
             handles.popupmenu2.set('Value',11);
-            profilename = fullile(dirProfileR,'TM_Baseline_Fast.mat');
+            profilename = fullile(dirProfile,'TM_Baseline_Fast.mat');
             manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open loop ' ...
+            answer = questdlg(['Confirm controller is open loop ' ...
                 'controller with audio countdown and profile is ' ...
                 'TM_Baseline_Fast']);
             if ~strcmp(answer,'Yes')
@@ -154,10 +159,11 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
+            % No fixed break here - proceed immediately in GUI
         case 3          % OG Baseline Mid
             % overground controller with audio count down
             handles.popupmenu2.set('Value',8);
-            profilename = fullfile(dirProfileR,'OG_Baseline_Mid.mat');
+            profilename = fullfile(dirProfile,'OG_Baseline_Mid.mat');
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm controller is overground ' ...
                 'controller with audio feedback and profile is ' ...
@@ -167,8 +173,25 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: after this trial is when the SL script must be run
-            % during session 1
+            % TODO: implement break here (listed as 2:30, but may need more
+            % time to run script and collect BP/HR)
+            % TODO: implement automatically running this script by calling
+            % labTools script
+            % TODO: only run the below if session 1
+            answer = questdlg(['Now run the ''SLRealtime'' Vicon Nexus ' ...
+                'processing script on the TM Baseline Mid trial. Which' ...
+                ' leg has the *longer* step length (i.e., which leg ' ...
+                'should be on the slow belt)?'],'WhichLegIsSlow', ...
+                'Right','Left','Cancel','Right');
+            switch answer
+                case 'Right'
+                    dirProfile = dirProfileR;
+                    % TODO: delete unused profiles to prevent mistake
+                case 'Left'
+                    dirProfile = dirProfileL;
+                case 'Cancel'
+                    return;     % terminate experiment
+            end
         case 4          % TM Short Exposure Negative
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
@@ -179,8 +202,10 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
+            % TODO: include audio countdown for both speed changes
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
+            % TODO: implement fixed break here
         case 5          % TM Short Exposure Positive
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Pos.mat');
@@ -191,8 +216,10 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
+            % TODO: include audio countdown for both speed changes
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
+            % TODO: implement fixed break here
             % pause(pauseTime2min30); %break for 5mins at least.
             % play(AudioTimeUp);
         case 6          % TM Baseline Mid Full (Tied)
@@ -205,8 +232,10 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
+            % TODO: include audio countdown
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
+            % TODO: implement fixed break here
             % pause(pauseTime2min30); %break for 5mins at least.
             % play(AudioTimeUp);
         case {7,8,9,10,11,12}   % TM Adaptation (Split)
@@ -223,6 +252,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % TODO: handle different break durations depending on trial
+            % trial 9 has longer break for BP, trial 12 has short break
             % pause(pauseTime2min30); %~2.5mins
             % play(AudioTimeUp);
         case {13,14,15} % Post-Adaptation 1
