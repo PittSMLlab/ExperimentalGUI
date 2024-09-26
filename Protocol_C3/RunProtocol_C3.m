@@ -68,8 +68,8 @@ switch shouldGenProfiles
         % end
         % generate speed profiles for both legs as slow leg since decide
         % later which leg will be fast/slow based on step length
-        generateProfile_C3(participantID,'R',speedOGMid,speedOGFast);
-        generateProfile_C3(participantID,'L',speedOGMid,speedOGFast);
+        generateProfiles_C3(participantID,'R',speedOGMid,speedOGFast);
+        generateProfiles_C3(participantID,'L',speedOGMid,speedOGFast);
     case 'No, I generated them already'
         disp(['The profiles are already generated, continuing with the' ...
             ' experiment.']);
