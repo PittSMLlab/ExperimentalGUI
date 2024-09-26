@@ -9,64 +9,73 @@
 % TODO:
 %   - add feature to open a GUI to request fast leg from participant after
 %   baseline walking trials
+%   - prompt experimenter to run SL MATLAB script or automatically initiate
+%   via ViconSDK
+%   - delete unused profiles after determining slow/fast leg
+%   - for session 2 retrieve all previously used profiles
 %   - add more details regarding the conditions for this experiment to the
 %   comment block above
+%   - create GUI to accept initial experimenter inputs from 6MWT/10MWT
+%   - do not recreate profiles or request any 6MWT/10MWT data if session 2
 
 %% Experimental Parameters
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% EXPERIMENTER MUST UPDATE BELOW PARAMETERS BEFORE EACH EXPERIMENT %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ID: C3S## for participants with stroke, C3C## for control participants
+% NOTE: do NOT include '_S1' or '_S2' here to indicate session
+participantID = 'Test';
+isSession1 = true;                      % is current session first session?
+times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
+numLaps_6MWT = 30;                      % number of 6MWT laps
+distInches_6MWT = 0;                    % distance (inches) measured at end
+shouldAdd = true;                       % should add or subtract distance?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% ramp2Split = false;
-ratioSpeeds = 0.5;  % 2:1 belt-speed ratio for all participants slow/fast
-% ID: C3S##_S1 for participants with stroke session 1
-%     C3C##_S2 for control participants session 2
-partID = 'Test';
-% TODO: ADD EXPLANATORY COMMENTS HERE
-speedFast = 1.0844;
-speedSlow = speedFast * ratioSpeeds;
-% either 'R' or 'L', if not known, enter random and
-% for all participants
-legFast = 'R'; % if don't know yet, leave as random and choose generate baseline only
-%for healthy controls, fast = dominant
-%for stroke participant, fast = non-paretic for session1 amd fast = paretic
-%for session 2.
+speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
+if shouldAdd                            % if should add extra distance, ...
+    % compute 6MWT distance as sum of number of laps times walkway distance
+    % (~12.2 meters) plus remainder distance in inches converted to meters
+    dist_6MWT = (numLaps_6MWT * 12.2) + (distInches_6MWT * 0.0254);
+else                                    % otherwise, subtract distance
+    dist_6MWT = (numLaps_6MWT * 12.2) - (distInches_6MWT * 0.0254);
+end
+% 360 seconds is 6 minutes
+speedOGMid = dist_6MWT / 360;           % comfortable OG walking speed 6MWT
 
 %% Request User Input Regarding Profile Generation
-dirProfile = fullfile( ...
-    'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\C3',partID);
-answer = 'Yes';     % default to 'yes' don't check it
-if contains(partID,'_S2')   % second session
-    answer = questdlg(['The fast leg should be identical to that of ' ...
-        'session 1. Was the fast leg ' legFast '?']);
-end
-if ~strcmp(answer,'Yes')
-    return; % abort starting until experimenter fixes fast leg assignment
-end
+% answer = 'Yes';     % default to 'yes' don't check it
+% if contains(participantID,'_S2')    % if second walking session, ...
+%     answer = questdlg(['The fast leg should be identical to that of ' ...
+%         'session 1. Was the fast leg ' legFast '?']);
+% end
+% if ~strcmp(answer,'Yes')
+%     return; % abort starting until experimenter fixes fast leg assignment
+% end
 
 opts.Interpreter = 'tex';
 opts.Default = 'No, I generated them already';
-profileToGen = questdlg(['Regenerate profile? Confirm speed and ' ...
-    'participant ID are correct in Protocol_C3.m '],'RegenProfile', ...
-    'Yes','No, I generated them already',opts);
-switch profileToGen
+shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
+    'participant ID and other inputs are correct in RunProtocol_C3.m.'],...
+    'RegenProfile','Yes','No, I generated them already',opts);
+switch shouldGenProfiles
     case 'Yes'
-        % confirm again the fast leg is correct
-        answer = questdlg(['Just to double check: now create profile ' ...
-            'where the fast leg is ' legFast '. Is that correct?']);
-        if ~strcmp(answer,'Yes')
-            return; % abort starting the session
-        end
-        % TODO: update this to call correct profile generation script
-        GenerateProfile_C3(speedSlow, speedFast, true, dirProfile); %generate base only.
-        GenerateProfile_C3(speedSlow, speedFast, false, dirProfile, legFast, ramp2Split); %generate the rest after the dominant leg is determined, and ramp 2 split
+        % % confirm again the fast leg is correct
+        % answer = questdlg(['Just to double check: now create profile ' ...
+        %     'where the fast leg is ' legFast '. Is that correct?']);
+        % if ~strcmp(answer,'Yes')
+        %     return; % abort starting the session
+        % end
+        % generate speed profiles for both legs as slow leg since decide
+        % later which leg will be fast/slow based on step length
+        generateProfile_C3(participantID,'R',speedOGMid,speedOGFast);
+        generateProfile_C3(participantID,'L',speedOGMid,speedOGFast);
     case 'No, I generated them already'
-        % continue
-        disp('Profile generated already. Continue with the experiments.');
+        disp(['The profiles are already generated, continuing with the' ...
+            ' experiment.']);
     otherwise
-        disp('No response given, quit the script now.');
-        return
+        disp('No response was provided, quitting the script now.');
+        return;
 end
 
 %% Set Up GUI & Run the Experiment
@@ -96,7 +105,7 @@ while currCond < maxCond
         nextCondButton=questdlg('Auto continue with next condition?');
         if strcmp(nextCondButton,'Yes') %automatically advance to next condition.
             currCond = currCond + 1;
-            if contains(partID,'SAH') && ismember(currCond,[3,4]) %Healthy young people & OG trials now
+            if contains(participantID,'SAH') && ismember(currCond,[3,4]) %Healthy young people & OG trials now
                 currCond = 5; %skip OG for young adults, start from 5 (pre train)
             end
         elseif strcmp(nextCondButton, 'No')
