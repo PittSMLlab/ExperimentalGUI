@@ -125,7 +125,7 @@ clear velL velR;
 % OG or TM Post-Adaptation (150 strides each trial)
 velL = speedMean * ones(151,1);
 velR = velL;
-save('Post-Adaptation','velL','velR');
+save('PostAdaptation','velL','velR');
 clear velL velR;
 
 cd(dirWork);                        % reset working directory

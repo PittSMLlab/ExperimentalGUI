@@ -68,8 +68,10 @@ switch shouldGenProfiles
         % end
         % generate speed profiles for both legs as slow leg since decide
         % later which leg will be fast/slow based on step length
-        generateProfiles_C3(participantID,'R',speedOGMid,speedOGFast);
-        generateProfiles_C3(participantID,'L',speedOGMid,speedOGFast);
+        dirProfileR = generateProfiles_C3(participantID,'R', ...
+            speedOGMid,speedOGFast);
+        dirProfileL = generateProfiles_C3(participantID,'L', ...
+            speedOGMid,speedOGFast);
     case 'No, I generated them already'
         disp(['The profiles are already generated, continuing with the' ...
             ' experiment.']);
@@ -78,8 +80,8 @@ switch shouldGenProfiles
         return;
 end
 
-%% Set Up GUI & Run the Experiment
-% load audio for break time up.
+%% Set Up the GUI & Run the Experiment
+% load audio file for announcing the end of the break
 [audio_data,audio_fs] = audioread('TimeToWalk.mp3');
 AudioTimeUp = audioplayer(audio_data,audio_fs);
 
@@ -89,167 +91,173 @@ handles = guidata(AdaptationGUI);
 global profilename
 global numAudioCountDown
 
-maxCond = 17;
+maxTrials = 17;         % maximum number of trials
+% TODO: update below parameters to reflect C3 experiment
 pauseTime2min30 = 115; %2.5min, with the vicon stop/start timing ends up about 2.5mins
 pauseTime1min = 40;
 % pauseTime5m = 265; %4.5min,with the vicon stop/start timing ends up about 5mins
 
-%% start the protocol
-%the TM will start now/ stop now is not exacttly on point but maybe not
-%easy to make it better.
-isCalibration = false; %reset iscalib to false.
-firstCond = true;
-currCond = 0; %default value to start while loop.
-while currCond < maxCond
-    if ~firstCond
-        nextCondButton=questdlg('Auto continue with next condition?');
-        if strcmp(nextCondButton,'Yes') %automatically advance to next condition.
-            currCond = currCond + 1;
-            if contains(participantID,'SAH') && ismember(currCond,[3,4]) %Healthy young people & OG trials now
-                currCond = 5; %skip OG for young adults, start from 5 (pre train)
-            end
-        elseif strcmp(nextCondButton, 'No')
-            %if said No to auto advance, ask where to start
-            currCond = inputdlg('Which condition to start from (1 for baseline, 5 for pretrain, enter the number from the 1st col on the data sheet)? ');
-            currCond = str2num(currCond{1});
-            disp(['Starting from ' num2str(currCond)]);
-        else %cancel
-            return %stop exp
+%% Start C3 Experimental Protocol
+isFirstTrial = true;        % is first trial in experiment?
+currTrial = 0;              % initialize current trial to start while loop
+while currTrial < maxTrials % while more trials left to collect, ...
+    if ~isFirstTrial        % if not the first trial, ...
+        % ask experimenter whether to continue to next trial
+        nextTrialButton = questdlg(['Would you like to automatically ' ...
+            'continue with the next trial?']);
+        if strcmp(nextTrialButton,'Yes')% automatically advance next trial
+            currTrial = currTrial + 1;  % increment to next trial
+        elseif strcmp(nextTrialButton,'No')
+            currTrial = inputdlg(['Which trial do you want to start ' ...
+                'from (enter the number from the 1st column on the ' ...
+                'data sheet)?']);       % ask experimenter which trial
+            currTrial = str2double(currTrial{1});
+            disp(['Starting from trial #' num2str(currTrial)]);
+        else                % otherwise, terminate script
+            return;         % end the experiment
         end
-    else
-        firstCond = false;
-        %always ask the first time.
-        currCond = inputdlg('Which condition to start from (1 for baseline, 5 for pretrain, enter the number from the 1st col on the data sheet)? ');
-        currCond = str2num(currCond{1});
-        disp(['Starting from ' num2str(currCond)]);
+    else                    % otherwise, ...
+        isFirstTrial = false;           % no longer first trial after this
+        currTrial = inputdlg(['Which trial do you want to start ' ...
+            'from (enter the number from the 1st column on the ' ...
+            'data sheet)?']);           % ask experimenter which trial
+        currTrial = str2double(currTrial{1});
+        disp(['Starting from trial #' num2str(currTrial)]);
     end
 
-    switch currCond
-        case 1 %TM base tied
-            handles.popupmenu2.set('Value',14) %Nirs, Hreflex, Open Loop with count down.
-            profilename = [dirProfile, 'TMBaseFast.mat'];
-            manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm controller is Nirs, Hreflex, Open loop controller with audio countdown and profile is TMBaseFast');
+    switch currTrial
+        case 1          % TM Baseline Mid (Tied)
+            % open-loop controller with audio count down
+            handles.popupmenu2.set('Value',11);
+            % TODO: handle case of session 2 possibly different profile dir
+            profilename = fullfile(dirProfileR,'TM_Baseline_Mid1.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_Baseline_Mid1']);
+            if ~strcmp(answer,'Yes')% if incorrect controller/profile, ...
+                return;             % abort starting experiment
+            end
+            numAudioCountDown = -1;
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles)
+        case 2          % TM Baseline Fast (Tied)
+            handles.popupmenu2.set('Value',11);
+            profilename = fullile(dirProfileR,'TM_Baseline_Fast.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_Baseline_Fast']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            numAudioCountDown = [-1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case 2 %TM base slow
-            handles.popupmenu2.set('Value',14) %Nirs, Hreflex, OPEN Loop with count down.
-            profilename = [dirProfile, 'TMBaseSlow.mat'];
-            manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm controller is Nirs, Hreflex, Open loop controller with audio countdown and profile is TMBaseSlow');
+            numAudioCountDown = -1;
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+        case 3          % OG Baseline Mid
+            % overground controller with audio count down
+            handles.popupmenu2.set('Value',8);
+            profilename = fullfile(dirProfileR,'OG_Baseline_Mid.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is overground ' ...
+                'controller with audio feedback and profile is ' ...
+                'OG_Baseline_Mid']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            numAudioCountDown = [-1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {3} %OG Fast
-            handles.popupmenu2.set('Value',16) %OG Audio with HreflexOGWithAudio
-            profilename = [dirProfile 'OGBaseFast.mat'];
-            manualLoadProfile([],[],handles,profilename)
-            %now will ask user to change the speed info.
-            answer=questdlg('Confirm controller is HreflexOGWithAudio and speed profile is fast');
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % TODO: after this trial is when the SL script must be run
+            % during session 1
+        case 4          % TM Short Exposure Negative
+            handles.popupmenu2.set('Value',11);
+            profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_ShortExposure_Neg']);
             if ~strcmp(answer,'Yes')
-                return; %Always return and quit because now needs experimenter change in OG controller for the next 3 trials.
+                return;
             end
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {4} %OG Slow
-            handles.popupmenu2.set('Value',16) %OG Audio with Hreflex
-            profilename = [dirProfile 'OGBaseSlow.mat'];
-            manualLoadProfile([],[],handles,profilename)
-            %now will ask user to change the speed info.
-            answer=questdlg('Confirm controller is HreflexOGWithAudio and speed profile is slow');
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+        case 5          % TM Short Exposure Positive
+            handles.popupmenu2.set('Value',11);
+            profilename = fullfile(dirProfile,'TM_ShortExposure_Pos.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_ShortExposure_Pos']);
             if ~strcmp(answer,'Yes')
-                return; %Always return and quit because now needs experimenter change in OG controller for the next 3 trials.
+                return;
             end
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {5,6} %pre train
-            handles.popupmenu2.set('Value',14) %NIRS train
-            if currCond == 5 %1st pre train
-                profilename = [dirProfile 'PreSplitTrain_1.mat'];
-            else
-                profilename = [dirProfile 'PreSplitTrain_2.mat'];
-            end
-            manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Please confirm the trial information: Nirs Train Pre?');
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles)
+            % pause(pauseTime2min30); %break for 5mins at least.
+            % play(AudioTimeUp);
+        case 6          % TM Baseline Mid Full (Tied)
+            handles.popupmenu2.set('Value',11);
+            profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_Baseline_Mid2']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            pause(pauseTime2min30); %break for 5mins at least.
-            play(AudioTimeUp);
-        case {12,13} %post nirs train
-            handles.popupmenu2.set('Value',14) %NIRS train
-            if currCond == 12 %1st post train
-                profilename = [dirProfile 'PostSplitTrain_1.mat'];
-            else
-                profilename = [dirProfile 'PostSplitTrain_2.mat'];
-            end
-            manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Please confirm the trial information: Nirs Train Post?');
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % pause(pauseTime2min30); %break for 5mins at least.
+            % play(AudioTimeUp);
+        case {7,8,9,10,11,12}   % TM Adaptation (Split)
+            handles.popupmenu2.set('Value',11);
+            profilename = fullfile(dirProfile,'TM_Adaptation.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'TM_Baseline_Mid2']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            %             if currCond == 12 %only time break for 1st train.
-            pause(pauseTime2min30); %break for 5mins at least.
-            play(AudioTimeUp);
-            %             end
-        case {7,8,9,10,11} %1st adapt
-            handles.popupmenu2.set('Value',14) %NIRS train
-            profilename = [dirProfile 'Adapt.mat'];
-            manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm trial and profile is Adapt');
+            numAudioCountDown = -1;
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % TODO: handle different break durations depending on trial
+            % pause(pauseTime2min30); %~2.5mins
+            % play(AudioTimeUp);
+        case {13,14,15} % Post-Adaptation 1
+            % TODO: handle group 1/2, session 1/2 behavior
+            handles.popupmenu2.set('Value',11); % OR '8' if OG
+            profilename = fullfile(dirProfile,'PostAdaptation.mat');
+            manualLoadProfile([],[],handles,profilename);
+            % TODO: different prompt depending on group/session
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'PostAdaptation']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            numAudioCountDown = [-1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            pause(pauseTime2min30); %~2.5mins
-            play(AudioTimeUp);
-        case 14 %post 1
-            handles.popupmenu2.set('Value',14) %open loop with countdown with NIRS
-            profilename = [dirProfile 'Post1.mat'];manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm trial and profile is Post-Adapt 200 strides');
+            numAudioCountDown = -1;
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % pause(pauseTime1min); %~2.5mins
+            % play(AudioTimeUp);
+        case {16,17}    % Post-Adaptation 2
+            handles.popupmenu2.set('Value',11);
+            profilename = fullfile(dirProfile,'PostAdaptation.mat');
+            manualLoadProfile([],[],handles,profilename);
+            % TODO:
+            answer = questdlg(['Confirm controller is open loop ' ...
+                'controller with audio countdown and profile is ' ...
+                'PostAdaptation']);
             if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
+                return;
             end
-            numAudioCountDown = [-1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            pause(pauseTime1min); %~2.5mins
-            play(AudioTimeUp);
-        case 15 %post 2
-            handles.popupmenu2.set('Value',14) %NIRS open loop with countdown
-            profilename = [dirProfile 'Post2.mat'];manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm trial and profile is Post-Adapt 100 strides with rest');
-            if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
-            end
-            numAudioCountDown = [-1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            pause(pauseTime1min); %~2.5mins
-            play(AudioTimeUp);
-        case 16 %neg short first
-            handles.popupmenu2.set('Value',11) %open loop with countdown
-            profilename = [dirProfile 'NegShort.mat'];manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm trial and profile is NegShort');
-            if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
-            end
-            numAudioCountDown = [50 -1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            pause(pauseTime1min); %~2.5mins
-            play(AudioTimeUp);
-        case 17 %then pos short
-            handles.popupmenu2.set('Value',11) %open loop with countdown
-            profilename = [dirProfile 'PosShort.mat'];manualLoadProfile([],[],handles,profilename)
-            answer=questdlg('Confirm trial and profile is PosShort');
-            if ~strcmp(answer,'Yes')
-                return; %Abort starting the exp
-            end
-            numAudioCountDown = [100 130 -1];
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            numAudioCountDown = -1;
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % pause(pauseTime1min); %~2.5mins
+            % play(AudioTimeUp);
     end
 end
+
