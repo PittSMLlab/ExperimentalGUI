@@ -18,22 +18,68 @@
 %   - create GUI to accept initial experimenter inputs from 6MWT/10MWT
 %   - do not recreate profiles or request any 6MWT/10MWT data if session 2
 
-%% Experimental Parameters
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% EXPERIMENTER MUST UPDATE BELOW PARAMETERS BEFORE EACH EXPERIMENT %%%%%
+%% Retrieve Participant Data from Experimenter
+prompt = { ...
+    ['Enter the participant ID (C3S## for participants with stroke, ' ...
+    'C3C## for control participants, do NOT include ''_S#'' for ' ...
+    'session):'], ...
+    'Is this participant in Group 1 (''1'' = true, ''0'' = false)', ...
+    'Is this session 1 (''1'' = true, ''0'' = false)'};
+dlgtitle = 'Participant Experimental Inputs';
+fieldsize = [1 50; 1 50; 1 50];
+definput = {'Test', ...                     participant ID
+    '1', ...                                is group 1
+    '1'};                                   % is session 1
+answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+
+%% Extract Participant Experimental Parameters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% if you do not like the MATLAB GUI to receive experimental inputs as
+% above, comment out the above block and manually enter the desired values
+% for each of the three variables here.
+% e.g., participantID = 'Test';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
-participantID = 'Test';
+participantID = answer{1};
 % TODO: better to have integer '1' or '2' for group/session?
-isGroup1 = true;                        % is in first experimental group?
-isSession1 = true;                      % is current session first session?
-times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
-numLaps_6MWT = 30;                      % number of 6MWT laps
-distInches_6MWT = 0;                    % distance (inches) measured at end
-shouldAdd = true;                       % should add or subtract distance?
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
+isSession1 = logical(str2double(answer{3}));% is first session?
 
+%% Retrieve 6-Minute/10-Meter Walk Test Data from Experimenter
+prompt = { ...
+    ['Enter the list of 10-Meter walk times (in seconds) you would ' ...
+    'like to average to compute the fast overground walking speed:'], ...
+    'How many 6-Minute Walk Test laps should be computed?', ...
+    'What is the tape measure distance (in inches)', ...
+    ['Should the additional distance be added to the laps above (as ' ...
+    'opposed to being subtracted, ''1'' = true, ''0'' = false)']};
+dlgtitle = '6MWT/10MWT Experimental Inputs';
+fieldsize = [1 200; 1 200; 1 200; 1 200];
+definput = { ...                        10MWT times (in seconds) list
+    '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00', ...
+    '30', ...                           number of 6MWT laps
+    '0', ...                            tape measure distance (in inches)
+    '1'};                               % should add above distance?
+answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+
+%% Extract 6MWT/10MWT Experimental Parameters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% if you do not like the MATLAB GUI to receive experimental inputs as
+% above, comment out the above block and manually enter the desired values
+% for each of the four variables here.
+% e.g., times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+times_10MWT = strsplit(answer{1},' ');      % list of 10MWT times (seconds)
+if isempty(EMGList1)                        % if no 10MWT times input, ...
+    error(['No EMG labels have been provided. It is not possible to ' ...
+        'generate H-reflex recruitment curves without EMG data.']);
+end
+numLaps_6MWT = str2double(answer{2});       % number of 6MWT laps
+distInches_6MWT = str2double(answer{3});    % end measure distance (inches)
+shouldAdd = logical(str2double(answer{4})); % should + or - distance?
+
+%% Compute 6MWT/10MWT Speeds
 speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
 if shouldAdd                            % if should add extra distance, ...
     % compute 6MWT distance as sum of number of laps times walkway distance
