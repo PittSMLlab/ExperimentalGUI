@@ -20,13 +20,13 @@
 
 %% Retrieve Participant Data from Experimenter
 prompt = { ...
-    ['Enter the participant ID (C3S## for participants with stroke, ' ...
-    'C3C## for control participants, do NOT include ''_S#'' for ' ...
-    'session):'], ...
-    'Is this participant in Group 1 (''1'' = true, ''0'' = false)', ...
-    'Is this session 1 (''1'' = true, ''0'' = false)'};
+    ['Enter the participant ID (''C3S##'' for participants with ' ...
+    'stroke, ''C3C##'' for control participants, do NOT include ' ...
+    '''_S#'' for the session):'], ...
+    'Is this participant in Group 1? (''1'' = true, ''0'' = false)', ...
+    'Is this session 1? (''1'' = true, ''0'' = false)'};
 dlgtitle = 'Participant Experimental Inputs';
-fieldsize = [1 50; 1 50; 1 50];
+fieldsize = [1 60; 1 60; 1 60];
 definput = {'Test', ...                     participant ID
     '1', ...                                is group 1
     '1'};                                   % is session 1
@@ -36,8 +36,7 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % if you do not like the MATLAB GUI to receive experimental inputs as
 % above, comment out the above block and manually enter the desired values
-% for each of the three variables here.
-% e.g., participantID = 'Test';
+% for each of the three variables here (e.g., participantID = 'Test';).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
@@ -46,88 +45,83 @@ participantID = answer{1};
 isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
 
-%% Retrieve 6-Minute/10-Meter Walk Test Data from Experimenter
-prompt = { ...
-    ['Enter the list of 10-Meter walk times (in seconds) you would ' ...
-    'like to average to compute the fast overground walking speed:'], ...
-    'How many 6-Minute Walk Test laps should be computed?', ...
-    'What is the tape measure distance (in inches)', ...
-    ['Should the additional distance be added to the laps above (as ' ...
-    'opposed to being subtracted, ''1'' = true, ''0'' = false)']};
-dlgtitle = '6MWT/10MWT Experimental Inputs';
-fieldsize = [1 200; 1 200; 1 200; 1 200];
-definput = { ...                        10MWT times (in seconds) list
-    '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00', ...
-    '30', ...                           number of 6MWT laps
-    '0', ...                            tape measure distance (in inches)
-    '1'};                               % should add above distance?
-answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+%% 6-Minute/10-Meter Walk Test Data Input
+if isSession1                               % if session 1, ...
+    % Retrieve 6-Minute/10-Meter Walk Test Data from Experimenter
+    prompt = { ...
+        ['Enter the list of 10-Meter walk times (in seconds) you ' ...
+        'would like to average to compute the fast overground walking' ...
+        ' speed:'], ...
+        'How many 6-Minute Walk Test laps should be computed?', ...
+        'What is the tape measure distance (in inches)', ...
+        ['Should the additional distance be added to the laps above ' ...
+        '(as opposed to being subtracted, ''1'' = true, ''0'' = false)']};
+    dlgtitle = '6MWT/10MWT Experimental Inputs';
+    fieldsize = [1 200; 1 200; 1 200; 1 200];
+    definput = { ...                        10MWT times (in seconds) list
+        '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00', ...
+        '30', ...                           number of 6MWT laps
+        '0', ...                            tape measure distance (inches)
+        '1'};                               % should add above distance?
+    answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 
-%% Extract 6MWT/10MWT Experimental Parameters
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% if you do not like the MATLAB GUI to receive experimental inputs as
-% above, comment out the above block and manually enter the desired values
-% for each of the four variables here.
-% e.g., times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-times_10MWT = strsplit(answer{1},' ');      % list of 10MWT times (seconds)
-if isempty(EMGList1)                        % if no 10MWT times input, ...
-    error(['No EMG labels have been provided. It is not possible to ' ...
-        'generate H-reflex recruitment curves without EMG data.']);
+    % Extract 6MWT/10MWT Experimental Parameters
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % if you do not like the MATLAB GUI to receive experimental inputs as
+    % above, comment out the above block and manually enter the desired
+    % values for each of the four variables here.
+    % e.g., times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    times_10MWT = strsplit(answer{1},' ');      % list 10MWT times (secs)
+    numLaps_6MWT = str2double(answer{2});       % number of 6MWT laps
+    distInches_6MWT = str2double(answer{3});    % measure distance (inches)
+    shouldAdd = logical(str2double(answer{4})); % should + or - distance?
+
+    % Compute 6MWT/10MWT Speeds
+    speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
+    if shouldAdd                            % if should add distance, ...
+        % compute 6MWT distance as sum of # of laps times walkway distance
+        % (~12.2 meters) + remainder distance in inches converted to meters
+        dist_6MWT = (numLaps_6MWT * 12.2) + (distInches_6MWT * 0.0254);
+    else                                    % otherwise, subtract distance
+        dist_6MWT = (numLaps_6MWT * 12.2) - (distInches_6MWT * 0.0254);
+    end
+    % 360 seconds is 6 minutes
+    speedOGMid = dist_6MWT / 360;           % comfortable 6MWT OG speed
+
+    % Request User Input for Speed Profile Generation
+    opts.Interpreter = 'tex';
+    opts.Default = 'No, I generated them already';
+    shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
+        'participant ID and other inputs are correct in RunProtocol_C3.m.'],...
+        'RegenProfile','Yes','No, I generated them already',opts);
+    switch shouldGenProfiles
+        case 'Yes'
+            % generate speed profiles for both legs as slow leg since decide
+            % later which leg will be fast/slow based on step length
+            dirProfileR = generateProfiles_C3(participantID,'R', ...
+                speedOGMid,speedOGFast);
+            dirProfileL = generateProfiles_C3(participantID,'L', ...
+                speedOGMid,speedOGFast);
+        case 'No, I generated them already'
+            disp(['The profiles are already generated, continuing with the' ...
+                ' experiment.']);
+        otherwise
+            disp('No response was provided, quitting the script now.');
+            return;
+    end
+    dirProfile = dirProfileR;
+else                                            % otherwise, session 2
+    dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
+        'profiles\Stroke_CCC'];
+    % TODO: test that below code works as desired
+    raw = dir(fullfile(dirBase,participantID)); % retrieve folder
+    ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
+    % NOTE: there should only be one profile folder since the irrelevant
+    % one should have been deleted in session 1
+    profiles = raw(~ignore);
+    dirProfile = fullfile(dirBase,participantID,profiles.name);
 end
-numLaps_6MWT = str2double(answer{2});       % number of 6MWT laps
-distInches_6MWT = str2double(answer{3});    % end measure distance (inches)
-shouldAdd = logical(str2double(answer{4})); % should + or - distance?
-
-%% Compute 6MWT/10MWT Speeds
-speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
-if shouldAdd                            % if should add extra distance, ...
-    % compute 6MWT distance as sum of number of laps times walkway distance
-    % (~12.2 meters) plus remainder distance in inches converted to meters
-    dist_6MWT = (numLaps_6MWT * 12.2) + (distInches_6MWT * 0.0254);
-else                                    % otherwise, subtract distance
-    dist_6MWT = (numLaps_6MWT * 12.2) - (distInches_6MWT * 0.0254);
-end
-% 360 seconds is 6 minutes
-speedOGMid = dist_6MWT / 360;           % comfortable OG walking speed 6MWT
-
-%% Request User Input Regarding Profile Generation
-% answer = 'Yes';     % default to 'yes' don't check it
-% if contains(participantID,'_S2')    % if second walking session, ...
-%     answer = questdlg(['The fast leg should be identical to that of ' ...
-%         'session 1. Was the fast leg ' legFast '?']);
-% end
-% if ~strcmp(answer,'Yes')
-%     return; % abort starting until experimenter fixes fast leg assignment
-% end
-
-opts.Interpreter = 'tex';
-opts.Default = 'No, I generated them already';
-shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
-    'participant ID and other inputs are correct in RunProtocol_C3.m.'],...
-    'RegenProfile','Yes','No, I generated them already',opts);
-switch shouldGenProfiles
-    case 'Yes'
-        % % confirm again the fast leg is correct
-        % answer = questdlg(['Just to double check: now create profile ' ...
-        %     'where the fast leg is ' legFast '. Is that correct?']);
-        % if ~strcmp(answer,'Yes')
-        %     return; % abort starting the session
-        % end
-        % generate speed profiles for both legs as slow leg since decide
-        % later which leg will be fast/slow based on step length
-        dirProfileR = generateProfiles_C3(participantID,'R', ...
-            speedOGMid,speedOGFast);
-        dirProfileL = generateProfiles_C3(participantID,'L', ...
-            speedOGMid,speedOGFast);
-    case 'No, I generated them already'
-        disp(['The profiles are already generated, continuing with the' ...
-            ' experiment.']);
-    otherwise
-        disp('No response was provided, quitting the script now.');
-        return;
-end
-dirProfile = dirProfileR;
 
 %% Set Up the GUI & Run the Experiment
 % load audio file for announcing the end of the break
