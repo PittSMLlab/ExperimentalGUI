@@ -53,11 +53,11 @@ if isSession1                               % if session 1, ...
         'would like to average to compute the fast overground walking' ...
         ' speed:'], ...
         'How many 6-Minute Walk Test laps should be computed?', ...
-        'What is the tape measure distance (in inches)', ...
-        ['Should the additional distance be added to the laps above ' ...
+        'What is the tape measure distance (in inches)?', ...
+        ['Should the additional distance be added to the laps above? ' ...
         '(as opposed to being subtracted, ''1'' = true, ''0'' = false)']};
     dlgtitle = '6MWT/10MWT Experimental Inputs';
-    fieldsize = [1 200; 1 200; 1 200; 1 200];
+    fieldsize = [1 125; 1 125; 1 125; 1 125];
     definput = { ...                        10MWT times (in seconds) list
         '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00', ...
         '30', ...                           number of 6MWT laps
@@ -172,7 +172,6 @@ while currTrial < maxTrials % while more trials left to collect, ...
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
             handles.popupmenu2.set('Value',11);
-            % TODO: handle case of session 2 possibly different profile dir
             profilename = fullfile(dirProfile,'TM_Baseline_Mid1.mat');
             manualLoadProfile([],[],handles,profilename);
             % TODO: update dialog prompts with exact name match
@@ -213,24 +212,25 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: implement break here (listed as 2:30, but may need more
-            % time to run script and collect BP/HR)
             % TODO: implement automatically running this script by calling
             % labTools script
-            % TODO: only run the below if session 1
-            answer = questdlg(['Now run the ''SLRealtime'' Vicon Nexus ' ...
-                'processing script on the TM Baseline Mid trial. Which' ...
-                ' leg has the *longer* step length (i.e., which leg ' ...
-                'should be on the slow belt)?'],'WhichLegIsSlow', ...
-                'Right','Left','Cancel','Right');
-            switch answer
-                case 'Right'
-                    dirProfile = dirProfileR;
-                    % TODO: delete unused profiles to prevent mistake
-                case 'Left'
-                    dirProfile = dirProfileL;
-                case 'Cancel'
-                    return;     % terminate experiment
+            if isSession1                       % if first session, ...
+                answer = questdlg(['Now run the ''SLRealtime'' Vicon ' ...
+                    'Nexus processing script on the TM Baseline Mid ' ...
+                    'trial. Which leg has the *longer* step length ' ...
+                    '(i.e., which leg should be on the slow belt)?'], ...
+                    'WhichLegIsSlow','Right','Left','Cancel','Right');
+                switch answer
+                    case 'Right'
+                        dirProfile = dirProfileR;
+                        % TODO: output status to ensure deletion occurs
+                        rmdir(dirProfileL);     % delete unused profiles
+                    case 'Left'
+                        dirProfile = dirProfileL;
+                        rmdir(dirProfileR);
+                    case 'Cancel'
+                        return;                 % terminate experiment
+                end
             end
         case 4          % TM Short Exposure Negative
             handles.popupmenu2.set('Value',11);
@@ -242,7 +242,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
-            % TODO: include audio countdown for both speed changes
+            numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % TODO: implement fixed break here
@@ -256,7 +256,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
-            % TODO: include audio countdown for both speed changes
+            numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
             % TODO: implement fixed break here
@@ -272,7 +272,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
-            % TODO: include audio countdown
+            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % TODO: implement fixed break here
@@ -296,34 +296,57 @@ while currTrial < maxTrials % while more trials left to collect, ...
             % pause(pauseTime2min30); %~2.5mins
             % play(AudioTimeUp);
         case {13,14,15} % Post-Adaptation 1
-            % TODO: handle group 1/2, session 1/2 behavior
-            handles.popupmenu2.set('Value',11); % OR '8' if OG
-            profilename = fullfile(dirProfile,'PostAdaptation.mat');
-            manualLoadProfile([],[],handles,profilename);
-            % TODO: different prompt depending on group/session
-            answer = questdlg(['Confirm controller is open loop ' ...
-                'controller with audio countdown and profile is ' ...
+            % if group 1, session 1 or group 2, session 2, ...
+            if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
+                handles.popupmenu2.set('Value',8);  % OG
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is overground ' ...
+                'controller with audio feedback and profile is ' ...
                 'PostAdaptation']);
+            % if group 1, session 2 or group 2, session 1, ...
+            elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
+                handles.popupmenu2.set('Value',11); % TM
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is open loop ' ...
+                    'controller with audio countdown and profile is ' ...
+                    'PostAdaptation']);
+                numAudioCountDown = -1;
+            else                                    % otherwise, ...
+                % TODO: implement error handling
+            end
             if ~strcmp(answer,'Yes')
                 return;
             end
-            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % pause(pauseTime1min); %~2.5mins
             % play(AudioTimeUp);
         case {16,17}    % Post-Adaptation 2
-            handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'PostAdaptation.mat');
-            manualLoadProfile([],[],handles,profilename);
-            % TODO:
-            answer = questdlg(['Confirm controller is open loop ' ...
+            % if group 1, session 1 or group 2, session 2, ...
+            if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
+                handles.popupmenu2.set('Value',11);  % TM
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is open loop ' ...
                 'controller with audio countdown and profile is ' ...
                 'PostAdaptation']);
+                numAudioCountDown = -1;
+            % if group 1, session 2 or group 2, session 1, ...
+            elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
+                handles.popupmenu2.set('Value',8); % OG
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is overground ' ...
+                    'controller with audio feedback and profile is ' ...
+                    'PostAdaptation']);
+            else                                    % otherwise, ...
+                % TODO: implement error handling
+            end
             if ~strcmp(answer,'Yes')
                 return;
             end
-            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % pause(pauseTime1min); %~2.5mins
