@@ -7,16 +7,8 @@
 % controllers and profiles.
 
 % TODO:
-%   - add feature to open a GUI to request fast leg from participant after
-%   baseline walking trials
-%   - prompt experimenter to run SL MATLAB script or automatically initiate
-%   via ViconSDK
-%   - delete unused profiles after determining slow/fast leg
-%   - for session 2 retrieve all previously used profiles
 %   - add more details regarding the conditions for this experiment to the
 %   comment block above
-%   - create GUI to accept initial experimenter inputs from 6MWT/10MWT
-%   - do not recreate profiles or request any 6MWT/10MWT data if session 2
 
 %% Retrieve Participant Data from Experimenter
 prompt = { ...
@@ -41,7 +33,6 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
 participantID = answer{1};
-% TODO: better to have integer '1' or '2' for group/session?
 isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
 
@@ -90,11 +81,12 @@ if isSession1                               % if session 1, ...
     speedOGMid = dist_6MWT / 360;           % comfortable 6MWT OG speed
 
     % Request User Input for Speed Profile Generation
-    opts.Interpreter = 'tex';
+    opts.Interpreter = 'none';
     opts.Default = 'No, I generated them already';
     shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
-        'participant ID and other inputs are correct in RunProtocol_C3.m.'],...
-        'RegenProfile','Yes','No, I generated them already',opts);
+        'participant ID and other inputs are correct in ' ...
+        'RunProtocol_C3.m.'], ...
+        'Regenerate Profiles?','Yes','No, I generated them already',opts);
     switch shouldGenProfiles
         case 'Yes'
             % generate speed profiles for both legs as slow leg since decide
@@ -212,14 +204,13 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: implement automatically running this script by calling
-            % labTools script
+            % TODO: implement automatically running SLRealTime script
             if isSession1                       % if first session, ...
                 answer = questdlg(['Now run the ''SLRealtime'' Vicon ' ...
                     'Nexus processing script on the TM Baseline Mid ' ...
                     'trial. Which leg has the *longer* step length ' ...
                     '(i.e., which leg should be on the slow belt)?'], ...
-                    'WhichLegIsSlow','Right','Left','Cancel','Right');
+                    'Which leg is slow?','Right','Left','Cancel','Right');
                 switch answer
                     case 'Right'
                         dirProfile = dirProfileR;
@@ -302,9 +293,9 @@ while currTrial < maxTrials % while more trials left to collect, ...
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);
                 answer = questdlg(['Confirm controller is overground ' ...
-                'controller with audio feedback and profile is ' ...
-                'PostAdaptation']);
-            % if group 1, session 2 or group 2, session 1, ...
+                    'controller with audio feedback and profile is ' ...
+                    'PostAdaptation']);
+                % if group 1, session 2 or group 2, session 1, ...
             elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
                 handles.popupmenu2.set('Value',11); % TM
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
@@ -330,10 +321,10 @@ while currTrial < maxTrials % while more trials left to collect, ...
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);
                 answer = questdlg(['Confirm controller is open loop ' ...
-                'controller with audio countdown and profile is ' ...
-                'PostAdaptation']);
+                    'controller with audio countdown and profile is ' ...
+                    'PostAdaptation']);
                 numAudioCountDown = -1;
-            % if group 1, session 2 or group 2, session 1, ...
+                % if group 1, session 2 or group 2, session 1, ...
             elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
                 handles.popupmenu2.set('Value',8); % OG
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
