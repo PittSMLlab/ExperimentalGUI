@@ -152,7 +152,7 @@ savename = [[d '\..\datlogs\'] temp '_' n];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
-datlog.messages = {};
+datlog.messages = cell(1,2);
 datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 datlog.framenumbers.data = zeros(300*length(velR)+7200,2);
 datlog.stepdata.header = {'Step#','U Time','frame #','Relative Time'};
@@ -205,7 +205,7 @@ end
 if nargin<3
     FzThreshold=40; %Newtons (40 is minimum for noise not to be an issue)
 elseif FzThreshold<40
-    datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
+    datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 40N instead');
     FzThreshold=40;
 end
@@ -215,7 +215,7 @@ end
 N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
-    datlog.messages{end+1} = 'Velocity vectors of different length selected';
+    datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 %Adding a fake step at the end to avoid out-of-bounds indexing, but those
 %speeds should never get used in reality:
@@ -270,7 +270,7 @@ end
 
 try %So that if something fails, communications are closed properly
     MyClient.GetFrame();
-    datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
     
     %Initiate variables
     new_stanceL=false;
@@ -298,9 +298,9 @@ try %So that if something fails, communications are closed properly
 %     fastest = 8.2353; %7 meters/ 0.8 m/s
 %     slowest = 10.7692; % 7 meters/ 0.6 m/s
 
-    %Moonwalkers
-%     fastest = 5.8715; %fastest should have the smaller number because it is time
-%     slowest = 7.1751;
+%    Moonwalkers
+%     fastest = 6.7764; %fastest should have the smaller number because it is time
+%     slowest = 8.4034;
    
 %     %stroke mean speed  %DMMO
 %     fastest =  6.54; %7 meters/ FASTEST  m/s, fastest and slowest are specified in terms of time required to walk between y_min and y_max
@@ -310,7 +310,7 @@ try %So that if something fails, communications are closed properly
     % fastest should have the smaller number because it is time
     fastest = 7/(velL(1)/1000*1.1); % assume same speeds throughout, compute time using first stride (i.e., index 1) speed value
     slowest = 7/(velL(1)/1000*0.9); % assume same speeds throughout, compute time using index 1.
-        
+%         
     y_max = 4500; %in mm relative to the origin (by the treadmill rotator box)
     y_min = -2500;
  
@@ -352,7 +352,7 @@ try %So that if something fails, communications are closed properly
         %It actually takes ~2ms, as Matlab seems to be incapable of pausing for less than that (overhead of the pause() function, I presume)
         while PAUSE %only runs if pause button is pressed
             pause(.2);
-            datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
+            datlog.messages(end+1,:) = {'Loop paused at ', now};
             disp(['Paused at ' num2str(clock)]);
             %do a quick save
             try
@@ -529,7 +529,7 @@ try %So that if something fails, communications are closed properly
         end
     end %While, when STOP button is pressed
     if STOP
-        datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+        datlog.messages(end+1,:) = {'Stop button pressed at: ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');

@@ -58,7 +58,7 @@ savename = [[d '\..\datlogs\'] temp '_' profilename];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
-datlog.messages = {};
+datlog.messages = cell(1,2);
 datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 datlog.framenumbers.data = zeros(300*length(velR)+7200,2);
 datlog.forces.header = {'frame #','U time','Rfz','Lfz','Relative Time'};
@@ -86,7 +86,7 @@ if nargin<3
     FzThreshold=30; %Newtons (30 is minimum for noise not to be an issue)
 elseif FzThreshold<30
 %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
-    datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
+    datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
 end
 
@@ -94,7 +94,7 @@ end
 N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
-    datlog.messages{end+1} = 'Velocity vectors of different length selected';
+    datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 
 %Initialize nexus & treadmill communications
@@ -168,7 +168,7 @@ try %So that if something fails, communications are closed properly
 % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
 MyClient.GetFrame();
 % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
-datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
 % set(ghandle.listbox1,'String',listbox);
 
 %Initiate variables
@@ -214,8 +214,8 @@ sendTreadmillPacket(payload,t);
 datlog.TreadmillCommands.firstSent = [velR(RstepCount),velL(LstepCount),acc,acc,cur_incl,now];%record the command
 commSendTime(1,:)=clock;
 datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command   
-datlog.messages{end+1} = ['First speed command sent' num2str(now)];
-datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))];
+datlog.messages(end+1,:) = {'First speed command sent', now};
+datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))];
 
 %% Main loop
 
@@ -240,7 +240,7 @@ end
 while ~STOP %only runs if stop button is not pressed
     while PAUSE %only runs if pause button is pressed
         pause(.2);
-        datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
+        datlog.messages(end+1,:) = {'Loop paused at ', now};
         disp(['Paused at ' num2str(clock)]);
         %bring treadmill to a stop and keep it there!...
         [payload] = getPayload(0,0,500,500,cur_incl);
@@ -495,7 +495,7 @@ while ~STOP %only runs if stop button is not pressed
 %     end
     
 %     if (LstepCount>=N) || (RstepCount>=N)
-%         datlog.messages{end+1} = ['Reached the end of programmed speed profile, no further commands will be sent ' num2str(now)];
+%         datlog.messages(end+1,:) = {'Reached the end of programmed speed profile, no further commands will be sent ', now};
 % %         log = ['Reached the end of programmed speed profile, no further commands will be sent ' num2str(clock)];
 %         disp(['Reached the end of programmed speed profile, no further commands will be sent ' num2str(clock)]);
 % %         listbox{end+1} = log;
@@ -511,7 +511,7 @@ while ~STOP %only runs if stop button is not pressed
 end %While, when STOP button is pressed
 
 if STOP
-    datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+    datlog.messages(end+1,:) = {'Stop button pressed at: ', now};
 %     log=['Stop button pressed, stopping... ' num2str(clock)];
 %     listbox{end+1}=log;
     disp(['Stop button pressed, stopping... ' num2str(clock)]);

@@ -198,7 +198,7 @@ savename = [[d '\..\datlogs\'] temp '_' profilename];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
-datlog.messages = {};
+datlog.messages = cell(1,2);
 datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 datlog.framenumbers.data = zeros(300*length(velR)+7200,2);
 datlog.forces.header = {'frame #','U time','Rfz','Lfz','Relative Time'};
@@ -233,19 +233,19 @@ if nargin<3
     FzThreshold=100; %Newtons (30 is minimum for noise not to be an issue)
 elseif FzThreshold<30
 %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
-    datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
+    datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
 end
 
 FzThreshold = 100; %impose 100 threshold because the force plates noise is +-60N sometimes.
-datlog.messages{end+1} = 'Fz threshold is always set to 100N to be robust to noise even at low speed.';
+datlog.messages{end+1,1} = 'Fz threshold is always set to 100N to be robust to noise even at low speed.';
 disp("Fz threshold is always set to 100N to be robust to noise even at low speed.")
 
 %Check that velL and velR are of equal length
 N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
-    datlog.messages{end+1} = 'Velocity vectors of different length selected';
+    datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 
 %Initialize nexus & treadmill communications
@@ -310,7 +310,7 @@ try %So that if something fails, communications are closed properly
 % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
 MyClient.GetFrame();
 % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
-datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
 % set(ghandle.listbox1,'String',listbox);
 
 %Initiate variables
@@ -369,8 +369,8 @@ sendTreadmillPacket(payload,t);
 datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
 commSendTime(1,:)=clock;
 datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command   
-datlog.messages{end+1} = ['First speed command sent' num2str(now)];
-datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
+datlog.messages(end+1,:) = {'First speed command sent', now};
+datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 %% Main loop
 
 old_velR = libpointer('doublePtr',velR(1,1));
@@ -396,7 +396,7 @@ tic;
 while ~STOP %only runs if stop button is not pressed
     while PAUSE %only runs if pause button is pressed
         pause(.2);
-        datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
+        datlog.messages(end+1,:) = {'Loop paused at ', now};
         disp(['Paused at ' num2str(clock)]);
         %bring treadmill to a stop and keep it there!...
         [payload] = getPayload(0,0,500,500,cur_incl);
@@ -814,8 +814,7 @@ if STOP
 %     log=['Stop button pressed, stopping... ' num2str(clock)];
 %     listbox{end+1}=log;
     %Shuqi: 02/07/2024, adjusted to log time with precision
-    datlog.messages{end+1} = ['Stop button pressed at: [see next cell] ,stopping... '];
-    datlog.messages{end+1} = now; %this will preseve all the precision to avoid rounding errors with time.
+    datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
     disp(['Stop button pressed, stopping... ' num2str(clock)]);
     set(ghandle.Status_textbox,'String','Stopping...');
     set(ghandle.Status_textbox,'BackgroundColor','red');
@@ -846,6 +845,7 @@ catch ME
 end
 
 if hreflex_present %if hreflex, close communication with arduino.
+    datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
     fprintf('Closing Arduino Port');
     fclose(arduinoPort);
     fprintf('Done Closing Arduino Port\n');

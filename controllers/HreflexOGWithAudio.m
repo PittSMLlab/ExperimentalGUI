@@ -35,7 +35,7 @@ if hreflex_present      % if electrically stimulating for H-reflexes, ...
     % softwares are closed.
     fopen(arduinoPort);
     fprintf('Done Opening ArduinoPort');
-    
+        
     stimInterval = 10; % stimulate every 10 strides (based on kinematics)
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
     % tic;                % for the timeSinceLastStim variable
@@ -193,7 +193,7 @@ savename = [[d '\..\datlogs\'] temp '_' n];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
-datlog.messages = {};
+datlog.messages = cell(1,2);
 datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 datlog.framenumbers.data = zeros(300*length(velR)+7200,2);
 datlog.stepdata.header = {'Step#','U Time','frame #','Relative Time'};
@@ -253,7 +253,7 @@ end
 N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
-    datlog.messages{end+1} = 'Velocity vectors of different length selected';
+    datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 
 %Adding a fake step at the end to avoid out-of-bounds indexing, but those
@@ -292,7 +292,7 @@ end
 
 try % so that if something fails, communications are closed properly
     MyClient.GetFrame();
-    datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
     
     % initiate variables
     % new_stanceL = false; % from previous version that detected stance
@@ -370,7 +370,7 @@ try % so that if something fails, communications are closed properly
         %It actually takes ~2ms, as Matlab seems to be incapable of pausing for less than that (overhead of the pause() function, I presume)
         while PAUSE % only runs if pause button is pressed
             pause(.2);
-            datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
+            datlog.messages(end+1,:) = {'Loop paused at ', now};
             disp(['Paused at ' num2str(clock)]);
             %do a quick save
             try
@@ -961,8 +961,7 @@ try % so that if something fails, communications are closed properly
     end %While, when STOP button is pressed
     
     if STOP
-        datlog.messages{end+1} = 'Stop button pressed at: [see next cell], stopping... ';
-        datlog.messages{end+1} = now;   % preserves full precision of the time
+        datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell], stopping... ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
@@ -995,6 +994,7 @@ catch ME
 end
 
 if hreflex_present %if hreflex, close communication with arduino.
+    datlog.messages(end+1,:) = {'Closing Arduino Port ', now};
     fprintf('Closing Arduino Port');
     fclose(arduinoPort);
     fprintf('Done Closing Arduino Port\n');

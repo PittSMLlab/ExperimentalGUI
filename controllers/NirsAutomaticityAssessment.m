@@ -6,9 +6,9 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %The first value for velL and velR is the initial desired speed, and new
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
-%% Parameter for randonization order 
-randomization_order = [3 5 1 2 6 4]; %for visit 2, random number between 7 -12
-startingAlphabet ='b';
+%% Parameter for randomization order 
+randomization_order = [2 3 4 5 6 1]; %for visit 2, random number between 7 -12
+startingAlphabet ='A';
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = 1; 
@@ -189,7 +189,7 @@ savename = [[d '\..\datlogs\'] temp '_' n];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
-datlog.messages = {};
+datlog.messages = cell(1,2);
 datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 datlog.framenumbers.data = zeros(300*length(velR)+7200,2);
 datlog.stepdata.header = {'Step#','U Time','frame #','Relative Time'};
@@ -245,7 +245,7 @@ if nargin<3
     FzThreshold=40; %Newtons (40 is minimum for noise not to be an issue)
 elseif FzThreshold<40
     %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
-    datlog.messages{end+1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
+    datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 40N instead');
     FzThreshold=40;
 end
@@ -255,7 +255,7 @@ end
 N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
-    datlog.messages{end+1} = 'Velocity vectors of different length selected';
+    datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 %Adding a fake step at the end to avoid out-of-bounds indexing, but those
 %speeds should never get used in reality:
@@ -313,7 +313,7 @@ end
 
 try %So that if something fails, communications are closed properly
     MyClient.GetFrame();
-    datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
     
     %Initiate variables
     RTOTime(N) = now;
@@ -404,7 +404,7 @@ try %So that if something fails, communications are closed properly
         %It actually takes ~2ms, as Matlab seems to be incapable of pausing for less than that (overhead of the pause() function, I presume)
         while PAUSE %only runs if pause button is pressed
             pause(.2);
-            datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
+            datlog.messages(end+1,:) = {'Loop paused at ', now};
             disp(['Paused at ' num2str(clock)]);
             %do a quick save
             try
@@ -632,7 +632,7 @@ try %So that if something fails, communications are closed properly
         end
     end %While, when STOP button is pressed
     if STOP
-        datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+        datlog.messages(end+1,:) = {'Stop button pressed at: ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
