@@ -1,14 +1,10 @@
 % author: NWB
 % date (created): 04 Sep. 2024
 % purpose: to 1) generate speed profiles for the C3 study, which requires
-% the experimenter to manually update the participant ID, speeds, and fast
+% the experimenter to manually input the participant ID, speeds, and slow
 % leg at the top of this script, 2) automate the experimental flow by
 % choosing the correct order of the conditions / trials and the correct
 % controllers and profiles.
-
-% TODO:
-%   - add more details regarding the conditions for this experiment to the
-%   comment block above
 
 %% Retrieve Participant Data from Experimenter
 prompt = { ...
@@ -89,8 +85,8 @@ if isSession1                               % if session 1, ...
         'Regenerate Profiles?','Yes','No, I generated them already',opts);
     switch shouldGenProfiles
         case 'Yes'
-            % generate speed profiles for both legs as slow leg since decide
-            % later which leg will be fast/slow based on step length
+            % generate speed profiles for both legs as slow leg since
+            % decide later which leg will be fast/slow based on step length
             dirProfileR = generateProfiles_C3(participantID,'R', ...
                 speedOGMid,speedOGFast);
             dirProfileL = generateProfiles_C3(participantID,'L', ...
@@ -127,10 +123,10 @@ global profilename
 global numAudioCountDown
 
 maxTrials = 17;         % maximum number of trials
-% TODO: update below parameters to reflect C3 experiment
-pauseTime2min30 = 115; %2.5min, with the vicon stop/start timing ends up about 2.5mins
-pauseTime1min = 40;
-% pauseTime5m = 265; %4.5min,with the vicon stop/start timing ends up about 5mins
+% below times (in seconds) account for delays due to Vicon start/stop time
+pauseTime1min = 25;
+pauseTime2min = 85;
+pauseTime3min20sec = 165;
 
 %% Start C3 Experimental Protocol
 isFirstTrial = true;        % is first trial in experiment?
@@ -223,6 +219,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
                         return;                 % terminate experiment
                 end
             end
+            % No fixed break here - proceed immediately in GUI
         case 4          % TM Short Exposure Negative
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
@@ -236,7 +233,8 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: implement fixed break here
+            pause(pauseTime2min);       % break for at least two minutes
+            play(AudioTimeUp);
         case 5          % TM Short Exposure Positive
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Pos.mat');
@@ -250,9 +248,8 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
-            % TODO: implement fixed break here
-            % pause(pauseTime2min30); %break for 5mins at least.
-            % play(AudioTimeUp);
+            pause(pauseTime2min);
+            play(AudioTimeUp);
         case 6          % TM Baseline Mid Full (Tied)
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
@@ -266,9 +263,8 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: implement fixed break here
-            % pause(pauseTime2min30); %break for 5mins at least.
-            % play(AudioTimeUp);
+            pause(pauseTime2min);
+            play(AudioTimeUp);
         case {7,8,9,10,11,12}   % TM Adaptation (Split)
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_Adaptation.mat');
@@ -282,10 +278,14 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % TODO: handle different break durations depending on trial
-            % trial 9 has longer break for BP, trial 12 has short break
-            % pause(pauseTime2min30); %~2.5mins
-            % play(AudioTimeUp);
+            if currTrial == 9               % if trial 9, ...
+                pause(pauseTime3min20sec);  % need more time for BP/HR
+            elseif currTrial == 12          % if trial 12, ...
+                pause(pauseTime1min);       % short before post-adaptation
+            else                            % otherwise, ...
+                pause(pauseTime2min);       % default to two minutes
+            end
+            play(AudioTimeUp);
         case {13,14,15} % Post-Adaptation 1
             % if group 1, session 1 or group 2, session 2, ...
             if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
@@ -312,8 +312,12 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % pause(pauseTime1min); %~2.5mins
-            % play(AudioTimeUp);
+            if currTrial == 15              % if trial 15, ...
+                pause(pauseTime3min20sec);  % need more time for BP/HR
+            else                            % otherwise, ...
+                pause(pauseTime2min);       % default to two minutes
+            end
+            play(AudioTimeUp);
         case {16,17}    % Post-Adaptation 2
             % if group 1, session 1 or group 2, session 2, ...
             if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
@@ -340,8 +344,11 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % pause(pauseTime1min); %~2.5mins
-            % play(AudioTimeUp);
+            if currTrial == 16              % if trial 16, ...
+                % do not care about break after last walking trial
+                pause(pauseTime2min);
+                play(AudioTimeUp);
+            end
     end
 end
 
