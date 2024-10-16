@@ -32,57 +32,19 @@ participantID = answer{1};
 isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
 
-%% 6-Minute/10-Meter Walk Test Data Input
+%% Retrieve 6-Minute/10-Meter Walk Test Data Input from Experimenter
+if isSession1                               % if session 1, ...
+    % 6MWT/10MWT is only completed during session 1
+    [speedOGMid,speedOGFast] = utils.extractSpeedsNMWT();
+end
+
+%% Generate Speed Profiles or Retrieve Profile Directory
 dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
     'profiles\Stroke_CCC'];
 raw = dir(fullfile(dirBase,participantID)); % retrieve folder
 ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
 profiles = raw(~ignore);
 if isSession1                               % if session 1, ...
-    % Retrieve 6-Minute/10-Meter Walk Test Data from Experimenter
-    % TODO: Only retrieve 6MWT data once, do not reprompt if already ran
-    prompt = { ...
-        ['Enter the list of 10-Meter walk times (in seconds) you ' ...
-        'would like to average to compute the fast overground walking' ...
-        ' speed:'], ...
-        'How many 6-Minute Walk Test laps should be computed?', ...
-        'What is the tape measure distance (in inches)?', ...
-        ['Should the additional distance be added to the laps above? ' ...
-        '(as opposed to being subtracted, ''1'' = true, ''0'' = false)']};
-    dlgtitle = '6MWT/10MWT Experimental Inputs';
-    fieldsize = [1 125; 1 125; 1 125; 1 125];
-    definput = { ...                        10MWT times (in seconds) list
-        '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00', ...
-        '30', ...                           number of 6MWT laps
-        '0', ...                            tape measure distance (inches)
-        '1'};                               % should add above distance?
-    answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
-    
-    % Extract 6MWT/10MWT Experimental Parameters
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % if you do not like the MATLAB GUI to receive experimental inputs as
-    % above, comment out the above block and manually enter the desired
-    % values for each of the four variables here.
-    % e.g., times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    times_10MWT = strsplit(answer{1},' ');      % list 10MWT times (secs)
-    times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
-    numLaps_6MWT = str2double(answer{2});       % number of 6MWT laps
-    distInches_6MWT = str2double(answer{3});    % measure distance (inches)
-    shouldAdd = logical(str2double(answer{4})); % should + or - distance?
-    
-    % Compute 6MWT/10MWT Speeds
-    speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
-    if shouldAdd                            % if should add distance, ...
-        % compute 6MWT distance as sum of # of laps times walkway distance
-        % (~12.2 meters) + remainder distance in inches converted to meters
-        dist_6MWT = (numLaps_6MWT * 12.2) + (distInches_6MWT * 0.0254);
-    else                                    % otherwise, subtract distance
-        dist_6MWT = (numLaps_6MWT * 12.2) - (distInches_6MWT * 0.0254);
-    end
-    % 360 seconds is 6 minutes
-    speedOGMid = dist_6MWT / 360;           % comfortable 6MWT OG speed
-    
     % Request User Input for Speed Profile Generation
     opts.Interpreter = 'none';
     opts.Default = 'No, I generated them already';
@@ -173,7 +135,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
         currTrial = str2double(currTrial{1});
         disp(['Starting from trial #' num2str(currTrial)]);
     end
-    
+
     switch currTrial
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
