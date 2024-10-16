@@ -33,8 +33,14 @@ isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
 
 %% 6-Minute/10-Meter Walk Test Data Input
+dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
+    'profiles\Stroke_CCC'];
+raw = dir(fullfile(dirBase,participantID)); % retrieve folder
+ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
+profiles = raw(~ignore);
 if isSession1                               % if session 1, ...
     % Retrieve 6-Minute/10-Meter Walk Test Data from Experimenter
+    % TODO: Only retrieve 6MWT data once, do not reprompt if already ran
     prompt = { ...
         ['Enter the list of 10-Meter walk times (in seconds) you ' ...
         'would like to average to compute the fast overground walking' ...
@@ -51,7 +57,7 @@ if isSession1                               % if session 1, ...
         '0', ...                            tape measure distance (inches)
         '1'};                               % should add above distance?
     answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
-
+    
     % Extract 6MWT/10MWT Experimental Parameters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % if you do not like the MATLAB GUI to receive experimental inputs as
@@ -60,10 +66,11 @@ if isSession1                               % if session 1, ...
     % e.g., times_10MWT = [7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00];
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     times_10MWT = strsplit(answer{1},' ');      % list 10MWT times (secs)
+    times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
     numLaps_6MWT = str2double(answer{2});       % number of 6MWT laps
     distInches_6MWT = str2double(answer{3});    % measure distance (inches)
     shouldAdd = logical(str2double(answer{4})); % should + or - distance?
-
+    
     % Compute 6MWT/10MWT Speeds
     speedOGFast = 10 / mean(times_10MWT);   % fast OG walking speed - 10MWT
     if shouldAdd                            % if should add distance, ...
@@ -75,7 +82,7 @@ if isSession1                               % if session 1, ...
     end
     % 360 seconds is 6 minutes
     speedOGMid = dist_6MWT / 360;           % comfortable 6MWT OG speed
-
+    
     % Request User Input for Speed Profile Generation
     opts.Interpreter = 'none';
     opts.Default = 'No, I generated them already';
@@ -91,24 +98,35 @@ if isSession1                               % if session 1, ...
                 speedOGMid,speedOGFast);
             dirProfileL = generateProfiles_C3(participantID,'L', ...
                 speedOGMid,speedOGFast);
+            dirProfile = dirProfileR;
         case 'No, I generated them already'
-            disp(['The profiles are already generated, continuing with the' ...
-                ' experiment.']);
+            if isempty(profiles)
+                disp(['There are no profiles found, quitting the ' ...
+                    'script now.']);
+                return;
+            else
+                disp(['The profiles are already generated, continuing ' ...
+                    'with the experiment.']);
+                dirProfile = fullfile(dirBase,participantID, ...
+                    profiles(1).name);
+            end
         otherwise
             disp('No response was provided, quitting the script now.');
             return;
     end
-    dirProfile = dirProfileR;
 else                                            % otherwise, session 2
-    dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
-        'profiles\Stroke_CCC'];
-    % TODO: test that below code works as desired
-    raw = dir(fullfile(dirBase,participantID)); % retrieve folder
-    ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
     % NOTE: there should only be one profile folder since the irrelevant
     % one should have been deleted in session 1
-    profiles = raw(~ignore);
-    dirProfile = fullfile(dirBase,participantID,profiles.name);
+    if isempty(profiles)
+        disp('There are no profiles found, quitting the script now.');
+        return;
+    elseif length(profiles) > 1
+        disp('There are two sets of profiles, quitting the script now.');
+        return;
+    else
+        disp('Continuing with the experiment.');
+        dirProfile = fullfile(dirBase,participantID,profiles.name);
+    end
 end
 
 %% Set Up the GUI & Run the Experiment
@@ -155,7 +173,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
         currTrial = str2double(currTrial{1});
         disp(['Starting from trial #' num2str(currTrial)]);
     end
-
+    
     switch currTrial
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
@@ -175,7 +193,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             % No fixed break here - proceed immediately in GUI
         case 2          % TM Baseline Fast (Tied)
             handles.popupmenu2.set('Value',11);
-            profilename = fullile(dirProfile,'TM_Baseline_Fast.mat');
+            profilename = fullfile(dirProfile,'TM_Baseline_Fast.mat');
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm controller is open loop ' ...
                 'controller with audio countdown and profile is ' ...
@@ -211,10 +229,10 @@ while currTrial < maxTrials % while more trials left to collect, ...
                     case 'Right'
                         dirProfile = dirProfileR;
                         % TODO: output status to ensure deletion occurs
-                        rmdir(dirProfileL);     % delete unused profiles
+                        rmdir(dirProfileL,'s'); % delete unused profiles
                     case 'Left'
                         dirProfile = dirProfileL;
-                        rmdir(dirProfileR);
+                        rmdir(dirProfileR,'s');
                     case 'Cancel'
                         return;                 % terminate experiment
                 end
