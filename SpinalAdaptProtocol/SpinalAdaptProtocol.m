@@ -177,7 +177,22 @@ while currCond < maxCond
                 return; %Always return and quit because now needs experimenter change in OG controller for the next 3 trials.
             end
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-        case {5,6} %pre train
+        case {5,6} %ctrl train
+            handles.popupmenu2.set('Value',14) %NIRS train
+            if currCond == 5 %1st ctrl train
+                profilename = [profileDir 'CtrlTrain_1.mat'];
+            else
+                profilename = [profileDir 'CtrlTrain_2.mat'];
+            end
+            manualLoadProfile([],[],handles,profilename)
+            button=questdlg('Please confirm the trial information: Nirs Train Control?'); 
+            if ~strcmp(button,'Yes')
+              return; %Abort starting the exp
+            end
+            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+            pause(pauseTime2min30); %break for 5mins at least.
+            play(AudioTimeUp);
+        case {7,8} %pre train
             handles.popupmenu2.set('Value',14) %NIRS train
             if currCond == 5 %1st pre train
                 profilename = [profileDir 'PreSplitTrain_1.mat'];
@@ -192,7 +207,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
-        case {12,13} %post nirs train
+        case {14,15} %post nirs train
             handles.popupmenu2.set('Value',14) %NIRS train
             if currCond == 12 %1st post train
                 profilename = [profileDir 'PostSplitTrain_1.mat'];
@@ -209,7 +224,7 @@ while currCond < maxCond
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
 %             end
-        case {7,11} %end adapt
+        case {9,13} %end adapt
             handles.popupmenu2.set('Value',14) %NIRS train
             profilename = [profileDir 'Adapt1And5.mat'];
             manualLoadProfile([],[],handles,profilename)
@@ -221,7 +236,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %~2.5mins
             play(AudioTimeUp);
-        case {8,9,10}   % middle adapt
+        case {10,11,12}   % middle adapt
             handles.popupmenu2.set('Value',14) %NIRS train
             profilename = [profileDir 'Adapt234.mat'];
             manualLoadProfile([],[],handles,profilename)
@@ -233,7 +248,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime2min30); %~2.5mins
             play(AudioTimeUp);
-        case 14 %post 1
+        case 16 %post 1
             handles.popupmenu2.set('Value',14) %open loop with countdown with NIRS
             profilename = [profileDir 'Post1.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post-Adapt 200 strides');
@@ -244,7 +259,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 15 %post 2
+        case 17 %post 2
             handles.popupmenu2.set('Value',14) %NIRS open loop with countdown
             profilename = [profileDir 'Post2.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post-Adapt 100 strides with rest'); 
@@ -255,7 +270,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 16 %neg short first
+        case 18 %neg short first
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'NegShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is NegShort'); 
@@ -266,7 +281,7 @@ while currCond < maxCond
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             pause(pauseTime1min); %~2.5mins
             play(AudioTimeUp);
-        case 17 %then pos short
+        case 19 %then pos short
             handles.popupmenu2.set('Value',11) %open loop with countdown
             profilename = [profileDir 'PosShort.mat'];manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is PosShort'); 

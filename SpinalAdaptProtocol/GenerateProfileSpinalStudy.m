@@ -124,12 +124,62 @@ function [profileDir] = GenerateProfileSpinalStudy(slow, fast, baseOnly, profile
 %         randTiedSteps = randi([50,60],1,totalTrains - 1);
 %         randTiedSteps = randTiedSteps - 10;
         randTiedSteps = [40 45 45 50 40]; %used to be [45    43    44    49    40]
-        
+        randTiedStepsCtrl = [25 30 20 20 25];
+
         restPadSteps = zeros(50,1); %always pad 50 steps of zero to represent rest.
         ramp2Tied = linspace(0.1*fast,fast,11); %ramp is always 10 strides from 10% (at stride 1) to fast speed (at stride 11)
         ramp2Tied = ramp2Tied(1:end-1)'; %exclude the last in the end so that stride 1-10 are all moving and ramping
         ramp2TiedStim = zeros(size(ramp2Tied));
-        
+
+        %build control train
+        if ramp2Split
+            % NOTE: this condition is not relevant since no longer use ramp
+            % to split, but, if we did, it must be updated for this new
+            % control block condition
+            velL = [restPadSteps;ramp2Tied;ones(10,1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [restPadSteps;ramp2Tied;ones(10,1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*fast];
+            stimL = [restPadSteps; ramp2TiedStim; ones(10,1); ramp2SplitStims; ones(20,1)];
+        else %when no ramp, also fix the 1st tied to be 20 steps instead of 10 (coding error for up to SAH16)
+            velL = [restPadSteps;ramp2Tied;ones(20,1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [restPadSteps;ramp2Tied;ones(20,1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*slow];
+            stimL = [restPadSteps; ramp2TiedStim; ones(20,1); ramp2SplitStims; ones(20,1)];
+        end
+        for i = 2:3
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedStepsCtrl(i-1),1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedStepsCtrl(i-1),1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*slow];
+            stimL = [stimL; restPadSteps; ramp2TiedStim; ones(randTiedStepsCtrl(i-1),1); ramp2SplitStims; ones(20,1)];
+        end
+        velL = [velL; restPadSteps];
+        velR = [velR; restPadSteps];
+        stimL = [stimL; restPadSteps];
+        stimR = stimL;
+        if strcmp(fastLeg, 'L')%if left is fast, swap legs.
+            temp = velR;
+            velR = velL;
+            velL = temp;
+        end
+        save([profileDir 'CtrlTrain_1.mat'],'velL','velR','stimL','stimR');
+
+        %2nd control train
+        velL = [];
+        velR = [];
+        stimL = [];
+        for i = 4:6
+            velL = [velL;restPadSteps;ramp2Tied;ones(randTiedStepsCtrl(i-1),1)*fast; ramp2SplitSteps; ones(20,1)*slow];
+            velR = [velR;restPadSteps;ramp2Tied;ones(randTiedStepsCtrl(i-1),1)*fast; ones(size(ramp2SplitSteps))*fast; ones(20,1)*slow];
+            stimL = [stimL; restPadSteps; ramp2TiedStim; ones(randTiedStepsCtrl(i-1),1); ramp2SplitStims; ones(20,1)];
+        end
+        velL = [velL; restPadSteps];
+        velR = [velR; restPadSteps];
+        stimL = [stimL; restPadSteps];
+        stimR = stimL;
+        if strcmp(fastLeg, 'L')%if left is fast, swap legs.
+            temp = velR;
+            velR = velL;
+            velL = temp;
+        end
+        save([profileDir 'CtrlTrain_2.mat'],'velL','velR','stimL','stimR');
+
         %built 1st train
         if ramp2Split
             velL = [restPadSteps;ramp2Tied;ones(10,1)*fast; ramp2SplitSteps; ones(20,1)*slow];
