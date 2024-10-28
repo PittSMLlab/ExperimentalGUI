@@ -31,7 +31,6 @@ pathsCreate = {
     fullfile(dataSrvr,sess,'Figures')
     fullfile(dataSrvr,sess,'PC2')
     fullfile(dataSrvr,sess,'SyncFiles')
-    fullfile(dataSrvr,sess,'SyncFiles')
     fullfile('W:\Nathan\C3\RawBackupData',participantID,sess,'PC2')
     };
 
