@@ -328,3 +328,6 @@ while currTrial < maxTrials % while more trials left to collect, ...
     end
 end
 
+%% Run the Data Transfer Script After the Experiment Has Finished
+TransferData_C3;
+
