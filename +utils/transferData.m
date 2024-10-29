@@ -1,4 +1,4 @@
-function transferData(src,dest)
+function transferData(src,dest,threshTime)
 %TRANSFERFILES Recursively transfer all files and subfolders
 %   This function accepts as input (via GUI if no arguments are provided)
 % the raw NMWT (with optional 10MWT embedded) measurements (number of laps,
@@ -14,7 +14,7 @@ function transferData(src,dest)
 %       directory where the data is to be transferred
 % output(s):
 
-narginchk(2,2);                 % verify correct number of input arguments
+narginchk(2,3);                 % verify correct number of input arguments
 % TODO: add other input argument handling, such as ensure the folder path
 % delimiters are correct and that the source directory exists
 
@@ -36,14 +36,30 @@ for k = 1:length(srcContents)   % for each item in source directory, ...
     destItem = fullfile(dest,itemName); % Full path of the destination item
 
     if srcContents(k).isdir             % if item is a directory, ...
-        utils.transferData(srcItem,destItem);	% recursive function call
-    else                                % otherwise, ...
-        if ~exist(destItem,'file')      % if item already exists, ...
-            % TODO: add check for same file size and modified date if
-            % necessary / beneficial
-            copyfile(srcItem,destItem); % copy file to the destination
+        if nargin == 3                  % if three input arguments, ...
+            utils.transferData(srcItem,destItem,threshTime);
+        else                            % otherwise, only two input args
+            utils.transferData(srcItem,destItem);
         end
-        % fprintf('Copied file: %s\n',destItem); % Optional: log each file
+    else                                % otherwise, ...
+        if nargin == 3                  % if threshold time provided, ...
+            % only copy recent files generated after the threshold time
+            timeFile = datetime(srcContents(k).date, ...
+                'InputFormat','dd-MMM-yyyy HH:mm:ss');
+            if timeFile > threshTime    % if time exceeds threshold, ...
+                if ~exist(destItem,'file')  % if item does not exist, ...
+                    copyfile(srcItem,destItem);
+                end
+            end
+        else                            % otherwise, ...
+            if ~exist(destItem,'file')      % if item does not exist, ...
+                % TODO: add check for same file size and modified date if
+                % necessary / beneficial
+                copyfile(srcItem,destItem); % copy file to the destination
+            end
+            % TODO: add optional input if user desires verbose output
+            % fprintf('Copied file: %s\n',destItem); % Optional: log each file
+        end
     end
 end
 
