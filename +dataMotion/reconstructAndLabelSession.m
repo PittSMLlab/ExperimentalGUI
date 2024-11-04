@@ -21,7 +21,7 @@ if ~isfolder(pathSess)
 end
 
 % get all trial files that start with 'Trial'
-trialFiles = dir(fullfile(pathSess,'Trial*.x2d'));
+trialFiles = dir(fullfile(pathSess,'Trial*.x1d'));
 numTrials = length(trialFiles);
 
 % check if any trial files were found
@@ -49,7 +49,8 @@ for tr = indsTrials
         continue;
     end
 
-    pathTrial = fullfile(trialFiles(tr).folder,trialFiles(tr).name);
+    [~,nameTrialNoExt] = fileparts(trialFiles(tr).name);
+    pathTrial = fullfile(trialFiles(tr).folder,nameTrialNoExt);
     fprintf('Processing trial %d: %s\n',tr,pathTrial);
 
     % export trial to C3D using the function from previous implementation

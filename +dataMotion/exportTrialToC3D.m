@@ -29,8 +29,8 @@ end
 % check if a trial is already open
 isTrialOpen = false;
 try
-    if vicon.IsTrialLoaded()
-        currentTrialPath = vicon.GetTrialName();
+    currentTrialPath = vicon.GetTrialName();
+    if ~isempty(currentTrialPath)
         if strcmpi(currentTrialPath,pathTrial)
             fprintf('Trial is already open: %s\n',pathTrial);
             isTrialOpen = true;
@@ -47,7 +47,7 @@ end
 if ~isTrialOpen
     fprintf('Opening trial from %s...\n',pathTrial);
     try
-        vicon.OpenTrial(pathTrial);
+        vicon.OpenTrial(pathTrial,10);
         fprintf('Trial opened successfully.\n');
     catch ME
         fprintf('Error opening trial: %s\n',ME.message);
