@@ -23,6 +23,7 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 %   speed10MWT: (optional) the fast OG walking speed (in meters / second)
 
 narginchk(0,6);                 % verify correct number of input arguments
+INCH2METER = 0.0254;            % conversion factor from inches to meters
 
 % TODO: if want to get really fancy, handle other numbers of input
 % arguments or passing arguments in different order using 'varargin'
@@ -65,37 +66,37 @@ if nargin == 0                  % if no input arguments, ...
     else                                        % otherwise, extract times
         times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
     end
-elseif nargin == 3              % if three input arguments, ...
-    distWalkway = 12.2;         % default to 12.2 meters (Schenley gym)
-    duration = 6;               % default to 6MWT
-    times_10MWT = nan;          % assume user does not care about 10MWT
-elseif nargin == 4              % if four input arguments, ...
-    duration = 6;               % default to 6MWT
-    times_10MWT = nan;          % assume user does not care about 10MWT
-elseif nargin == 5
-    times_10MWT = nan;          % assume user does not care about 10MWT
-else                            % otherwise, ...
-    % do nothing for now
-    % error(['An incorrect number of input arguments has been supplied. ' ...
-    %     'Pass either no input arguments to open GUI, three, four, or ' ...
-    %     'five input arguments']);
+else                                            % otherwise, ...
+    % set default values for missing inputs
+    switch nargin
+        case 3
+            distWalkway = 12.2;     % default to 12.2 meters (Schenley gym)
+            duration = 6;           % default to 6MWT
+            times_10MWT = NaN;      % assume user does not care about 10MWT
+        case 4
+            duration = 6;           % default to 6MWT
+            times_10MWT = NaN;      % assume user does not care about 10MWT
+        case 5
+            times_10MWT = nan;          % assume user does not care about 10MWT
+    end
 end
 
 % compute NMWT speed
 if shouldAdd                            % if should add distance, ...
     % compute NMWT distance as sum of # of laps times walkway distance plus
     % remainder distance in inches converted to meters
-    dist_NMWT = (numLaps * distWalkway) + (distInches * 0.0254);
+    dist_NMWT = (numLaps * distWalkway) + (distInches * INCH2METER);
 else                                    % otherwise, subtract distance
-    dist_NMWT = (numLaps * distWalkway) - (distInches * 0.0254);
+    dist_NMWT = (numLaps * distWalkway) - (distInches * INCH2METER);
 end
 % convert walk test duration to seconds for speed in meters per second
 speedNMWT = dist_NMWT / (duration * 60);% NMWT (OG) speed (comfortable)
 
-if (nargout == 2)                       % if user requests both speeds, ...
-    speed10MWT = nan;                   % default to 'NaN'
+if nargout == 2                         % if user requests both speeds, ...
     if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
         speed10MWT = 10 / mean(times_10MWT);    % compute fast OG speed
+    else
+        speed10MWT = nan;               % default to 'NaN'
     end
 end
 
