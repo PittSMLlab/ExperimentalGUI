@@ -29,16 +29,9 @@ dirSrvrC3 = 'W:\Nathan\C3';
 dirSrvrData = fullfile(dirSrvrC3,'Data',participantID);
 dirSrvrRaw = fullfile(dirSrvrC3,'RawBackupData',participantID,sess);
 
-% Define source and destination paths in specified order
-pathsTransfer = {
-    dirPC2Data fullfile(dirSrvrData,sess,'PC2');
-    dirPC2Data fullfile(dirSrvrRaw,'PC2');
-    };
+% define source and destination paths in specified order
+srcs = {dirPC2Data dirPC2Data};
+dests = {fullfile(dirSrvrData,sess,'PC2') fullfile(dirSrvrRaw,'PC2')};
 
-for p = 1:size(pathsTransfer,1)     % for each source-destination pair, ...
-    srcDir = pathsTransfer{p,1};    % source directory
-    destDir = pathsTransfer{p,2};   % destination directory
-    fprintf('Transferring from %s to %s\n',srcDir,destDir);
-    utils.transferData(srcDir,destDir); % call recursive transfer fxn
-end
+utils.transferDataSess(srcs,dests);
 

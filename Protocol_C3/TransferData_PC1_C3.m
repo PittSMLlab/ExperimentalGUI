@@ -25,32 +25,19 @@ dirSrvrC3 = 'W:\Nathan\C3';
 dirSrvrData = fullfile(dirSrvrC3,'Data',participantID);
 dirSrvrRaw = fullfile(dirSrvrC3,'RawBackupData',participantID,sess);
 
-% Define source and destination paths in specified order
-pathsTransfer = {
-    dirPC1Data fullfile(dirSrvrData,sess,'PC1');
-    dirPC1Profiles fullfile(dirSrvrData,'Profiles');
-    dirPC1Data fullfile(dirSrvrRaw,'PC1');
-    fullfile(dirPC1ExpGUI,'datlogs') fullfile(dirSrvrData,sess, ...
-    'DataLogsUnsyncd')
-    };
+% define source and destination paths in specified order
+srcs = {dirPC1Data dirPC1Profiles ...
+    dirPC1Data fullfile(dirPC1ExpGUI,'datlogs')};
+dests = {fullfile(dirSrvrData,sess,'PC1') ...
+    fullfile(dirSrvrData,'Profiles') fullfile(dirSrvrRaw,'PC1') ...
+    fullfile(dirSrvrData,sess,'DataLogsUnsyncd')};
+
+utils.transferDataSess(srcs,dests,threshTime);
 
 pathsCreate = {
     fullfile(dirSrvrData,sess,'Figures')
     fullfile(dirSrvrData,sess,'SyncFiles')
     };
-
-for p = 1:size(pathsTransfer,1)     % for each source-destination pair, ...
-    srcDir = pathsTransfer{p,1};    % source directory
-    destDir = pathsTransfer{p,2};   % destination directory
-    if strcmp(srcDir,fullfile(dirPC1ExpGUI,'datlogs'))  % if data logs, ...
-        fprintf('Transferring recent files from %s to %s\n', ...
-            srcDir,destDir);        % only transfer recent files
-        utils.transferData(srcDir,destDir,threshTime);  % call transfer fxn
-    else
-        fprintf('Transferring from %s to %s\n',srcDir,destDir);
-        utils.transferData(srcDir,destDir); % call recursive transfer fxn
-    end
-end
 
 for p = 1:length(pathsCreate)       % for each path to create, ...
     if ~isfolder(pathsCreate{p})    % if does not already exist, ...
