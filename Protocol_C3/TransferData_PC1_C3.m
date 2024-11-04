@@ -35,8 +35,6 @@ pathsTransfer = {
     };
 
 pathsCreate = {
-    fullfile(dirSrvrData,sess,'PC2')
-    fullfile(dirSrvrRaw,'PC2')
     fullfile(dirSrvrData,sess,'Figures')
     fullfile(dirSrvrData,sess,'SyncFiles')
     };
