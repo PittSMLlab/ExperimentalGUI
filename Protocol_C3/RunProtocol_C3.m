@@ -20,7 +20,7 @@ definput = {'Test', ...                     participant ID
     '1'};                                   % is session 1
 answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 
-%% Extract Participant Experimental Parameters
+% Extract Participant Experimental Parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % if you do not like the MATLAB GUI to receive experimental inputs as
 % above, comment out the above block and manually enter the desired values
@@ -31,6 +31,8 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 participantID = answer{1};
 isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
+% Date threshold for copying recent files in datlogs
+threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
 
 %% Retrieve 6-Minute/10-Meter Walk Test Data Input from Experimenter
 if isSession1                               % if session 1, ...
@@ -181,7 +183,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             % TODO: implement automatically running SLRealTime script
             if isSession1                       % if first session, ...
                 answer = questdlg(['Now run the ''SLRealtime'' Vicon ' ...
-                    'Nexus processing script on the TM Baseline Mid ' ...
+                    'Nexus processing script on the TM_Baseline_Mid1 ' ...
                     'trial. Which leg has the *longer* step length ' ...
                     '(i.e., which leg should be on the slow belt)?'], ...
                     'Which leg is slow?','Right','Left','Cancel','Right');
@@ -328,6 +330,45 @@ while currTrial < maxTrials % while more trials left to collect, ...
     end
 end
 
-%% Run the Data Transfer Script After the Experiment Has Finished
-TransferData_C3;
+%% Transfer the Data After the Experiment Has Finished
+if isSession1           % if current session is first walking session, ...
+    sess = 'Session1';
+else                    % otherwise, ...
+    sess = 'Session2';  % session two
+end
+
+dirPC1ExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
+dirPC1Profiles = fullfile(dirPC1ExpGUI,'profiles','Stroke_CCC', ...
+    participantID);
+dirPC1Data = fullfile(['C:\Users\Public\Documents\Vicon Training\' ...
+    'Stroke_CCC'],participantID,sess);
+dirSrvrC3 = 'W:\Nathan\C3';
+dirSrvrData = fullfile(dirSrvrC3,'Data',participantID);
+dirSrvrRaw = fullfile(dirSrvrC3,'RawBackupData',participantID,sess);
+
+% define source and destination paths in specified order
+srcs = {dirPC1Data dirPC1Profiles ...
+    dirPC1Data fullfile(dirPC1ExpGUI,'datlogs')};
+dests = {fullfile(dirSrvrData,sess,'PC1') ...
+    fullfile(dirSrvrData,'Profiles') fullfile(dirSrvrRaw,'PC1') ...
+    fullfile(dirSrvrData,sess,'DataLogsUnsyncd')};
+
+utils.transferDataSess(srcs,dests,threshTime);
+
+pathsCreate = {
+    fullfile(dirSrvrData,sess,'Figures')
+    fullfile(dirSrvrData,sess,'SyncFiles')
+    };
+
+for p = 1:length(pathsCreate)       % for each path to create, ...
+    if ~isfolder(pathsCreate{p})    % if does not already exist, ...
+        mkdir(pathsCreate{p});      % create it
+    end
+end
+
+%% Run Reconstruct & Label Pipeline
+
+%% Automatically Fill Marker Gaps
+
+%% Check Marker Data Quality
 
