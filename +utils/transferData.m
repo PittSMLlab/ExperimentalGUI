@@ -1,25 +1,44 @@
 function transferData(src,dest,threshTime)
 %TRANSFERFILES Recursively transfer all files and subfolders
-%   This function accepts as input (via GUI if no arguments are provided)
-% the raw NMWT (with optional 10MWT embedded) measurements (number of laps,
-% final distance measurement, whether that measurement should be added) and
-% parameters (walkway distance, walk test duration) and optional 10MWT
-% times if embedded in the trial and computes as output the OG walking
-% speed and optional fast (10MWT) speed.
+%   This function transfers files from the source directory, 'src', to
+% the corresponding destination directory, 'dest', optionally filtering by
+% a threshold time for recent files. If the source directory contains
+% 'datlogs', only files modified after `threshTime` will be transferred.
 %
 % input(s):
 %   src: string or character array of the full path to the source directory
 %       to be transferred
 %   dest: string or character array of the full path to the destination
 %       directory where the data is to be transferred
-% output(s):
+%
+% Example:
+%   utils.transferData('C:\SourceFolder','C:\DestinationFolder', ...
+%       datetime('now') - days(1))
 
 narginchk(2,3);                 % verify correct number of input arguments
-% TODO: add other input argument handling, such as ensure the folder path
-% delimiters are correct and that the source directory exists
+
+% validate input paths
+if ~isfolder(src)               % if source folder does not exist, ...
+    error('Source directory "%s" does not exist.',src);
+end
+
+if ~(ischar(dest) || isstring(dest))
+    error('Destination directory must be a string or character array.');
+end
+
+if nargin < 3
+    threshTime = [];            % set default if not provided
+elseif ~isa(threshTime,'datetime')
+    error('Threshold time must be a datetime object.');
+end
 
 if ~isfolder(dest)              % if destination folder does not exist, ...
-    mkdir(dest);                % create it
+    try
+        mkdir(dest);            % create it
+    catch ME
+        error('Failed to create destination directory "%s": %s', ...
+            dest,ME.message);
+    end
 end
 
 srcContents = dir(src);         % list of all files and folders in source
@@ -28,7 +47,7 @@ for k = 1:length(srcContents)   % for each item in source directory, ...
     itemName = srcContents(k).name;
 
     % if current (i.e., working) or parent directory, ...
-    if strcmp(itemName,'.') || strcmp(itemName,'..')
+    if any(strcmp(itemName,{'.','..'}))
         continue;               % continue to next item (loop iteration)
     end
 
@@ -36,32 +55,37 @@ for k = 1:length(srcContents)   % for each item in source directory, ...
     destItem = fullfile(dest,itemName); % Full path of the destination item
 
     if srcContents(k).isdir             % if item is a directory, ...
-        if nargin == 3                  % if three input arguments, ...
-            utils.transferData(srcItem,destItem,threshTime);
-        else                            % otherwise, only two input args
-            utils.transferData(srcItem,destItem);
-        end
-    else                                % otherwise, ...
-        if nargin == 3                  % if threshold time provided, ...
-            % only copy recent files generated after the threshold time
-            timeFile = datetime(srcContents(k).date, ...
-                'InputFormat','dd-MMM-yyyy HH:mm:ss');
-            if timeFile > threshTime    % if time exceeds threshold, ...
-                if ~exist(destItem,'file')  % if item does not exist, ...
+        utils.transferData(srcItem,destItem,threshTime);
+    else                                % otherwise, item is a file
+        % if no threshold time provided or file time exceeds threshold, ...
+        if isempty(threshTime) || (datetime(srcContents(k).date, ...
+                'InputFormat','dd-MMM-yyyy HH:mm:ss') > threshTime)
+            % if item does not exist in destination, ...
+            if ~exist(destItem,'file') % || ...
+                % ~areFilesIdentical(srcItem,destItem)
+                try
                     copyfile(srcItem,destItem);
+                    % Uncomment below line to enable copied file logging
+                    % fprintf('Copied file: %s\n',destItem);
+                catch ME
+                    warning('Failed to copy file "%s": %s', ...
+                        srcItem,ME.message);
                 end
             end
-        else                            % otherwise, ...
-            if ~exist(destItem,'file')      % if item does not exist, ...
-                % TODO: add check for same file size and modified date if
-                % necessary / beneficial
-                copyfile(srcItem,destItem); % copy file to the destination
-            end
-            % TODO: add optional input if user desires verbose output
-            % fprintf('Copied file: %s\n',destItem); % Optional: log each file
         end
+        % TODO: add optional input if user desires verbose output
     end
 end
 
 end
+
+% function areIdentical = areFilesIdentical(file1,file2)
+% % Compare file sizes and modification dates to check if files are identical
+%
+% fileInfo1 = dir(file1);
+% fileInfo2 = dir(file2);
+% areIdentical = (fileInfo1.bytes == fileInfo2.bytes) && ...
+%     (fileInfo1.datenum == fileInfo2.datenum);
+%
+% end
 
