@@ -1,45 +1,66 @@
-function reconstructAndLabelSession(pathSess,indsTrials)
-%RECONSTRUCTANDLABELSESSION Summary of this function goes here
-%   Detailed explanation goes here
+function reconstructAndLabelSession(pathSess,indsTrials,vicon)
+%RECONSTRUCTANDLABELSESSION Run reconstruct and label pipeline on session
+%   This function finds all trials in the session folder with filenames
+% starting with 'Trial', filters them based on the specified indices, and
+% runs the reconstruct and label pipelines. Make sure the Vicon Nexus SDK
+% is installed and added to the MATLAB path.
+%
+% input(s):
+%   pathSess: path to the session folder where all trial data is stored.
+%   indsTrials: (optional) array of indices indicating which trials to
+%       process. By default, all files starting with 'Trial' are processed.
+%   vicon: (optional) Vicon Nexus SDK object. If not supplied, a new Vicon
+%       object will be created and connected.
 
-% TODO: accept server path as input, verify there is data present in the
-% folder, and retrieve the files for which to run reconstruct and label
 % TODO: add a GUI input option if helpful
-narginchk(1,2);                 % verify correct number of input arguments
+narginchk(1,3);                 % verify correct number of input arguments
 
-if nargin == 2                  % if both input arguments provided, ...
-    numTrials = length(indsTrials);         % number of trials to process
-    indsTrialsStr = strings(1,numTrials);   % instantiate trial strings
-    for tr = 1:numTrials        % for each trial, ...
-        if indsTrials(tr) < 10  % if trial 1 - 9, add leading zero
-            indsTrialsStr(tr) = ['0' num2str(indsTrials(tr))];
-        else                    % otherwise, no leading zero
-            indsTrialsStr(tr) = num2str(indsTrials(tr));
-        end
+% ensure session folder path exists
+if ~isfolder(pathSess)
+    error('The session folder path specified does not exist: %s',pathSess);
+end
+
+% get all trial files that start with 'Trial'
+trialFiles = dir(fullfile(pathSess,'Trial*.x2d'));
+numTrials = length(trialFiles);
+
+% check if any trial files were found
+if numTrials == 0
+    fprintf('No trials found in session folder: %s\n',pathSess);
+    return;
+end
+
+% if 'indsTrials' not provided, process all trials
+if nargin < 2 || isempty(indsTrials)
+    indsTrials = 1:numTrials;
+end
+
+% initialize the Vicon Nexus object if not provided
+if nargin < 3 || isempty(vicon)
+    fprintf(['No Vicon SDK object provided. Connecting to Vicon ' ...
+        'Nexus...\n']);
+    vicon = ViconNexus();
+end
+
+% process each specified trial
+for tr = indsTrials
+    if tr > numTrials
+        warning('Trial index %d is out of range. Skipping...',tr);
+        continue;
     end
-    pathsTrials = cellfun(@(s) fullfile(pathSess,['Trial' s]), ...
-        indsTrialsStr,'UniformOutput',false);   % trial paths to process
-else                            % otherwise, ...
-    allContents = dir(pathSess);            % retrieve all folder contents
-    allNames = {allContents.name};          % extract names for searching
-    isTrial = startsWith(allNames,'Trial'); % must start with 'Trial'
-    isX2D = endsWith(allNames,'x2d');       % and end with 'x2d'
-    trials = allContents(isTrial & isX2D);
-    pathsTrials = cellfun(@(s) fullfile(pathSess,s(1:end-4)), ...
-        {trials.name},'UniformOutput',false);   % trial paths to process
+
+    pathTrial = fullfile(trialFiles(tr).folder,trialFiles(tr).name);
+    fprintf('Processing trial %d: %s\n',tr,pathTrial);
+
+    % export trial to C3D using the function from previous implementation
+    dataMotion.reconstructAndLabelTrial(pathTrial,vicon);
 end
 
-% This script uses Vicon Nexus SDK to load a trial, run reconstruct, and
-% label the data. Make sure the Vicon Nexus SDK is installed and added to
-% the MATLAB path.
-vicon = ViconNexus();           % initialize the Vicon Nexus SDK object
-
-for tr = 1:numTrials            % for each session trial to process, ...
-    nexus.reconstructAndLabelTrial(pathsTrials{tr});    % run processing
+% close the Vicon connection if it was created within this function
+if nargin < 3 || isempty(vicon)
+    vicon.Disconnect();
+    fprintf('Disconnected from Vicon Nexus.\n');
 end
-
-vicon.Disconnect();             % clean up and close Vicon Nexus session
-fprintf('Vicon Nexus session closed.\n');
 
 end
 

@@ -1,28 +1,52 @@
-function reconstructAndLabelTrial(pathTrial)
-%RECONSTRUCTANDLABEL Run reconstruct and label pipeline and save trial
+function reconstructAndLabelTrial(pathTrial,vicon)
+%RECONSTRUCTANDLABEL Run reconstruct and label pipeline on Vicon trial data
 %   This function accepts as input the full path to the trial to process by
-% running the reconstruct and label pipeline and saving the processed
-% trial.
+% running the reconstruct and label pipelines and saving the processed
+% trial. Make sure the Vicon Nexus SDK is installed and added to the MATLAB
+% path.
 %
 % input(s):
 %   pathTrial: string or character array of the full path of the trial on
 %       which to run the reconstruct and label processing pipeline
-% output(s):
-
-% This script uses Vicon Nexus SDK to load a trial, run reconstruct, and
-% label the data. Make sure the Vicon Nexus SDK is installed and added to 
-% the MATLAB path.
+%   vicon: (optional Vicon Nexus SDK object. Connects if not supplied.
 
 % TODO: add a GUI input option if helpful
-narginchk(1,1);         % verify correct number of input arguments
+narginchk(1,2);         % verify correct number of input arguments
 
-fprintf('Loading trial from %s...\n',pathTrial);
-try                     % try loading trial data
-    vicon.OpenTrial(pathTrial);
-    fprintf('Trial loaded successfully.\n');
+% initialize the Vicon Nexus object if not provided
+if nargin < 2 || isempty(vicon)
+    fprintf(['No Vicon SDK object provided. Connecting to Vicon ' ...
+        'Nexus...\n']);
+    vicon = ViconNexus();
+end
+
+% check if a trial is already open
+isTrialOpen = false;
+try
+    if vicon.IsTrialLoaded()
+        currentTrialPath = vicon.GetTrialName();
+        if strcmpi(currentTrialPath,pathTrial)
+            fprintf('Trial is already open: %s\n',pathTrial);
+            isTrialOpen = true;
+        else
+            fprintf('Another trial is open. Closing current trial...\n');
+            vicon.CloseTrial();
+        end
+    end
 catch ME
-    fprintf('Error loading trial: %s\n',ME.message);
-    return;
+    fprintf('Error checking open trial status: %s\n',ME.message);
+end
+
+% open the trial if it is not already open
+if ~isTrialOpen
+    fprintf('Opening trial from %s...\n',pathTrial);
+    try
+        vicon.OpenTrial(pathTrial);
+        fprintf('Trial opened successfully.\n');
+    catch ME
+        fprintf('Error opening trial: %s\n',ME.message);
+        return;
+    end
 end
 
 % The reconstruct step will process the raw camera data and reconstruct 3D
@@ -46,7 +70,6 @@ catch ME
 end
 
 % Saves the changes made (reconstruction and labeling) back to trial file
-% TODO: is this what happens in the current pipeline? Is it saved to C3D?
 fprintf('Saving the trial...\n');
 try                     % try saving the processed trial
     vicon.SaveTrial();
@@ -55,16 +78,10 @@ catch ME
     fprintf('Error saving trial: %s\n',ME.message);
 end
 
-% Specify the path and filename for the C3D file (assuming 'pathTrial'
-% already contains 'trial##' and only need to add extension)
-pathC3D = fullfile(pathTrial,'.c3d');  % Example file path
-
-fprintf('Exporting to C3D file: %s\n',pathC3D);
-try                     % try exporting the C3D file
-    vicon.ExportC3D(pathC3D);
-    fprintf('C3D file exported successfully.\n');
-catch ME
-    fprintf('Error exporting to C3D: %s\n',ME.message);
+% close the Vicon connection if it was created within this function
+if nargin < 2 || isempty(vicon)
+    vicon.Disconnect();
+    fprintf('Disconnected from Vicon Nexus.\n');
 end
 
 end
