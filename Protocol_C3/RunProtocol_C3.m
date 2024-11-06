@@ -142,7 +142,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
         currTrial = str2double(currTrial{1});
         disp(['Starting from trial #' num2str(currTrial)]);
     end
-    
+
     switch currTrial
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
