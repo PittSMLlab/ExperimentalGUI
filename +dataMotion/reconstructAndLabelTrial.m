@@ -23,14 +23,14 @@ end
 % check if a trial is already open
 isTrialOpen = false;
 try
-    currentTrialPath = vicon.GetTrialName();
-    if ~isempty(currentTrialPath)
-        if strcmpi(currentTrialPath,pathTrial)
+    [pathCurrentTrial,nameCurrentTrial] = vicon.GetTrialName();
+    if ~isempty(pathCurrentTrial)
+        if strcmpi(pathCurrentTrial,pathTrial)
             fprintf('Trial is already open: %s\n',pathTrial);
             isTrialOpen = true;
         else
             fprintf('Another trial is open. Closing current trial...\n');
-            vicon.CloseTrial();
+            vicon.CloseTrial(200);
         end
     end
 catch ME
@@ -41,7 +41,7 @@ end
 if ~isTrialOpen
     fprintf('Opening trial from %s...\n',pathTrial);
     try
-        vicon.OpenTrial(pathTrial,10);
+        vicon.OpenTrial(pathTrial,200);
         fprintf('Trial opened successfully.\n');
     catch ME
         fprintf('Error opening trial: %s\n',ME.message);
@@ -49,40 +49,31 @@ if ~isTrialOpen
     end
 end
 
-% The reconstruct step will process the raw camera data and reconstruct 3D
-% marker positions. This must be done before labeling.
-fprintf('Running reconstruction pipeline...\n');
-try                     % try running reconstruct pipeline
-    vicon.Reconstruct();
-    fprintf('Reconstruction complete.\n');
+% The reconstruct and label step will process the raw camera data and
+% reconstruct 3D marker positions. The labeling step assigns names to the
+% reconstructed markers based on the Vicon Nexus labeling scheme.
+fprintf('Running reconstruction and labeling pipeline...\n');
+try                     % try running reconstruct and label pipeline
+    vicon.RunPipeline('Reconstruct And Label','',200);
+    fprintf('Reconstruction and labeling complete.\n');
 catch ME
-    fprintf('Error during reconstruction: %s\n',ME.message);
-end
-
-% The labeling step assigns names to the reconstructed markers based on
-% the Vicon Nexus labeling scheme.
-fprintf('Running labeling pipeline...\n');
-try                     % try running the label pipeline
-    vicon.Label();
-    fprintf('Labeling complete.\n');
-catch ME
-    fprintf('Error during labeling: %s\n',ME.message);
+    fprintf('Error during reconstruction and labeling: %s\n',ME.message);
 end
 
 % Saves the changes made (reconstruction and labeling) back to trial file
 fprintf('Saving the trial...\n');
 try                     % try saving the processed trial
-    vicon.SaveTrial();
+    vicon.SaveTrial(200);
     fprintf('Trial saved successfully.\n');
 catch ME
     fprintf('Error saving trial: %s\n',ME.message);
 end
 
 % close the Vicon connection if it was created within this function
-if nargin < 2 || isempty(vicon)
-    vicon.Disconnect();
-    fprintf('Disconnected from Vicon Nexus.\n');
-end
+% if nargin < 2 || isempty(vicon)
+%     vicon.Disconnect();
+%     fprintf('Disconnected from Vicon Nexus.\n');
+% end
 
 end
 

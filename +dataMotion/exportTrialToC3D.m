@@ -29,14 +29,14 @@ end
 % check if a trial is already open
 isTrialOpen = false;
 try
-    currentTrialPath = vicon.GetTrialName();
-    if ~isempty(currentTrialPath)
-        if strcmpi(currentTrialPath,pathTrial)
+    [pathCurrentTrial,nameCurrentTrial] = vicon.GetTrialName();
+    if ~isempty(pathCurrentTrial)
+        if strcmpi(pathCurrentTrial,pathTrial)
             fprintf('Trial is already open: %s\n',pathTrial);
             isTrialOpen = true;
         else
             fprintf('Another trial is open. Closing current trial...\n');
-            vicon.CloseTrial();
+            vicon.CloseTrial(200);
         end
     end
 catch ME
@@ -47,7 +47,7 @@ end
 if ~isTrialOpen
     fprintf('Opening trial from %s...\n',pathTrial);
     try
-        vicon.OpenTrial(pathTrial,10);
+        vicon.OpenTrial(pathTrial,200);
         fprintf('Trial opened successfully.\n');
     catch ME
         fprintf('Error opening trial: %s\n',ME.message);
@@ -58,17 +58,17 @@ end
 % export to C3D file
 fprintf('Exporting trial to C3D file: %s\n',pathC3D);
 try
-    vicon.ExportC3D(pathC3D);
+    vicon.RunPipeline('SaveC3D','',200);
     fprintf('C3D file exported successfully at %s\n',pathC3D);
 catch ME
     fprintf('Error exporting to C3D: %s\n',ME.message);
 end
 
 % close the Vicon connection if it was created within this function
-if nargin < 2 || isempty(vicon)
-    vicon.Disconnect();
-    fprintf('Disconnected from Vicon Nexus.\n');
-end
+% if nargin < 2 || isempty(vicon)
+%     vicon.Disconnect();
+%     fprintf('Disconnected from Vicon Nexus.\n');
+% end
 
 end
 
