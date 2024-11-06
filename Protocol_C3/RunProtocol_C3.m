@@ -78,6 +78,11 @@ if isSession1                               % if session 1, ...
             disp('No response was provided, quitting the script now.');
             return;
     end
+    load(fullfile(dirProfile,'TM_Adaptation.mat'));
+    fprintf('The slow treadmill speed is %.3f m/s.\n',velR(1));
+    fprintf('The fast treadmill speed is %.3f m/s.\n',velL(1));
+    load(fullfile(dirProfile,'TM_Baseline_Mid1.mat'));
+    fprintf('The mid treadmill speed is %.3f m/s.\n',velR(1));
 else                                            % otherwise, session 2
     % NOTE: there should only be one profile folder since the irrelevant
     % one should have been deleted in session 1
