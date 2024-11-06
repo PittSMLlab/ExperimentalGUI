@@ -56,10 +56,10 @@ for tr = indsTrials
 end
 
 % close the Vicon connection if it was created within this function
-if nargin < 3 || isempty(vicon)
-    vicon.Disconnect();
-    fprintf('Disconnected from Vicon Nexus.\n');
-end
+% if nargin < 3 || isempty(vicon)
+%     vicon.Disconnect();
+%     fprintf('Disconnected from Vicon Nexus.\n');
+% end
 
 end
 
