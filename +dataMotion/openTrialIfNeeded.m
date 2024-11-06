@@ -10,10 +10,13 @@ function isOpen = openTrialIfNeeded(pathTrial,vicon)
 % output(s):
 %   isOpen: logical, true if the specified trial is open, false otherwise
 
+narginchk(2,2);                 % verify correct number of input arguments
+
 isOpen = false;
 try
-    [pathCurrentTrial,nameCurrentTrial] = vicon.GetTrialName();
-    if ~isempty(pathCurrentTrial)
+    [dirCurrentTrial,nameCurrentTrial] = vicon.GetTrialName();
+    if ~isempty(nameCurrentTrial)
+        pathCurrentTrial = fullfile(dirCurrentTrial,nameCurrentTrial);
         if strcmpi(pathCurrentTrial,pathTrial)
             fprintf('Trial is already open: %s\n',pathTrial);
             isOpen = true;

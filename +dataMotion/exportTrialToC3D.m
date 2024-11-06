@@ -18,7 +18,7 @@ if nargin < 2 || isempty(vicon)
 end
 
 % open the trial if needed
-if ~openTrialIfNeeded(pathTrial,vicon)
+if ~dataMotion.openTrialIfNeeded(pathTrial,vicon)
     return;     % exit if the trial could not be opened
 end
 
