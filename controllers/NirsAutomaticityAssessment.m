@@ -7,7 +7,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
 %% Parameter for randomization order 
-randomization_order = [2 3 4 5 6 1]; %for visit 2, random number between 7 -12
+randomization_order = [6 4 1 2 3 5]; %for visit 2, random number between 7 -12
 startingAlphabet ='A';
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)

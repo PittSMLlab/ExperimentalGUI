@@ -22,6 +22,7 @@ function [eventSteps, eventNames] = parseEventsFromSpeeds(velL, velR)
     splitramp = [0;diff(abs(velR - velL)) > 0];
     accramp = accramp & (~splitramp);
     speedState = moving + splitramp + split + accramp*0.5; %here 0 =rest, 1=tied, 1.5 = ramp to tied, 2=split, 3=ramp
+    dcc = [0;diff(velR)<0 & diff(velL)< 0 & moving(2:end)];
     %if it's an abrupt protocol will treat the 1st split strides as ramp
     %and the next split stride as full split --> technically correct,
     %1stride ramp. Leave as is. Later has options to analyze start from
@@ -33,11 +34,18 @@ function [eventSteps, eventNames] = parseEventsFromSpeeds(velL, velR)
     %same speed (i.e,. velL=velR = veln = vel_n-1=vel_n+1)
     speedChanges = diff(speedState);
     eventSteps = find(speedChanges)+1;
+    %TODO: need to check compatability
     if speedState(1) == 0 && speedChanges(1) == 0 %start with at least 2 stride of rest
         %assume if first 2 strides are rest, it's a full on/long rest.
         eventSteps = [1;eventSteps]; %include 1st rest event. 
     end
     eventType = speedState(eventSteps);
+    
+    eventSteps = [eventSteps;find(dcc)];
+    [eventSteps,sortIdx] = sort(eventSteps);
+    eventType = [eventType;repmat(100,size(find(dcc)))];
+    eventType = eventType(sortIdx);
+    
     eventNames = cell(numel(eventSteps),1);
     for enIdx = 1:numel(eventType)
         en = eventType(enIdx);
@@ -55,6 +63,8 @@ function [eventSteps, eventNames] = parseEventsFromSpeeds(velL, velR)
             eventNames{enIdx} = 'Split';
         elseif en == 1.5
             eventNames{enIdx} = 'AccRamp';
+        elseif en == 100
+            eventNames{enIdx} = 'ChangeSpeedToSlow';
         end
         %the event words are chosen such that the first letters are
         %different bc the letters will be used as event codes (1 digit) in

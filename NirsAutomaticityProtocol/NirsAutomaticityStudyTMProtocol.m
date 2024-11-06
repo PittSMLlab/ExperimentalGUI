@@ -1,5 +1,6 @@
 %% set up trial condition and dominant leg for each participant
 intervention = false; %true for visit 3, false for visit 2 and 4
+% AUC: false for visits 1 and 3, true for visit 2
 dominantRight = true; %true if right dominant, false if left dominant
 
 %% Set up GUI and run exp

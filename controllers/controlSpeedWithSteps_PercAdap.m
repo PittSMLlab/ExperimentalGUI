@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_WeberPerceptionFaster(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_PercAdap(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -14,19 +14,34 @@ RFBClicker=0;
 global LFBClicker
 LFBClicker=0;
 global fastbeep
-% global numAudioDown
+global addLog
 global addStepsNaN
 global counter
-global addLog
 global numAudioCountDown
 
 % Change this parameter to determine the response time
-responseWindow=9; % This means 8 seconds
+responseWindow=8; % This means 8 seconds
 warnTime=2;
 
 if ~ismember(-1, numAudioCountDown) %-1 has to be included, if not throw error
     error('Incorrect input given. -1 must be included.\n')
 end
+
+%OLD-MAYBE DELETE
+
+% %if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
+%     ff=figure('Units','Normalized','Position',[1 0 1 1],'Color', 'k', 'ToolBar', 'none');
+%     pp=gca;
+%     axis([0 1  0 1]);
+%     patch([0 1 1 0 0], [0 0 1 1 0], 'k')
+%     text(0, .75, 'Which belt is moving faster?', 'FontSize', 85, 'Color', 'w')
+% %     RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
+% %     LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','g','MarkerEdgeColor','none');
+%     RFB=animatedline('Parent',pp,'Marker','>', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+%     LFB=animatedline('Parent',pp,'Marker','<', 'MarkerSize', 130,'LineStyle','none','MarkerFaceColor','k','MarkerEdgeColor','none'); %MGR temporal so I just see the question
+%     
+% %end
+% 
 
 familiarization = contains(lower(profilename),'familiarization');
 famNoFB = contains(lower(profilename),'famnofb');
@@ -36,7 +51,7 @@ if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
     
     if familiarization
         
-        ff=figure('Units','Normalized','Position',[1 0 1 1]);
+        ff=figure('Units','Normalized','Position',[1 0 1 1]); %[1 0 0.95 0.85])
         pp=gca;
         set(gcf,'color','w');
         axis([0 length(velL)  0.5 2.2]); %axis([0 length(velL)  0 2]);
@@ -88,8 +103,8 @@ lastRHIP=nan(1,6);
 lastLHIP=nan(1,6);
 toneplayed=false;
 %MGR 11/08/2019
-countRaux=0;
-countLaux=0;
+countRaux=0; 
+countLaux=0; 
 Raux=[];
 Laux=[];
 
@@ -134,7 +149,6 @@ if numAudioCountDown %Added by Shuqi, 01/19/2022
     AudioTMChange3 = audioplayer(audio_data,audio_fs);
 end
 
-
 fo=4000;
 signS=0; %Initialize
 endTone=3*sin(2*pi*[1:2048]*fo*.025/4096);  %.5 sec tone at 100Hz, even with noise cancelling this is heard
@@ -163,6 +177,57 @@ if length(iL)-length(iL2)==1
     iL2=[iL2 length(aux1)];
 end
 
+%OLD-MAYBE DELETE LATER
+
+% counter=1;
+% for i=1:length(iL)
+%     pp=patch([iL(i) iL2(i) iL2(i) iL(i)],[yl(1) yl(1) yl(2) yl(2)],[0 .3 .6],'FaceAlpha',.2,'EdgeColor','none');
+%     uistack(pp,'bottom')
+%     if (velL(iL(i))-velR(iL(i)))==0
+%         try
+%             auxT=signList(counter);
+%         catch
+%             if mode==0
+%                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
+%             end
+%             signList(counter)=1;
+%             auxT=signList(counter);
+%         end
+%         counter=counter+1;
+%     else
+%         auxT=sign(velR(iL(i))-velL(iL(i)));
+%     end
+%     text(iL(i),yl(1)+.05*diff(yl),[num2str(auxT)],'Color',[0 0 1])
+% end
+% aux1=diff(isnan(velR));
+% iL=find(aux1==1);
+% iL2=find(aux1==-1);
+% counter=1;
+% 
+% %Temporal Fix Marcela :S 11/08/2019
+% if length(iL)-length(iL2)==1
+%     iL2=[iL2 length(aux1)];
+% end
+% 
+% for i=1:length(iL)
+%     pp=patch([iL(i) iL2(i) iL2(i) iL(i)],[yl(1) yl(1) yl(2) yl(2)],[.6 .3 0],'FaceAlpha',.2,'EdgeColor','none');
+%     uistack(pp,'bottom')
+%     if (velL(iL(i))-velR(iL(i)))==0
+%         try
+%             auxT=-signList(counter);
+%         catch
+%             if mode==0
+%                 warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
+%             end
+%             signList(counter)=1;
+%             auxT=-signList(counter);
+%         end
+%         counter=counter+1;
+%     else
+%         auxT=sign(velL(iL(i))-velR(iL(i)));
+%     end
+%     text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
+% end
 
 counterTemp=1;
 for i=1:length(iL)
@@ -182,7 +247,7 @@ for i=1:length(iL)
     else
         auxT=sign(velR(iL(i))-velL(iL(i)));
     end
-    text(iL(i),yl(1)+.05*diff(yl),[num2str(auxT)],'Color',[0 0 1])
+%     text(iL(i),yl(1)+.05*diff(yl),[num2str(auxT)],'Color',[0 0 1])
 end
 aux1=diff(isnan(velR));
 iL=find(aux1==1);
@@ -202,7 +267,7 @@ for i=1:length(iL)
             auxT=-signList(counterTemp);
         catch
             if mode==0
-                warning('Provided sign list seems to be shorter than # of null trials, adding default sign.')
+                warning('Provided sign list seems to be shorter than # of null trials, ing default sign.')
             end
             signList(counterTemp)=1;
             auxT=-signList(counterTemp);
@@ -211,7 +276,7 @@ for i=1:length(iL)
     else
         auxT=sign(velL(iL(i))-velR(iL(i)));
     end
-    text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
+%     text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
 end
 
 %initialize a data structure that saves information about the trial
@@ -269,8 +334,7 @@ datlog.Markers.LHIPvar = nan(300*length(velR)+7200,36);
 datlog.Markers.RHIPvar = nan(300*length(velR)+7200,36);
 datlog.Markers.LANKvar = nan(300*length(velR)+7200,36);
 datlog.Markers.RANKvar = nan(300*length(velR)+7200,36);
-% datlog.stepdata.paramCompu
-teFunc=func2str(paramComputeFunc);
+% datlog.stepdata.paramComputeFunc=func2str(paramComputeFunc); % This is commented out in the Weber Controller.. why?
 if mode==4
     datlog.stepdata.paramCalibFunc=func2str(paramCalibFunc);
 end
@@ -305,31 +369,42 @@ velR(end+1)=0;
 
 %Initialize nexus & treadmill communications
 try
-    % [MyClient] = openNexusIface();
-    %     Client.LoadViconDataStreamSDK();
-    %     MyClient = Client();
-    %     Hostname = 'localhost:801';
-    %     out = MyClient.Connect(Hostname);
-    %     out = MyClient.EnableMarkerData();
-    %     out = MyClient.EnableDeviceData();
-    %     %MyClient.SetStreamMode(StreamMode.ServerPush);
-    %     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+%     % [MyClient] = openNexusIface();
+%     Client.LoadViconDataStreamSDK();
+%     MyClient = Client();
+%     Hostname = 'localhost:801';
+%     out = MyClient.Connect(Hostname);
+%     out = MyClient.EnableMarkerData();
+%     out = MyClient.EnableDeviceData();
+%     %MyClient.SetStreamMode(StreamMode.ServerPush);
+%     MyClient.SetStreamMode(StreamMode.ClientPullPreFetch);
+%     mn={'LHIP','RHIP','LANK','RANK'};
+%     altMn={'LGT','RGT','LANK','RANK'};
     
     HostName = 'localhost:801';
     addpath( '..\dotNET' );
     dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
+    
+%     if dssdkAssembly == "" %DMMO
+%         [ file, path ] = uigetfile( '*.dll' );
+%         dssdkAssembly = fullfile( path, file );
+%       
+%     end
+    
     NET.addAssembly(dssdkAssembly);
     MyClient = ViconDataStreamSDK.DotNET.Client();
     MyClient.Connect( HostName );
     % Enable some different data types
-    out =MyClient.EnableSegmentData();
-    out =MyClient.EnableMarkerData();
+    out=MyClient.EnableSegmentData();
+    out=MyClient.EnableMarkerData();
     out=MyClient.EnableUnlabeledMarkerData();
     out=MyClient.EnableDeviceData();
     MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
     
     mn={'LHIP','RHIP','LANK','RANK'};
     altMn={'LGT','RGT','LANK','RANK'};
+    
+    
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
     datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
@@ -353,7 +428,7 @@ try
     t = openTreadmillComm();
     fprintf(['Done Opening. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     
-    
+
 catch ME
     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
@@ -376,7 +451,7 @@ try %So that if something fails, communications are closed properly
     new_stanceR=false;
     phase=0; %0= Double Support, 1 = single L support, 2= single R support
     RstepCount=1;
-    LstepCount=1;
+    LstepCount=1;  
     % RTOTime(N)=TimeStamp;
     % LTOTime(N)=TimeStamp;
     % RHSTime(N)=TimeStamp;
@@ -394,7 +469,7 @@ try %So that if something fails, communications are closed properly
     datlog.inclineang = cur_incl;
     
     %Send first speed command & store
-    acc=3000;
+    acc=3000; %Try with different accelerations 1000, 2000, 3000
     [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
     memoryR=velR(1);
     memoryL=velL(1);
@@ -440,7 +515,7 @@ try %So that if something fails, communications are closed properly
             datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
             disp(['Paused at ' num2str(clock)]);
             %bring treadmill to a stop and keep it there!...
-            [payload] = getPayload(0,0,acc,acc,cur_incl);
+            [payload] = getPayload(0,0,500,500,cur_incl);
             %cur_incl
             sendTreadmillPacket(payload,t);
             %do a quick save
@@ -454,7 +529,6 @@ try %So that if something fails, communications are closed properly
         end
         old_stanceL=new_stanceL;
         old_stanceR=new_stanceR;
-        
         
         %Read frame, update necessary structures4
         MyClient.GetFrame();
@@ -473,141 +547,154 @@ try %So that if something fails, communications are closed properly
                 set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
             end
             
-            %Read markers:
-            sn=MyClient.GetSubjectName(0).SubjectName; %DMMO
-            for l=1:4
-                md=MyClient.GetMarkerGlobalTranslation(sn,mn{l});
-                if strcmp(md.Result,'Success')%md.Result.Value==2 %%Success getting marker
-                    aux=double(md.Translation);
-                else
-                    md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
-                    if strcmp(md.Result,'Success')%md.Result.Value==2
-                        aux=double(md.Translation);
-                    else
-                        aux=[nan nan nan]';
-                    end
-                    if all(aux==0) %Nexus returns 'Success' values even when marker is missing, and assigns it to origin!
-                        %warning(['Nexus is returning origin for marker position of ' mn{l}]) %This shouldn't happen
-                        aux=[nan nan nan]';
-                    end
-                end
-                %aux
-                %Here we should implement some Kalman-like filter:
-                %eval(['v' mn(l) '=.8*v' mn(l) '+ (aux-' mn(l) ');']);
-                eval(['lastEstimate=' mn{l} ''';']); %Saving previous estimate
-                eval(['last' mn{l} '=lastEstimate'';']); %Saving previous estimate as row vec
-                eval(['lastEstimateCovar=' mn{l} 'var;']); %Saving previous estimate's variance
-                eval(['datlog.Markers.' mn{l} '(frameind.Value,:) = aux;']);%record the current read
-                
-                elapsedFramesSinceLastRead=framenum.Value-datlog.framenumbers.data(frameind.Value-1,1);
-                %What follows assumes a 100Hz sampling rate
-                n=elapsedFramesSinceLastRead;
-                if n<0
-                    error('inconsistent frame numbering')
-                end
-                
-                %Construct relevant matrices:
-                switch mn{l}(2:4) %Different parameters for different
-                    case 'HIP'
-                        qxy=2*n;
-                        qz=n;
-                        tauZ=15;
-                        tauXY=20;
-                        zLim=100;
-                        zLim=1e6;
-                    case 'ANK'
-                        qxy=10*n; %I think this should be much less, like 5*n
-                        qz=10*n;
-                        tauZ=15;
-                        tauXY=20;
-                        zLim=1e6;
-                    otherwise
-                        
-                end
-                r=30; %std of measurement. It is actually close to 3mm
-                tt=exp(-1/tauXY);
-                Axy=[1+tt -tt; 2-tt tt-1];
-                tt=exp(-1/tauZ);
-                Az=[1+tt -tt; 2-tt tt-1];
-                A=zeros(6,6);
-                for c=1:3
-                    if c<3
-                        A([c,c+3],[c,c+3])=Axy;
-                    else
-                        A([c,c+3],[c,c+3])=Az;
-                    end
-                end
-                A=A^n;
-                %Q=diag(max([qxy qxy qz qxy qxy qz],.5*[lastEstimate(1:3)-lastEstimate(4:6); lastEstimate(1:3)-lastEstimate(4:6)]'.^2));
-                Q=diag([qxy qxy qz qxy qxy qz]);
-                C=[eye(3) zeros(3)];
-                R=r^2*eye(3);
-                
-                %Predict:
-                newPrediction= A*lastEstimate;
-                newPredictionCovar = A*lastEstimateCovar*A' + Q;
-                
-                %I will put some bounds on the prediction covariance in z-axis
-                if newPredictionCovar(3,3)>zLim && frameind.Value>100 %Burn in period
-                    newPredictionCovar(3,6)= zLim*newPredictionCovar(3,6)/newPredictionCovar(3,3);
-                    newPredictionCovar(6,3)= zLim*newPredictionCovar(6,3)/newPredictionCovar(3,3);
-                    newPredictionCovar(3,3)= zLim;
-                end
-                
-                %MAP estimation of mislabeling:
-                err=(aux-C*newPrediction);
-                D=C*newPredictionCovar*C'+R;
-                R1=eye(3)*1e6; %95% of samples should lie in a sphere of radius ~1m
-                if trace(R1) > .5*trace(D) %If the estimation uncertainty is a sphere at least 40% smaller than R1
-                    l1= exp(-.5*err.*diag(R1).^(-1).*err)./sqrt(diag(R1));%Likelihood of observation assuming mislabeling
-                else %Case that the estimation variance grew too much, have no option but to reset the filter
-                    l1=0;
-                    newPredictionCovar=eye(6)*1e6; %For numerical stability, fixing the covariance matrix
-                end
-                if aux(3)>0
-                    l2= exp(-.5*err.*diag(D).^(-1).*err)./sqrt(diag(D));%Likelihood of observation assuming good label
-                else
-                    l2=0; %Rejecting all samples that are in z<0, as that is impossible
-                end
-                p=.1; %Prior for mislabeling
-                pm= p*l1./(p*l1+(1-p)*l2); %Posterior for mislabeling
-                if any(pm>.5) %Mislabeling detected
-                    aux=nan(3,1);
-                elseif any(l1>l2) %MLE returns mislabeling, proceeding with caution
-                    R=.5*R1;
-                end
-                
-                %Do update:
-                if ~any(isnan(aux)) %Good data (not mislabeled)
-                    K=newPredictionCovar*C'*pinv(C*newPredictionCovar*C'+R);
-                    newEstimate=newPrediction+K*(err);
-                    newEstimateCovar=(eye(6) - K*C)*newPredictionCovar;
-                else %Bad data, proceeding with estimation only
-                    %warning('No update this time')
-                    newEstimate=newPrediction;
-                    newEstimateCovar=newPredictionCovar;
-                end
-                
-                %Save results for this frame
-                %if all(lastEstimate(4:6)==0)
-                %    newEstimate(4:6)=newEstimate(1:3);
-                %end
-                eval([mn{l} '=newEstimate'';']); %Saving as row vector
-                eval([mn{l} 'var=newEstimateCovar;']);
-                %         eval(['datlog.Markers.' mn{l} 'filt(frameind.Value,:) =
-                %         newEstimate;']);%record the current estim % We don't know why it
-                %         was braking. No Marker data in datalog now MGR DMMO
-                
-                %         eval(['datlog.Markers.' mn{l} 'var(frameind.Value,:) =
-                %         newEstimateCovar(:);']);%record the current var % We don't know why it
-                %         was braking. No Marker data in datalog now MGR DMMO
-            end
-                                   
+%             %Read markers:
+%             sn=MyClient.GetSubjectName(0).SubjectName; %DMMO
+%             for l=1:4
+%                 md=MyClient.GetMarkerGlobalTranslation(sn,mn{l});
+%                 if strcmp(md.Result,'Success')%md.Result.Value==2 %%Success getting marker
+%                     aux=double(md.Translation);
+%                 else
+%                     md=MyClient.GetMarkerGlobalTranslation(sn,altMn{l});
+%                     if strcmp(md.Result,'Success')%md.Result.Value==2
+%                         aux=double(md.Translation);
+%                     else
+%                         aux=[nan nan nan]';
+%                     end
+%                     if all(aux==0) %Nexus returns 'Success' values even when marker is missing, and assigns it to origin!
+%                         %warning(['Nexus is returning origin for marker position of ' mn{l}]) %This shouldn't happen
+%                         aux=[nan nan nan]';
+%                     end
+%                 end
+%                 %aux
+%                 %Here we should implement some Kalman-like filter:
+%                 %eval(['v' mn(l) '=.8*v' mn(l) '+ (aux-' mn(l) ');']);
+%                 eval(['lastEstimate=' mn{l} ''';']); %Saving previous estimate
+%                 eval(['last' mn{l} '=lastEstimate'';']); %Saving previous estimate as row vec
+%                 eval(['lastEstimateCovar=' mn{l} 'var;']); %Saving previous estimate's variance
+%                 eval(['datlog.Markers.' mn{l} '(frameind.Value,:) = aux;']);%record the current read
+%                 
+%                 elapsedFramesSinceLastRead=framenum.Value-datlog.framenumbers.data(frameind.Value-1,1);
+%                 %What follows assumes a 100Hz sampling rate
+%                 n=elapsedFramesSinceLastRead;
+%                 if n<0
+%                     error('inconsistent frame numbering')
+%                 end
+%                 
+%                 %Construct relevant matrices:
+%                 switch mn{l}(2:4) %Different parameters for different
+%                     case 'HIP'
+%                         qxy=2*n;
+%                         qz=n;
+%                         tauZ=15;
+%                         tauXY=20;
+%                         zLim=100;
+%                         zLim=1e6;
+%                     case 'ANK'
+%                         qxy=10*n; %I think this should be much less, like 5*n
+%                         qz=10*n;
+%                         tauZ=15;
+%                         tauXY=20;
+%                         zLim=1e6;
+%                     otherwise
+%                         
+%                 end
+%                 r=30; %std of measurement. It is actually close to 3mm
+%                 tt=exp(-1/tauXY);
+%                 Axy=[1+tt -tt; 2-tt tt-1];
+%                 tt=exp(-1/tauZ);
+%                 Az=[1+tt -tt; 2-tt tt-1];
+%                 A=zeros(6,6);
+%                 for c=1:3
+%                     if c<3
+%                         A([c,c+3],[c,c+3])=Axy;
+%                     else
+%                         A([c,c+3],[c,c+3])=Az;
+%                     end
+%                 end
+%                 A=A^n;
+%                 %Q=diag(max([qxy qxy qz qxy qxy qz],.5*[lastEstimate(1:3)-lastEstimate(4:6); lastEstimate(1:3)-lastEstimate(4:6)]'.^2));
+%                 Q=diag([qxy qxy qz qxy qxy qz]);
+%                 C=[eye(3) zeros(3)];
+%                 R=r^2*eye(3);
+%                 
+%                 %Predict:
+%                 newPrediction= A*lastEstimate;
+%                 newPredictionCovar = A*lastEstimateCovar*A' + Q;
+%                 
+%                 %I will put some bounds on the prediction covariance in z-axis
+%                 if newPredictionCovar(3,3)>zLim && frameind.Value>100 %Burn in period
+%                     newPredictionCovar(3,6)= zLim*newPredictionCovar(3,6)/newPredictionCovar(3,3);
+%                     newPredictionCovar(6,3)= zLim*newPredictionCovar(6,3)/newPredictionCovar(3,3);
+%                     newPredictionCovar(3,3)= zLim;
+%                 end
+%                 
+%                 %MAP estimation of mislabeling:
+%                 err=(aux-C*newPrediction);
+%                 D=C*newPredictionCovar*C'+R;
+%                 R1=eye(3)*1e6; %95% of samples should lie in a sphere of radius ~1m
+%                 if trace(R1) > .5*trace(D) %If the estimation uncertainty is a sphere at least 40% smaller than R1
+%                     l1= exp(-.5*err.*diag(R1).^(-1).*err)./sqrt(diag(R1));%Likelihood of observation assuming mislabeling
+%                 else %Case that the estimation variance grew too much, have no option but to reset the filter
+%                     l1=0;
+%                     newPredictionCovar=eye(6)*1e6; %For numerical stability, fixing the covariance matrix
+%                 end
+%                 if aux(3)>0
+%                     l2= exp(-.5*err.*diag(D).^(-1).*err)./sqrt(diag(D));%Likelihood of observation assuming good label
+%                 else
+%                     l2=0; %Rejecting all samples that are in z<0, as that is impossible
+%                 end
+%                 p=.1; %Prior for mislabeling
+%                 pm= p*l1./(p*l1+(1-p)*l2); %Posterior for mislabeling
+%                 if any(pm>.5) %Mislabeling detected
+%                     aux=nan(3,1);
+%                 elseif any(l1>l2) %MLE returns mislabeling, proceeding with caution
+%                     R=.5*R1;
+%                 end
+%                 
+%                 %Do update:
+%                 if ~any(isnan(aux)) %Good data (not mislabeled)
+%                     K=newPredictionCovar*C'*pinv(C*newPredictionCovar*C'+R);
+%                     newEstimate=newPrediction+K*(err);
+%                     newEstimateCovar=(eye(6) - K*C)*newPredictionCovar;
+%                 else %Bad data, proceeding with estimation only
+%                     %warning('No update this time')
+%                     newEstimate=newPrediction;
+%                     newEstimateCovar=newPredictionCovar;
+%                 end
+%                 
+%                 %Save results for this frame
+%                 %if all(lastEstimate(4:6)==0)
+%                 %    newEstimate(4:6)=newEstimate(1:3);
+%                 %end
+%                 eval([mn{l} '=newEstimate'';']); %Saving as row vector
+%                 eval([mn{l} 'var=newEstimateCovar;']);
+%                 %         eval(['datlog.Markers.' mn{l} 'filt(frameind.Value,:) =
+%                 %         newEstimate;']);%record the current estim % We don't know why it
+%                 %         was braking. No Marker data in datalog now MGR DMMO
+%                 
+%                 %         eval(['datlog.Markers.' mn{l} 'var(frameind.Value,:) =
+%                 %         newEstimateCovar(:);']);%record the current var % We don't know why it
+%                 %         was braking. No Marker data in datalog now MGR DMMO
+%             end
+%             
             %Read forces
             Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
             Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
             datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
             %             if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+            %                 %Fz_L.Result
+            %                 Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+            %                 Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+            %                 if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+            %                     %Fz_L.Result
+            %                     %Fz_R.Result.Value
+            %                     %Fz_L.Result.Value
+            %                     STOP = 1;  %stop, the GUI can't find the forceplate values
+            %                     disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+            %                     datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
+            %                 end
+            %             end
+            
             if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
                 %Fz_L.Result
                 Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
@@ -630,7 +717,6 @@ try %So that if something fails, communications are closed properly
         RHS=new_stanceR && ~old_stanceR;
         LTO=~new_stanceL && old_stanceL;
         RTO=~new_stanceR && old_stanceR;
-        
         
         %Maquina de estados: 0 = initial, 1 = single L, 2= single R, 3 = DS from
         %single L, 4= DS from single R
@@ -670,14 +756,15 @@ try %So that if something fails, communications are closed properly
                     datlog.stepdata.paramRHS(RstepCount-1)=paramRHS;
                     
                     %plot cursor
-                    addpoints(ppp4,RstepCount-1,paramRHS);
-                    addpoints(ppv2,RstepCount-1,lastR/1000)%paramCalibFunc(paramRHS)/1000)
+%                     addpoints(ppp4,RstepCount-1,paramRHS);
+%                     addpoints(ppv2,RstepCount-1,lastR/1000)%paramCalibFunc(paramRHS)/1000)
                     if ~isnan(velR(RstepCount))
                         yR=velR(RstepCount)/1000;
                     else
                         yR=sentR/1000;
                     end
-                    addpoints(ppp2,RstepCount-1,yR)
+%                     addpoints(ppp2,RstepCount-1,yR)
+                    plot(ghandle.profileaxes,RstepCount-1,yR,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     drawnow;
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
@@ -704,14 +791,15 @@ try %So that if something fails, communications are closed properly
                     
                     %plot cursor
                     %ppp=plot(ghandle.profileaxes,LstepCount-1,paramLHS/1000,'.','Color',[0.68 .92 1]);
-                    addpoints(ppp3,LstepCount-1,paramLHS)
-                    addpoints(ppv1,LstepCount-1,lastL/1000)%paramCalibFunc(paramLHS)/1000)
+%                     addpoints(ppp3,LstepCount-1,paramLHS)
+%                     addpoints(ppv1,LstepCount-1,lastL/1000)%paramCalibFunc(paramLHS)/1000)
                     if ~isnan(velL(LstepCount))
                         yL=velL(LstepCount)/1000;
                     else
                         yL=sentL/1000;
                     end
-                    addpoints(ppp1,LstepCount-1,yL)
+                    % addpoints(ppp1,LstepCount-1,yL)
+                    plot(ghandle.profileaxes,LstepCount-1,yL,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     drawnow;
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
@@ -800,9 +888,8 @@ try %So that if something fails, communications are closed properly
                 countDownIdx = countDownIdx + 1;
             end
         end
-        
-        
-        %ll=findobj(ghandle.profileaxes,'Type','Line');
+            
+%         ll=findobj(ghandle.profileaxes,'Type','Line');
         if exist('ff','var') && isvalid(ff) && (RHS || LHS) %If the figure was closed, this is ignored
             try
                 if RHS
@@ -815,9 +902,7 @@ try %So that if something fails, communications are closed properly
             catch
                 %nop
             end
-            
         end
-        
         
         %Set next speed command to be sent, as either from memory or scheduled
         smoothReturn=true;
@@ -836,7 +921,8 @@ try %So that if something fails, communications are closed properly
         else %At least one of the belts is in self-controlled mode
             
             %If entering self-control mode on this step:
-            if (RstepCount<N-1 && ~isnan(velR(RstepCount-1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount-1)))
+            
+             if (RstepCount<N-1 && ~isnan(velR(RstepCount-1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount-1)))
                 %Next STRIDE will be self-controlled for AT LEAST one of the belts
                 if mode==0 && signS==0 %Determine the sign of keypresses if it hasn't been determined yet
                     firstPress=true; %Set to ignore first keypress, it is unset automatically after first keypress by AdaptationGUI.m
@@ -864,6 +950,35 @@ try %So that if something fails, communications are closed properly
                     responseStartT=clock; % Updated to keep track of time elapsed since the start tone (start of perceptual task)
                 end
             end
+            
+            % OLD-MIGHT DELETE LATER
+            
+%             if (RstepCount<N-1 && ~isnan(velR(RstepCount-1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount-1)))
+%                 %Next STRIDE will be self-controlled for AT LEAST one of the belts
+%                 if mode==0 && signS==0 %Determine the sign of keypresses if it hasn't been determined yet
+%                     firstPress=true; %Set to ignore first keypress, it is unset automatically after first keypress by AdaptationGUI.m %changed from True KF
+%                     signS=sign(velR(RstepCount-1)-velL(LstepCount-1));
+%                     if signS==0 %Null perturbation case
+%                         if ~isempty(signList)
+%                             signS=signList(signCounter);
+%                             signCounter=signCounter+1;
+%                         else
+%                             signS=1;
+%                         end
+%                     end
+%                     %signS
+%                 end
+%                 if mode~=2
+%                     enableMemory=true;
+%                 end
+%                 if ~toneplayed
+%                     display('Start tone played')
+%                     datlog.audioCues.start(RstepCount)=now;
+%                     sound(tone,4096)
+%                     toneplayed=true;
+%                     endTonePlayed=false;
+%                 end
+%             end
             
             %Do the control:
             switch mode
@@ -936,58 +1051,30 @@ try %So that if something fails, communications are closed properly
                 otherwise
                     error('Invalid mode')
             end
-            %             if isnan(velR(RstepCount)) %Only updating belts under
-            %             self-control %MGR Commented 12/11/19
-            %                 sentR=auxR;
-            %             end
-            %             if isnan(velL(LstepCount))
-            %                 sentL=auxL;
-            %             end
+%             if isnan(velR(RstepCount)) %Only updating belts under
+%             self-control %MGR Commented 12/11/19
+%                 sentR=auxR;
+%             end
+%             if isnan(velL(LstepCount))
+%                 sentL=auxL;
+%             end
             
-            %% HURRY UP, Slow Poke! % change time instead of strides
+            %% HURRY UP, Slow Poke!
+            
+            % OLD-MIGHT DELETE LATER
+%             if (~isnan(velR(RstepCount+3))) && (~isnan(velL(LstepCount+3))) && toneplayed==true;
+%                 play(fastbeep)
+%             end
             
             t_diff=clock-responseStartT; %aux 1x6 array in year, month, day, hour, min, sec
             t_elapsed = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %compute difference in seconds which will give me how much of the response time has elapsed
-            
-            %             if (~isnan(velR(RstepCount+3))) && (~isnan(velL(LstepCount+3))) && toneplayed==true;
-            %                 play(fastbeep)
-            %             end
             
             if (t_elapsed > responseWindow-warnTime) && toneplayed==true; % Updated to time elapsed
                 play(fastbeep)
             end
             
-            %% Check for that we did not exceed the time window without a response
+            %% Updates MGR 06/20/24  
             
-            %             if RFBClicker==0 && LFBClicker==0 && toneplayed==true && (t_elapsed > responseWindow)% Update to check for time elapsed and increase strides to end of NaN in the profile
-            %                 stop(fastbeep)
-            %                 datlog.audioCues.stop(RstepCount)=now;
-            %                 datlog.audioCues.stopTime{RstepCount}=datetime(now,'ConvertFrom','datenum');
-            %                 sound(endTone,4096)
-            %                 endTonePlayed=true;
-            %
-            %                 NonSelfControlL=find(~isnan(velL))-1;
-            %                 NonSelfControlR=find(~isnan(velR))-1;
-            %
-            %                 addSteps=min([NonSelfControlR(find(NonSelfControlR>=RstepCount, 1,  'first'))-RstepCount NonSelfControlL(find(NonSelfControlL>=LstepCount, 1,  'first'))-LstepCount]);
-            %
-            %                 RstepCount=RstepCount+addSteps;
-            %                 LstepCount=LstepCount+addSteps;
-            %
-            %
-            %                 if familiarization
-            %                     figure(1);
-            %                     feedB = text(30,0.2,'No Response', 'FontSize', 75, 'Color', 'k');
-            %                 end
-            %
-            %                 rCount = RstepCount + 3; %Familiarizarion feedback
-            %                 lCount = LstepCount + 3;
-            %
-            %
-            %             end % Maybe I can just do the firgure end without the need for familiarization if (SL)
-            %
-            
-            %%
             if (RstepCount<N-1 && ~isnan(velR(RstepCount+1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount+1))) || RFBClicker==1 || LFBClicker==1 || (t_elapsed > responseWindow) % Updated to time elapsed
                 
                 %Next step won't be self-controlled for EITHER belt OR THERE HAS ALREADY BEEN 1 CLICK
@@ -1008,7 +1095,15 @@ try %So that if something fails, communications are closed properly
                     
                     if familiarization 
                         
-                        B = ~isnan(velL(LstepCount-9:LstepCount));
+                        numStepsPre = 15;
+                        if LstepCount > numStepsPre
+                            B = ~isnan(velL(LstepCount-numStepsPre:LstepCount));
+%                             B = ~isnan(velL(1:LstepCount)); % It use to be 9, when we fixed the response window to strides instead of time % TODO: the number might need updating depending on the amount of NaNs I use when generating the profile
+                        else
+                            B = ~isnan(velL(LstepCount-9:LstepCount));
+                            
+                        end
+                        
                         Index = find(B, 1, 'last');
                         Index = LstepCount - (length(B) - Index);
                         
@@ -1018,14 +1113,14 @@ try %So that if something fails, communications are closed properly
                             
                             %                           feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
                             feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            
+                            correctResponses = correctResponses + 1;
                             % figure(fig(end));
                             
                         elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0
                             
                             %feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
                             feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            
+                            correctResponses = correctResponses + 1;
                             %figure(fig(end));
                             
                         elseif ~(RFBClicker==0 & LFBClicker==0)
@@ -1038,33 +1133,23 @@ try %So that if something fails, communications are closed properly
                         
                     end
                     
-                    if famNoFB 
+                    if famNoFB % for the familiarizations where there is no feedback, print how many correct they had
                         
-                        B = ~isnan(velL(LstepCount-9:LstepCount));
+                       numStepsPre = 15;
+                        if LstepCount > numStepsPre
+                            B = ~isnan(velL(LstepCount-numStepsPre:LstepCount));
+                        else
+                            B = ~isnan(velL(LstepCount-9:LstepCount)); % It use to be 9, when we fixed the response window to strides instead of time % TODO: the number might need updating depending on the amount of NaNs I use when generating the profile
+                                               
+                        end
+                        
                         Index = find(B, 1, 'last');
                         Index = LstepCount - (length(B) - Index);
-
                         
-                        if velL(Index) < velR(Index) & LFBClicker==1  &  RFBClicker==0
-                            
-                            correct 
-                            feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            
-                            % figure(fig(end));
-                            
-                        elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0
-                            
-                            %feedB = text(35,0.2,'Correct', 'FontSize', 75, 'Color', 'g');
-                            feedB = text(35,0.7,'Correct', 'FontSize', 75, 'Color', 'g');
-                            
-                            %figure(fig(end));
-                            
-                        elseif ~(RFBClicker==0 & LFBClicker==0)
-                            %feedB = text(35,0.2,'Incorrect', 'FontSize', 75, 'Color', 'r');
-                            feedB = text(35,0.7,'Incorrect', 'FontSize', 75, 'Color', 'r');
-                            
-                            %figure(fig(end));
-                            
+                        if velL(Index) < velR(Index) & LFBClicker==1  &  RFBClicker==0                            
+                            correctResponses = correctResponses + 1; 
+                        elseif velR(Index) < velL(Index) & RFBClicker==1 & LFBClicker==0                            
+                            correctResponses = correctResponses + 1;                            
                         end
                         
                     end
@@ -1125,7 +1210,7 @@ try %So that if something fails, communications are closed properly
                 end
                 
                 figure(fig(end));
-                M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions
+                M=0; %Take M strides to actually go to the desired target speed, to avoid sharp transitions
                 if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M)
                     velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
                     velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
@@ -1137,20 +1222,64 @@ try %So that if something fails, communications are closed properly
                 
                 
             end
-            
-            
-            
-        end
-        
-        if familiarization & exist ('feedB','var') & rCount == RstepCount  & lCount == LstepCount
+                        
+%             % OLD-MIGHT DELETE LATER
+%             if (RstepCount<N-1 && ~isnan(velR(RstepCount+1))) && (LstepCount<N-1 && ~isnan(velL(LstepCount+1))) || RFBClicker==1 || LFBClicker==1%&& ~endTonePlayed
+%                 
+%                 if RFBClicker==1 || LFBClicker==1
+%                 
+%                     %                     datlog.audioCues.stop(RstepCount)=now; %Marcela added so the click time is counted as an end cue 12-10-19
+% %                     pause(10);
+%                     RFBClicker=0;
+%                     LFBClicker=0;
+%                     
+%                     datlog.audioCues.stop(RstepCount)=now;
+%                     
+% %                     NonSelfControlL=find(~isnan(velL))-1;
+% %                     NonSelfControlR=find(~isnan(velR))-1;
+% %                     
+% %                     addSteps=min([NonSelfControlR(find(NonSelfControlR>=RstepCount, 1,  'first'))-RstepCount NonSelfControlL(find(NonSelfControlL>=LstepCount, 1,  'first'))-LstepCount]);
+% %                     %RstepCount=NonSelfControlR(find(NonSelfControlR>=RstepCount, 1,  'first'));
+%                     %LstepCount=NonSelfControlL(find(NonSelfControlL>=LstepCount, 1,  'first'));
+% %                     
+% %                     RstepCount=RstepCount+addSteps;
+% %                     LstepCount=LstepCount+addSteps;
+%                     
+%                     stop(fastbeep)
+%                     endTonePlayed=true;
+%                     
+%                 elseif ~endTonePlayed && RFBClicker==0 && LFBClicker==0
+%                     stop(fastbeep)
+%                     datlog.audioCues.stop(RstepCount)=now;
+%                     sound(endTone,4096)
+%                     endTonePlayed=true;                    
+%                     
+%                     M=3; %Take M strides to actually go to the desired target speed, to avoid sharp transitions
+%                     if smoothReturn && RstepCount<(N-M) && LstepCount<(N-M) %Smooth transition to computer control
+%                         velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
+%                         velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
+%                     end
+%                 end
+%                 
+%                   
+%                    toneplayed=false; %flag to check that tone is not played twice for a single selection interval
+%                    
+%                    
+%                 enableMemory=false;
+%                 
+%                 %                 velR(RstepCount+[1:M-1])=sentR+(velR(RstepCount+M)-sentR)*[1:M-1]/M;
+%                 %                 velL(LstepCount+[1:M-1])=sentL+(velL(LstepCount+M)-sentL)*[1:M-1]/M;
+%                end 
+            end
+
+         if familiarization & exist ('feedB','var') & rCount == RstepCount  & lCount == LstepCount
             %             figure(1);
             delete(feedB);
             figure(fig(end));
         end
-        
-        
+                
         aux=(now-lastSent)*86400; %Time elapsed in secs
-        if LstepCount >= N && RstepCount >= N %if taken enough steps, stop
+        if LstepCount >= N && RstepCount >= N%if taken enough steps, stop
             
             if numAudioCountDown %Added by Shuqi, 01/19/2022
                 fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
@@ -1166,27 +1295,20 @@ try %So that if something fails, communications are closed properly
             sendTreadmillPacket(payload,t);
             lastSent=now;
             datlog.TreadmillCommands.sent(frameind.Value,:) = [sentR,sentL,cur_incl,lastSent];%record the command
-            %             disp(['Packet sent, Lspeed = ' num2str(sentL) ', Rspeed = ' num2str(sentR)])
+%              disp(['Packet sent, Lspeed = ' num2str(sentL) ', Rspeed = ' num2str(sentR)])
             old_velR.Value = sentR;
             old_velL.Value = sentL;
         end
-        
+
     end %While, when STOP button is pressed
-    
-    
     if STOP
         datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
         %     log=['Stop button pressed, stopping... ' num2str(clock)];
         %     listbox{end+1}=log;
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
-        set(ghandle.Status_textbox,'BackgroundColor','red');
-        
-        %         if numAudioCountDown %Added by Shuqi, 01/19/2022
-        % %             fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-        %             play(AudioCount1);
-        %         end
-        %     else
+        set(ghandle.Status_textbox,'BackgroundColor','red');         
+    
     end
 catch ME
     datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
@@ -1199,9 +1321,6 @@ catch ME
     disp('Error ocurred during the control loop, see datlog for details...');
 end
 
-%display('bob')
-% % % % % % %             set(LFB, 'FaceColor', 'k')
-% % % % % % %             set(RFB, 'FaceColor', 'k')
 %% Closing routine
 %End communications
 global addLog
@@ -1236,9 +1355,19 @@ try %stopping the treadmill
         
         set(ghandle.Status_textbox,'String','Stopping');
         set(ghandle.Status_textbox,'BackgroundColor','red');
-        pause(1)
-        smoothStop(t);
+%         pause(1)
+%         smoothStop(t);    
         
+        % Added by Marcela and Amber 06/27/24
+        fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+        play(AudioTMStop3);
+        pause(2.5);
+        play(AudioCount2);
+        pause(1);
+        play(AudioCount1);
+%         pause(1);         
+        smoothStop(t);
+        play(AudioNow); 
     end
     
     %Check if treadmill stopped, if not, try again:
@@ -1418,3 +1547,203 @@ try
 catch ME
     disp(ME);
 end
+
+if famNoFB | familiarization
+    msg = ['Participant had: ' num2str(correctResponses) ' correct'];
+    h = msgbox(msg);
+%     disp(['Participant had: ' num2str(correctResponses) ' correct']);
+end
+
+
+% %% Closing routine
+% %End communications
+% global addLog
+% try
+%     aux = cellfun(@(x) (x-datlog.framenumbers.data(1,2))*86400,addLog.keypress(:,2),'UniformOutput',false);
+%     addLog.keypress(:,2)=aux;
+%     addLog.keypress=addLog.keypress(cellfun(@(x) ~isempty(x),addLog.keypress(:,1)),:); %Eliminating empty entries
+%     datlog.addLog=addLog;
+% catch ME
+%     ME
+% end
+% try
+%     save(savename,'datlog');
+% catch ME
+%     disp(ME);
+% end
+% 
+% try %stopping the treadmill
+%     %see if the treadmill is supposed to stop at the end of the profile
+%     if get(ghandle.StoptreadmillEND_checkbox,'Value')==1 && STOP ~=1
+%         set(ghandle.Status_textbox,'String','Stopping...');
+%         set(ghandle.Status_textbox,'BackgroundColor','red');
+%         pause(1)%provide a little time to collect the last steps and so forth
+%         smoothStop(t);
+%         if numAudioCountDown %Added by Shuqi, 01/19/2022
+%             play(AudioNow)
+%         end
+%         %see if the treadmill should be stopped when the STOP button is pressed
+%     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value')==1 && STOP == 1
+%         
+%         set(ghandle.Status_textbox,'String','Stopping');
+%         set(ghandle.Status_textbox,'BackgroundColor','red');
+% %         pause(1)
+%         
+%         % Added by Marcela and Amber 06/27/24
+%         fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+%         play(AudioTMStop3);
+%         pause(2.5);
+%         play(AudioCount2);
+%         pause(1);
+%         play(AudioCount1);
+% %         pause(1);         
+%         smoothStop(t);
+%         play(AudioNow); 
+%     end
+%     
+%     %Check if treadmill stopped, if not, try again:
+%     pause(1)
+%     fprintf(['Trying to close TM3. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+%     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
+%     stopped = cur_speedR==0 && cur_speedL==0;
+%     countTreadmill=0;
+%     while ~stopped && countTreadmill<5 %Try 5 times to stop the treadmill smoothly
+%         disp('Treadmill did not stop when requested. Trying again.')
+%         %smoothStop(t)
+%         %         fprintf(['Trying to close TM4. Date Time: ',num2str(countTreadmill),datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+%         pause(1) %Give time to smoothStop to execute everything
+%         [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
+%         stopped = cur_speedR==0 && cur_speedL==0;
+%         countTreadmill=countTreadmill+1;
+%     end
+%     if countTreadmill>=5
+%         disp('Could not stop treadmill after 5 attempts')
+%     end
+%     
+% catch ME
+%     datlog.errormsgs{end+1} = 'Error stopping the treadmill';
+%     datlog.errormsgs{end+1} = ME;
+% end
+% 
+% % pause(1)
+% disp('closing comms');
+% try
+%     closeNexusIface(MyClient);
+%     closeTreadmillComm(t);
+%     %     keyboard
+% catch ME
+%     datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
+%     datlog.errormsgs{end+1} = ME;
+%     %     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
+%     %     listbox{end+1}=log;
+%     disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
+%     disp(ME);
+% end
+% 
+% disp('converting time in datlog...');
+% %convert time data into clock format then re-save
+% datlog.buildtime = datestr(datlog.buildtime);
+% 
+% %convert frame times & markers
+% temp = find(datlog.framenumbers.data(:,1)==0,1,'first');
+% datlog.framenumbers.data(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% 
+% %convert force times
+% datlog.forces.data(1,:) = [];
+% temp = find(datlog.forces.data(:,1)==0,1,'first');
+% % keyboard
+% datlog.forces.data(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));
+% end
+% 
+% %convert RHS times
+% temp = find(datlog.stepdata.RHSdata(:,1) == 0,1,'first');
+% datlog.stepdata.RHSdata(temp:end,:) = [];
+% datlog.stepdata.paramRHS(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% %convert LHS times
+% temp = find(datlog.stepdata.LHSdata(:,1) == 0,1,'first');
+% datlog.stepdata.LHSdata(temp:end,:) = [];
+% datlog.stepdata.paramLHS(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% %convert RTO times
+% temp = find(datlog.stepdata.RTOdata(:,1) == 0,1,'first');
+% datlog.stepdata.RTOdata(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% %convert LTO times
+% temp = find(datlog.stepdata.LTOdata(:,1) == 0,1,'first');
+% datlog.stepdata.LTOdata(temp:end,:) = [];
+% for z = 1:temp-1
+%     datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% 
+% %convert command times
+% temp = all(isnan(datlog.TreadmillCommands.read(:,4)),2);
+% datlog.TreadmillCommands.read=datlog.TreadmillCommands.read(~temp,:);
+% for z = 1:size(datlog.TreadmillCommands.read,1)
+%     datlog.TreadmillCommands.read(z,4) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
+% end
+% 
+% temp = all(isnan(datlog.TreadmillCommands.sent(:,4)),2);
+% datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(~temp,:);
+% for z = 1:size(datlog.TreadmillCommands.sent,1)
+%     datlog.TreadmillCommands.sent(z,4) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
+% end
+% 
+% %convert audio times
+% temp = isnan(datlog.audioCues.start);
+% datlog.audioCues.start=datlog.audioCues.start(~temp);
+% datlog.audioCues.start = ((datlog.audioCues.start)-(datlog.framenumbers.data(1,2)))*86400;
+% 
+% temp = isnan(datlog.audioCues.stop);
+% datlog.audioCues.stop=datlog.audioCues.stop(~temp);
+% datlog.audioCues.stop = ((datlog.audioCues.stop) - (datlog.framenumbers.data(1,2)))*86400;
+% 
+% 
+% %Get rid of graphical objects we no longer need:
+% if exist('ff','var') && isvalid(ff)
+%     close(ff)
+% end
+% set(ghandle.profileaxes,'Color',[1,1,1])
+% delete(findobj(ghandle.profileaxes,'Type','Text'))
+% delete(findobj(ghandle.profileaxes,'Type','Patch'))
+% 
+% % %MGR 11/08/19
+% % 
+% % datlog.auxStepCount.headers={'R Step Count Real', 'L Step Count Real'};
+% % datlog.auxStepCount.data(:,1)=Raux';
+% % datlog.auxStepCount.data(:,2)=Laux';
+% %Print some info:
+% NR=length(datlog.stepdata.paramRHS);
+% NL=length(datlog.stepdata.paramLHS);
+% for M=[20,50]
+%     i1=max([1 NR-M]);
+%     i2=max([1 NL-M]);
+%     disp(['Average params for last ' num2str(M) ' strides: '])
+%     disp(['R=' num2str(nanmean(datlog.stepdata.paramRHS(i1:end))) ', L=' num2str(nanmean(datlog.stepdata.paramLHS(i2:end)))])
+% end
+% 
+% disp('saving datlog...');
+% try
+%     save(savename,'datlog');
+%     [d,~,~]=fileparts(which(mfilename));
+%     save([d '\..\datlogs\lastDatlog.mat'],'datlog');
+% catch ME
+%     disp(ME);
+% end
+% 
+% if famNoFB | familiarization
+%     msg = ['Participant had: ' num2str(correctResponses) ' correct'];
+%     h = msgbox(msg);
+% %     disp(['Participant had: ' num2str(correctResponses) ' correct']);
+% end

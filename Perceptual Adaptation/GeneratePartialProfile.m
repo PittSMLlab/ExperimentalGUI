@@ -27,7 +27,7 @@ handrail = questdlg('Where is the handrail located in the current session?', ...
 
 if indicator
     
-    path =  ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\Perception Studies\Weber Perception Faster\' handrail];
+    path =  ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\Perception Studies\Perceptual Adaptation\Session 2\' handrail];
     
 else
     
@@ -38,11 +38,9 @@ end
 
 % listCond = {'FamiliarizationSlowest', 'FamiliarizationSlow','slowestBlock','mirrorSlowestBlock','slowBlock','mirrorSlowBlock'};
 
-listCond = {'FamiliarizationSlow', 'FamiliarizationFaster','slowBlock','mirrorSlowBlock','fasterBlock','mirrorFasterBlock'};
-
-
-
-
+listCond = {'Familiarization','adaptPseTrack_Rdominant','adaptPseTrack_Ldominant','adaptLfit1_Rdominant','adaptLfit1_Ldominant',...
+    'adaptLfit2_Rdominant','adaptLfit2_Ldominant','adaptLfit3_Rdominant','adaptLfit3_Ldominant','adaptLfit4_Rdominant','adaptLfit4_Ldominant',...
+    'postAdapt_Rdominant','postAdapt_Ldominant'};
 
 
 [indx,tf] = listdlg('PromptString',{'Which condition you will need to generate the profile from?',...

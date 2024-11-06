@@ -65,11 +65,7 @@ for i = 1:length(audiostart)
     
     %Voy a mirar el pert sie en ese indice y en el que le sigue, el que le
     %sigue tiene que estar en allowed y ser menor que ese, y el del indice
-    %tiene que estar en los allowed 
-    
-    
-    
-    
+    %tiene que estar en los allowed  
     
 end 
 
@@ -115,7 +111,7 @@ for i=1:size(inds,1)
         break
     end
     
-        aux(i,1)=find(allPressT > startCue(i)-1,1,'first'); %Pablo previoulsy had a minus 1 for the start cue
+        aux(i,1)=find(allPressT > startCue(i)-1,1,'first'); %Pablo previously had a minus 1 for the start cue
         
         aux2(i,1)=find(pHS(:,4) > allPressT(aux(i,1)),1,'first');
 

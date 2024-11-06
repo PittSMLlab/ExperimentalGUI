@@ -1000,20 +1000,29 @@ try %So that if something fails, communications are closed properly
         % % % % % % %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
     end %While, when STOP button is pressed
-    if STOP
-        datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
-        %     log=['Stop button pressed, stopping... ' num2str(clock)];
-        %     listbox{end+1}=log;
-        disp(['Stop button pressed, stopping... ' num2str(clock)]);
-        set(ghandle.Status_textbox,'String','Stopping...');
-        set(ghandle.Status_textbox,'BackgroundColor','red');
-        
-%         if numAudioCountDown %Added by Shuqi, 01/19/2022
-% %             fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-%             play(AudioCount1);
-%         end
+%     if STOP
+%         datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+%         %     log=['Stop button pressed, stopping... ' num2str(clock)];
+%         %     listbox{end+1}=log;
+%         disp(['Stop button pressed, stopping... ' num2str(clock)]);
+%         set(ghandle.Status_textbox,'String','Stopping...');
+%         set(ghandle.Status_textbox,'BackgroundColor','red');
+%         
+% %         if numAudioCountDown %Added by Shuqi, 01/19/2022
+% % %             fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+% %             play(AudioCount1);
+% %         end
+% %     else
+%     end
+    
+%      if STOP
+%         datlog.messages{end+1} = 'Stop button pressed at: [see next cell], stopping... ';
+%         datlog.messages{end+1} = now;   % preserves full precision of the time
+%         disp(['Stop button pressed, stopping... ' num2str(clock)]);
+%         set(ghandle.Status_textbox,'String','Stopping...');
+%         set(ghandle.Status_textbox,'BackgroundColor','red');
 %     else
-    end
+%     end
 catch ME
     datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
     datlog.errormsgs{end+1} = ME;

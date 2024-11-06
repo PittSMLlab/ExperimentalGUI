@@ -36,7 +36,7 @@ if feedbackFlag==1  %&& size(get(0,'MonitorPositions'),1)>1
     
     if familiarization
         
-        ff=figure('Units','Normalized','Position',[1 0 1 1]);
+        ff=figure('Units','Normalized','Position',[1 0 1 1]); %[1 0 0.95 0.85])
         pp=gca;
         set(gcf,'color','w');
         axis([0 length(velL)  0.5 2.2]); %axis([0 length(velL)  0 2]);
@@ -182,7 +182,7 @@ for i=1:length(iL)
     else
         auxT=sign(velR(iL(i))-velL(iL(i)));
     end
-    text(iL(i),yl(1)+.05*diff(yl),[num2str(auxT)],'Color',[0 0 1])
+%     text(iL(i),yl(1)+.05*diff(yl),[num2str(auxT)],'Color',[0 0 1])
 end
 aux1=diff(isnan(velR));
 iL=find(aux1==1);
@@ -211,7 +211,7 @@ for i=1:length(iL)
     else
         auxT=sign(velL(iL(i))-velR(iL(i)));
     end
-    text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
+%     text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
 end
 
 %initialize a data structure that saves information about the trial
@@ -269,8 +269,7 @@ datlog.Markers.LHIPvar = nan(300*length(velR)+7200,36);
 datlog.Markers.RHIPvar = nan(300*length(velR)+7200,36);
 datlog.Markers.LANKvar = nan(300*length(velR)+7200,36);
 datlog.Markers.RANKvar = nan(300*length(velR)+7200,36);
-% datlog.stepdata.paramCompu
-teFunc=func2str(paramComputeFunc);
+% datlog.stepdata.paramComputeFunc=func2str(paramComputeFunc);
 if mode==4
     datlog.stepdata.paramCalibFunc=func2str(paramCalibFunc);
 end
@@ -669,9 +668,10 @@ try %So that if something fails, communications are closed properly
                     %paramRHS=paramComputeFunc(lastRANK,lastLANK,lastRHIP,lastLHIP);
                     datlog.stepdata.paramRHS(RstepCount-1)=paramRHS;
                     
-                    %plot cursor
-                    addpoints(ppp4,RstepCount-1,paramRHS);
-                    addpoints(ppv2,RstepCount-1,lastR/1000)%paramCalibFunc(paramRHS)/1000)
+                    %plot cursor 
+%                     addpoints(ppp4,RstepCount-1,paramRHS); %MGR cpmmented
+%                     out
+%                     addpoints(ppv2,RstepCount-1,lastR/1000)%paramCalibFunc(paramRHS)/1000)
                     if ~isnan(velR(RstepCount))
                         yR=velR(RstepCount)/1000;
                     else
@@ -703,9 +703,10 @@ try %So that if something fails, communications are closed properly
                     datlog.stepdata.paramLHS(LstepCount-1)=paramLHS;
                     
                     %plot cursor
-                    %ppp=plot(ghandle.profileaxes,LstepCount-1,paramLHS/1000,'.','Color',[0.68 .92 1]);
-                    addpoints(ppp3,LstepCount-1,paramLHS)
-                    addpoints(ppv1,LstepCount-1,lastL/1000)%paramCalibFunc(paramLHS)/1000)
+                    %ppp=plot(ghandle.profileaxes,LstepCount-1,paramLHS/1000,'.','Color',[0.68
+                    %.92 1]); %MGR commented out
+%                     addpoints(ppp3,LstepCount-1,paramLHS)
+%                     addpoints(ppv1,LstepCount-1,lastL/1000)%paramCalibFunc(paramLHS)/1000)
                     if ~isnan(velL(LstepCount))
                         yL=velL(LstepCount)/1000;
                     else
@@ -1008,7 +1009,14 @@ try %So that if something fails, communications are closed properly
                     
                     if familiarization 
                         
-                        B = ~isnan(velL(LstepCount-9:LstepCount));
+                        numStepsPre = 15;
+                        if LstepCount < numStepsPre
+                            B = ~isnan(velL(1:LstepCount)); % It used to be 9, when we fixed the response window to strides instead of time % TODO: the number might need updating depending on the amount of NaNs I use when generating the profile
+                        else
+                            B = ~isnan(velL(LstepCount-numStepsPre:LstepCount));
+                        end
+                        
+                     
                         Index = find(B, 1, 'last');
                         Index = LstepCount - (length(B) - Index);
                         
@@ -1040,7 +1048,13 @@ try %So that if something fails, communications are closed properly
                     
                     if famNoFB % for the familiarizations where there is no feedback, print how many correct they had
                         
-                        B = ~isnan(velL(LstepCount-9:LstepCount));
+                        numStepsPre = 15;
+                        if LstepCount < numStepsPre
+                            B = ~isnan(velL(1:LstepCount)); % It used to be 9, when we fixed the response window to strides instead of time % TODO: the number might need updating depending on the amount of NaNs I use when generating the profile
+                        else
+                            B = ~isnan(velL(LstepCount-numStepsPre:LstepCount));
+                        end
+                        
                         Index = find(B, 1, 'last');
                         Index = LstepCount - (length(B) - Index);
                         
@@ -1219,9 +1233,19 @@ try %stopping the treadmill
         
         set(ghandle.Status_textbox,'String','Stopping');
         set(ghandle.Status_textbox,'BackgroundColor','red');
-        pause(1)
-        smoothStop(t);
+%         pause(1)
+%         smoothStop(t);    
         
+        % Added by Marcela and Amber 06/27/24
+        fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+        play(AudioTMStop3);
+        pause(2.5);
+        play(AudioCount2);
+        pause(1);
+        play(AudioCount1);
+%         pause(1);         
+        smoothStop(t);
+        play(AudioNow); 
     end
     
     %Check if treadmill stopped, if not, try again:

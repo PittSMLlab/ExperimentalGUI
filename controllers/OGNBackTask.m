@@ -47,6 +47,7 @@ recordData = false; %usually false now bc of headset problems, could turn off fo
 
 if block == 0 %familiarization, use the last row for familiarizaton for now.
     nOrders = 1:8; %walk, then walk 1-7
+    nOrders = 1:4; %shorter version for demo. Shuqi 04/26/2023. Walk, walk0, walk1, walk2
 %     restDuration = 20;
     % Pop up window to confirm parameter setup
     button=questdlg('Please confirm that oxysoft_present is 1 (NIRS connected) and rest duration is 20.');  
@@ -55,6 +56,7 @@ if block == 0 %familiarization, use the last row for familiarizaton for now.
     end
 else
     nOrders = randomization_order(block,:); 
+    nOrders = randperm(4); %shorter version for demo. Shuqi 04/26/2023
 end
 
 if recordData
@@ -397,7 +399,7 @@ try %So that if something fails, communications are closed properly
         enableMemory = true; %allow clicking now, first number started.
             %read and log in datalog but not send to NIRS (%FIXME: need to
             %figure out if this is sufficient to figure out frames of
-            %walking in post processing)
+            %walking in post processing).
     end
     tStart=clock; %start the clock for stop in 20s or next letter in 1.5s
     currentIndex = currentIndex + 1; %started one of the walking task, increment currentIndex.

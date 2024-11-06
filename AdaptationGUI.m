@@ -438,10 +438,10 @@ switch(selection)
         audioFbBtn=questdlg('Should audio feedback on speed be provided?');  %added by DMMO 3/13/2020
         %Replace overground audio controller with the new one developed by
         %Nate to have better stride counting using the state machine
-%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'), false); %last arg = hreflex present = false (Hreflex OG has its own controller)
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = HreflexOGWithAudio(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'), false); %last arg = hreflex present = false (Hreflex OG has its own controller)
         %Previous controller code below (obsolte)
         %be sure to have selected the right profile!!!!!
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
+%         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Speed_audioFeedback(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],strcmp(audioFbBtn,'Yes'));
 %         ssrecord = [];%delete useless zero at beginning
 %         disp(['The mean self selected seed is: ' num2str(nanmean(ssrecord))]);
 %         disp(['The stdev of speeds is: ' num2str(nanstd(ssrecord))]);

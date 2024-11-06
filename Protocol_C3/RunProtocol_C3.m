@@ -137,7 +137,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
         currTrial = str2double(currTrial{1});
         disp(['Starting from trial #' num2str(currTrial)]);
     end
-
+    
     switch currTrial
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
@@ -334,6 +334,12 @@ end
 transferData_PC1_C3(participantID,isSession1,threshTime);
 
 %% Run Reconstruct & Label Pipeline
+sess = 'Session1';
+if ~isSession1          % if current session is second walking session, ...
+    sess = 'Session2';
+end
+dirSrvrData = fullfile('W:\Nathan\C3\Data',participantID,sess,'PC1');
+dataMotion.reconstructAndLabelSession(dirSrvrData);
 
 %% Automatically Fill Marker Gaps
 

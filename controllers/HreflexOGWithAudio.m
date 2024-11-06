@@ -18,7 +18,7 @@ if nargin < 10 %no param given for if hreflex stim should be delivered, default 
     hreflex_present = true; % default true, unless debugging w/out stimulators
 end
 % default threshold
-threshAnkDiffZ = 50;    % 50 mm difference in ankle markers z-axis
+threshAnkDiffZ = 40;    % 50 mm difference in ankle markers z-axis
 
 %FIXME: If getting stimulated too much, turn this block on.
 %                     canStimR = true;
