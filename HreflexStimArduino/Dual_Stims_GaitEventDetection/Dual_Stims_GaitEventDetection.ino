@@ -50,7 +50,7 @@ int leftDelayCalc(float leftTreadmillSpeed) {
 }
 
 void setup() {
-  Serial.begin(600);
+  Serial.begin(9600);
   rightDelayTime = rightDelayCalc(rightTreadmillSpeed);
   leftDelayTime = leftDelayCalc(leftTreadmillSpeed);
   Serial.println("\n\n\n\nSTART");
@@ -75,24 +75,29 @@ void loop() {
   RHS = new_stanceR && (!old_stanceR);
   LTO = (!new_stanceL) && old_stanceL;
   RTO = (!new_stanceR) && old_stanceR;
+  // Serial.print("New: ");
+  // Serial.println(new_stanceL);
+  // Serial.println(old_stanceL);
+  // Serial.println(new_stanceL);
+  // Serial.println(old_stanceL);
 
   // Serial.println("-----LTO-----");
   // Serial.println(LTO);
-  // // Serial.println("-----Lhs-----");
+  // Serial.println("-----Lhs-----");
   // Serial.println(LHS);
 
-  // // Serial.println("-----RTO-----");
+  // Serial.println("-----RTO-----");
   // Serial.println(RTO);
-  // // Serial.println("-----RHS-----");
+  // Serial.println("-----RHS-----");
   // Serial.println(RHS);
 
   // state machine: 0 = initial, 1 = single stance L, 2 = single stance R,
   // 3 = double stance from single stance L, 4 = double stance from single R
-  switch (phase) {     // process based on current gait phase
-    case 0:            // double stance, only the initial phase
-      if (RTO) {       // if there is a R toe off event, ...
-        phase = 1;     // progress to single stance L
-        RstepCount++;  // increment right step count
+  switch (phase) {      // process based on current gait phase
+    case 0:             // double stance, only the initial phase
+      if (RTO) {        // if there is a R toe off event, ...
+        phase = 1;      // progress to single stance L
+        RstepCount++;   // increment right step count
         Serial.print("1st R: ");
         Serial.println(RstepCount);
       } else if (LTO) {  // if there is a L toe off event, ...
@@ -171,3 +176,4 @@ void loop() {
   }
   // Serial.println(RstepCount);
 }
+
