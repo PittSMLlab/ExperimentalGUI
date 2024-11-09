@@ -1,4 +1,4 @@
-// code for stimulating both legs
+// code for stimulating both legs within a stride
 
 // ADJUST THE FOUR PARAMETERS BELOW AS NEEDED.
 

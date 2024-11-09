@@ -1,4 +1,4 @@
-// code for stimulating both legs at once
+// code for stimulating both legs within a stride
 
 // right stims variables
 const int rightSensorPin = A1;
@@ -121,3 +121,4 @@ void loop() {
     leftPrevFlag = false;
   }
 }
+
