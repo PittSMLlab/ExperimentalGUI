@@ -6,28 +6,15 @@
 /////////////////////////////////////////////////////////////////////////////
 ////// THE BELOW TREADMILL SPEEDS MUST BE UPDATED BEFORE EVERY TRIAL ////////
 /////////////////////////////////////////////////////////////////////////////
-float rightTreadmillSpeed = 0.4; // Right treadmill belt speed [m/s]
-float leftTreadmillSpeed = 0.8;  // Left treadmill belt speed [m/s]
+float rightTreadmillSpeed = 0.4;  // right treadmill belt speed [m/s]
+float leftTreadmillSpeed = 0.8;   // left treadmill belt speed [m/s]
 
 int rightDelayTime = 200;         // initialize the heel strike delay to 200 ms
 int leftDelayTime = 200;          // initialize the heel strike delay to 200 ms
 
-// initialize variables
-bool new_stanceL = false;
-bool new_stanceR = false;
-bool old_stanceL = false;
-bool old_stanceR = false;
-bool LHS = false;
-bool RHS = false;
-bool LTO = false;
-bool RTO = false;
-bool canStim = false;
-int phase = 0;  // 0 = Double Support, 1 = single L support, 2 = single R support
-int LstepCount = 0;
-int RstepCount = 0;
-int threshFz = 5;     // 30 N force plate threshold
-int numStrides = 10;  // number of steps (not strides) after which to stimulate
-int value = 0;
+// threshold values
+const int threshFz = 5;           // 30 N force plate threshold
+const int stimDuration = 20;      // stimulation pulse duration in milliseconds
 
 // right stimulator configuration
 const int rightSensorPin = A1;
@@ -39,47 +26,52 @@ const int leftSensorPin = A0;
 const int leftOutputPin = 9;
 const int leftViconOut = 12;
 
-// functions
+// functions to calculate delay times based on treadmill speed
 int rightDelayCalc(float rightTreadmillSpeed) {
-  rightDelayTime = (-73.8 * rightTreadmillSpeed) + 384.4;
-  return rightDelayTime;
+  return (-73.8 * rightTreadmillSpeed) + 384.4;
 }
 
 int leftDelayCalc(float leftTreadmillSpeed) {
-  leftDelayTime = (-73.8 * leftTreadmillSpeed) + 384.4;
-  return leftDelayTime;
+  return (-73.8 * leftTreadmillSpeed) + 384.4;
 }
 
 void setup() {
-  Serial.begin(600);
+  Serial.begin(9600);   // increased baud rate for faster serial communication
+  // ensure pins are properly set for output
+  pinMode(rightOutputPin, OUTPUT);
+  pinMode(rightViconOut, OUTPUT);
+  pinMode(leftOutputPin, OUTPUT);
+  pinMode(leftViconOut, OUTPUT);
+
   rightDelayTime = rightDelayCalc(rightTreadmillSpeed);
   leftDelayTime = leftDelayCalc(leftTreadmillSpeed);
+
   Serial.println("\n\n\n\nSTART");
 }
 
 void loop() {
-  if (Serial.available() > 0){
-    value = Serial.read();
-    if (value == 1){// stim right
+  if (Serial.available() > 0) {
+    int value = Serial.read();
+    if (value == 1) { // stimulate right leg
       Serial.println("Entered Right Stim Loop");
+      // uncomment delay below if timing adjustments are needed
       // delay(rightDelayTime);
       digitalWrite(rightOutputPin, HIGH);
       digitalWrite(rightViconOut, HIGH);
-      delay(20);
+      delay(stimDuration);
       digitalWrite(rightOutputPin, LOW);
       digitalWrite(rightViconOut, LOW);
-      // canStim = false;
-    }
-    else if (value == 2){ //stim left
+    } 
+    else if (value == 2) { // stimulate left leg
       Serial.println("Entered Left Stim Loop");
+      // uncomment delay below if timing adjustments are needed
       // delay(leftDelayTime);
       digitalWrite(leftOutputPin, HIGH);
       digitalWrite(leftViconOut, HIGH);
-      delay(20);
+      delay(stimDuration);
       digitalWrite(leftOutputPin, LOW);
       digitalWrite(leftViconOut, LOW);
-      // canStim = false;
-    } 
+    }
   }
-  // Serial.println(RstepCount);
 }
+
