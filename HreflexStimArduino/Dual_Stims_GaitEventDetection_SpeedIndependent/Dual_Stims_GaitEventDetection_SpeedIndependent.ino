@@ -31,8 +31,8 @@ bool canStim = false;             // is stimulation allowed at this time?
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
 int phase = 0;
-int LstepCount = 0;               // left step counter
-int RstepCount = 0;               // right step counter
+int LstepCount = 0; // left step counter
+int RstepCount = 0; // right step counter
 
 // z-axis force threshold in DAQ bits (estimated by observing the z-axis
 // force plate voltages during walking and converting to bits based on 10-bit
@@ -54,12 +54,14 @@ const int leftSensorPin = A0;
 const int leftOutputPin = 9;
 const int leftViconOut = 12;
 
-void setup() {
+void setup()
+{
   Serial.begin(9600);
   Serial.println("\n\n\n\nSTART");
 }
 
-void loop() {
+void loop()
+{
   old_stanceL = new_stanceL;
   old_stanceR = new_stanceR;
 
@@ -68,116 +70,125 @@ void loop() {
   float leftSensorVal = analogRead(leftSensorPin);
 
   // current step is stance if foot in contact with force plate
-  new_stanceL = leftSensorVal > threshFz;   // detect left stance
-  new_stanceR = rightSensorVal > threshFz;  // detect right stance
+  new_stanceL = leftSensorVal > threshFz;  // detect left stance
+  new_stanceR = rightSensorVal > threshFz; // detect right stance
 
-  LHS = new_stanceL && !old_stanceL;        // left heel strike detection
-  RHS = new_stanceR && !old_stanceR;        // right heel strike detection
-  LTO = !new_stanceL && old_stanceL;        // left toe off detection
-  RTO = !new_stanceR && old_stanceR;        // right toe off detection
+  LHS = new_stanceL && !old_stanceL; // left heel strike detection
+  RHS = new_stanceR && !old_stanceR; // right heel strike detection
+  LTO = !new_stanceL && old_stanceL; // left toe off detection
+  RTO = !new_stanceR && old_stanceR; // right toe off detection
 
   // gait event state machine to determine phase transitions
-  switch (phase) {
-    case 0:                     // initial double support phase
-      if (RTO) {                // if right toe off, enter left single stance
-        phase = 1;
-        RstepCount++;           // increment right step count
-        timeRTO = millis();     // store time of RTO event
-        Serial.print("Right Step: ");
-        Serial.println(RstepCount);
-      } else if (LTO) {         // if left toe off, enter right single stance
-        phase = 2;
-        LstepCount++;           // increment left step count
-        timeRTO = millis();     // store time of LTO event
-        Serial.print("Left Step: ");
-        Serial.println(LstepCount);
-      }
-      break;
+  switch (phase)
+  {
+  case 0: // initial double support phase
+    if (RTO)
+    { // if right toe off, enter left single stance
+      phase = 1;
+      RstepCount++;       // increment right step count
+      timeRTO = millis(); // store time of RTO event
+      Serial.print("Right Step: ");
+      Serial.println(RstepCount);
+    }
+    else if (LTO)
+    { // if left toe off, enter right single stance
+      phase = 2;
+      LstepCount++;       // increment left step count
+      timeRTO = millis(); // store time of LTO event
+      Serial.print("Left Step: ");
+      Serial.println(LstepCount);
+    }
+    break;
 
-    case 1:                     // left single stance
-      if (RHS) {                // if right heel strike, enter double stance
-        phase = 3;
-        // TODO: consider reimplementing if beneficial
-        // if (LTO) {
-        //   // if missed entire phase switch due to short double stance
-        //   phase = 2;
-        //   LstepCount++;
-        // }
-        timeRHS = millis();     // update current RHS time
-        // RHS marks the end of single stance L
-        durSSL[0] = durSSL[1];  // overwrite previous SSL duration
-        // compute duration of left leg single stance phase
-        durSSL[1] = timeRHS - timeRTO;
-        // delay of left leg stimulation from RTO is mean of single stance
-        // duration divided by two (since targeting mid-point of single
-        // stance for stimulus pulse)
-        // TODO: consider weighting most recent SSL duration more heavily
-        // (e.g., 75% since likely more predictive)
-        stimDelayL = ((durSSL[0] / 3) + (2*durSSL[1] / 3)) / 2;
-        Serial.print("This is L Delay: ");
-        Serial.println(stimDelayL);
-        Serial.println();
-        canStim = true;         // enable stimulation
-      }
-      break;
+  case 1: // left single stance
+    if (RHS)
+    { // if right heel strike, enter double stance
+      phase = 3;
+      // TODO: consider reimplementing if beneficial
+      // if (LTO) {
+      //   // if missed entire phase switch due to short double stance
+      //   phase = 2;
+      //   LstepCount++;
+      // }
+      timeRHS = millis(); // update current RHS time
+      // RHS marks the end of single stance L
+      durSSL[0] = durSSL[1]; // overwrite previous SSL duration
+      // compute duration of left leg single stance phase
+      durSSL[1] = timeRHS - timeRTO;
+      // delay of left leg stimulation from RTO is mean of single stance
+      // duration divided by two (since targeting mid-point of single
+      // stance for stimulus pulse)
+      // TODO: consider weighting most recent SSL duration more heavily
+      // (e.g., 75% since likely more predictive)
+      stimDelayL = ((durSSL[0] / 3) + (2 * durSSL[1] / 3)) / 2;
+      Serial.print("This is L Delay: ");
+      Serial.println(stimDelayL);
+      Serial.println();
+      canStim = true; // enable stimulation
+    }
+    break;
 
-    case 2:                     // right single stance
-      if (LHS) {                // if left heel strike, enter double stance
-        phase = 4;
-        // TODO: consider reimplementing if beneficial
-        // if (RTO) {
-        //   // if missed entire phase switch due to short double stance
-        //   phase = 1;
-        //   RstepCount++;
-        // }
-        timeLHS = millis();     // update current LHS time
-        // LHS marks the end of single stance R
-        durSSR[0] = durSSR[1];  // overwrite previous SSR duration
-        // compute duration of right leg single stance phase
-        durSSR[1] = timeLHS - timeLTO;
-        // delay of right leg stimulation from LTO is mean of single stance
-        // duration divided by two (since targeting mid-point of single
-        // stance for stimulus pulse)
-        stimDelayR = ((durSSR[0] / 3) + (2*durSSR[1] / 3)) / 2;
-        Serial.print("This is R Delay: ");
-        Serial.println(stimDelayR);
-        Serial.println();
-        canStim = true;         // enable stimulation
-      }
-      break;
+  case 2: // right single stance
+    if (LHS)
+    { // if left heel strike, enter double stance
+      phase = 4;
+      // TODO: consider reimplementing if beneficial
+      // if (RTO) {
+      //   // if missed entire phase switch due to short double stance
+      //   phase = 1;
+      //   RstepCount++;
+      // }
+      timeLHS = millis(); // update current LHS time
+      // LHS marks the end of single stance R
+      durSSR[0] = durSSR[1]; // overwrite previous SSR duration
+      // compute duration of right leg single stance phase
+      durSSR[1] = timeLHS - timeLTO;
+      // delay of right leg stimulation from LTO is mean of single stance
+      // duration divided by two (since targeting mid-point of single
+      // stance for stimulus pulse)
+      stimDelayR = ((durSSR[0] / 3) + (2 * durSSR[1] / 3)) / 2;
+      Serial.print("This is R Delay: ");
+      Serial.println(stimDelayR);
+      Serial.println();
+      canStim = true; // enable stimulation
+    }
+    break;
 
-    case 3:                     // double stance after left single stance
-      if (LTO) {                // if left toe off, enter right single stance
-        phase = 2;
-        timeLTO = millis();     // update current LTO time
-        LstepCount++;           // increment left step count
-        Serial.print("Left Step: ");
-        Serial.println(LstepCount);
-      }
-      break;
+  case 3: // double stance after left single stance
+    if (LTO)
+    { // if left toe off, enter right single stance
+      phase = 2;
+      timeLTO = millis(); // update current LTO time
+      LstepCount++;       // increment left step count
+      Serial.print("Left Step: ");
+      Serial.println(LstepCount);
+    }
+    break;
 
-    case 4:                     // double stance after right single stance
-      if (RTO) {                // if right toe off, enter left single stance
-        phase = 1;
-        timeRTO = millis();     // update current RTO time
-        RstepCount++;           // increment right step count
-        Serial.print("Right Step: ");
-        Serial.println(RstepCount);
-      }
-      break;
+  case 4: // double stance after right single stance
+    if (RTO)
+    { // if right toe off, enter left single stance
+      phase = 1;
+      timeRTO = millis(); // update current RTO time
+      RstepCount++;       // increment right step count
+      Serial.print("Right Step: ");
+      Serial.println(RstepCount);
+    }
+    break;
   }
 
   timeSinceLTO = millis() - timeLTO;
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
   // right leg stimulation condition
-  if ((!((RstepCount-2) % numStrides)) && phase == 2 && canStim && (timeSinceLTO >= stimDelayR)) {
+  if ((!((RstepCount - 2) % numStrides)) && phase == 2 && canStim && (timeSinceLTO >= stimDelayR))
+  {
     Serial.println("Right Stimulation Triggered");
     delay(rightDelayTime);
     digitalWrite(rightOutputPin, HIGH);
     digitalWrite(rightViconOut, HIGH);
     // TODO: consider removing delay here too to allow state machine to
     // continue running for these 20 ms
-    delay(stimPulseDuration);   // stimulation duration
+    delay(stimPulseDuration); // stimulation duration
     digitalWrite(rightOutputPin, LOW);
     digitalWrite(rightViconOut, LOW);
     canStim = false;
@@ -187,17 +198,17 @@ void loop() {
   timeSinceRTO = millis() - timeRTO;
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
   // left leg stimulation condition
-  if ((!((RstepCount-2) % numStrides)) && phase == 1 && canStim && (timeSinceRTO >= stimDelayL)) {
+  if ((!((RstepCount - 2) % numStrides)) && phase == 1 && canStim && (timeSinceRTO >= stimDelayL))
+  {
     Serial.println("Left Stimulation Triggered");
     delay(leftDelayTime);
     digitalWrite(leftOutputPin, HIGH);
     digitalWrite(leftViconOut, HIGH);
     // TODO: consider removing delay here too to allow state machine to
     // continue running for these 20 ms
-    delay(stimPulseDuration);   // stimulation duration
+    delay(stimPulseDuration); // stimulation duration
     digitalWrite(leftOutputPin, LOW);
     digitalWrite(leftViconOut, LOW);
     canStim = false;
   }
 }
-
