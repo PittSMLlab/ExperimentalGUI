@@ -29,6 +29,7 @@ int RstepCount = 0;               // Right step counter
 
 const int threshFz = 5;           // Force thresh. [N] to detect stance phase
 const int numStrides = 10;        // Number of steps after which to stimulate
+const int stimPulseDuration = 20; // Stimulation pulse duration [ms]
 
 // right and left stimulator pin configurations
 const int rightSensorPin = A1;
@@ -126,7 +127,7 @@ void loop() {
     delay(rightDelayTime);
     digitalWrite(rightOutputPin, HIGH);
     digitalWrite(rightViconOut, HIGH);
-    delay(20);  // Stimulation duration
+    delay(stimPulseDuration);   // Stimulation duration
     digitalWrite(rightOutputPin, LOW);
     digitalWrite(rightViconOut, LOW);
     canStim = false;
@@ -138,7 +139,7 @@ void loop() {
     delay(leftDelayTime);
     digitalWrite(leftOutputPin, HIGH);
     digitalWrite(leftViconOut, HIGH);
-    delay(20);  // Stimulation duration
+    delay(stimPulseDuration);   // Stimulation duration
     digitalWrite(leftOutputPin, LOW);
     digitalWrite(leftViconOut, LOW);
     canStim = false;
