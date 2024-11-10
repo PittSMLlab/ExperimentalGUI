@@ -28,6 +28,8 @@ unsigned long stimDelayR = 100;   // initialize LTO delay to 100 ms
 unsigned long durSSL[2] = {0, 0}; // two left single stance durations
 unsigned long durSSR[2] = {0, 0}; // two right single stance durations
 bool canStim = false;             // is stimulation allowed at this time?
+bool shouldStimL = false;         // should stimulate left leg this stride
+bool shouldStimR = false;         // should stimulate right leg this stride
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
@@ -43,8 +45,7 @@ int RstepCount = 0; // right step counter
 // TODO: it may be necessary to increase to account for left FP noise and
 // higher baud rate in Arduino than in MATLAB (more susceptible to false gait
 // event detection))
-const int threshFz = 5;           // force thresh. [N] to detect stance phase
-const int numStrides = 10;        // number of strides after which to stimulate
+const int threshFz = 5;           // force thresh. bits to detect stance phase
 const int stimPulseDuration = 20; // stimulation pulse duration [ms]
 
 // right and left stimulator pin configurations
@@ -96,6 +97,13 @@ void loop()
       canStim = false;
       Serial.println("Stimulation Disabled by MATLAB");
     }
+  }
+
+  // check Serial for left and right stimulation permissions
+  if (Serial.available() >= 2)
+  {
+    shouldStimL = Serial.read() == '1'; // Left stimulation control
+    shouldStimR = Serial.read() == '1'; // Right stimulation control
   }
 
   // gait event state machine to update gait phase
@@ -216,7 +224,7 @@ void loop()
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
   // right leg stimulation conditions based on phase, delay, and MATLAB input
   timeSinceLTO = millis() - timeLTO;
-  if (phase == 2 && canStim && (timeSinceLTO >= stimDelayR))
+  if (phase == 2 && canStim && shouldStimR && (timeSinceLTO >= stimDelayR))
   {
     Serial.println("Right Stimulation Triggered");
     // delay(rightDelayTime);
@@ -234,10 +242,10 @@ void loop()
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
   // left leg stimulation conditions based on phase, delay, and MATLAB input
   timeSinceRTO = millis() - timeRTO;
-  if (phase == 1 && canStim && (timeSinceRTO >= stimDelayL))
+  if (phase == 1 && canStim && shouldStimL && (timeSinceRTO >= stimDelayL))
   {
     Serial.println("Left Stimulation Triggered");
-    delay(leftDelayTime);
+    // delay(leftDelayTime);
     digitalWrite(leftOutputPin, HIGH);
     digitalWrite(leftViconOut, HIGH);
     // TODO: consider removing delay here too to allow state machine to
