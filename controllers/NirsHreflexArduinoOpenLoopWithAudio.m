@@ -35,6 +35,7 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %setting params to be global.
 
 %% Set up parameters to communication with NIRS and Arduino (for H-reflex)
+% TODO: update input handling using 'inputParser' (chatGPT recommended)
 %These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
 if nargin < 6 %isCalib not provided, default false.
     isCalibration = false;
@@ -52,42 +53,43 @@ restDuration = 20; %default 20s rest, could change for debugging
 
 %% Open the port to talk to Arduino
 if hreflex_present
-    % assume Arduino is COM4, and set the baud rate
-    % TODO: add 'try-catch' error handling
-    fprintf('Opening the Arduino serial communication port.');
-    portArduino = serialport('COM4',9600);
-    fprintf('Done opening the Arduino serial communication port.');
+    try
+        % Configure and open serial port communication with Arduino
+        fprintf('Opening the Arduino serial communication port.\n');
+        portArduino = serialport('COM4', 9600);
+        configureTerminator(portArduino,'LF');  % set serial com terminator
+        fprintf('Done opening the Arduino serial communication port.\n');
+    catch ME
+        warning(ME.identifier,'Failed to open Arduino serial port: %s', ...
+            ME.message);
+        % set to false to bypass stimulation if Arduino connection fails
+        hreflex_present = false;
+        return;
+    end
 
-    if isCalibration
-        oxysoft_present = false;    % H-reflex calibration trial, no fNIRS
+    if isCalibration        % if H-reflex calibration trial, ...
+        oxysoft_present = false;    % disable fNIRS in H-reflex calibration
         stimInterval = 5;           % stimulate every 5 strides
-        % skip first N steps for stimulation to allow participant to settle
-        initStep2SkipForCalib = 5;
+        initStep2SkipForCalib = 5;  % skip first strides for settling in
 
-        %load 2 sound to play to tell experimener L and R stim happened,
-        %the L/R assignment is rather arbitrary
+        % load calibration audio for left and right stimulation events
         [audio_data,audio_fs]=audioread('L.mp3');
         CalibAudioL = audioplayer(audio_data,audio_fs);
         [audio_data,audio_fs]=audioread('R.mp3');
         CalibAudioR = audioplayer(audio_data,audio_fs);
-    elseif exist('stimL','var') && exist('stimR','var')
-        % if there is a second column in velL and velR indicating whether
-        % to stimulate at that stride, ...
-        stimInterval = nan; % set the interval to NaN
-    else
-        stimInterval = 10;  % stimulate every 10 strides
+    else                    % otherwise, ...
+        % set stimulation interval based on stimL and stimR inputs present
+        if exist('stimL','var') && exist('stimR','var')
+            % if 'stimL' and 'stimR' variables exist, ...
+            stimInterval = nan;     % override stimulation interval
+        else
+            stimInterval = 10;      % default: stimulate every 10 strides
+        end
     end
-    canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
-    durSSL = zeros(2,1);    % two left single stance durations
-    durSSR = zeros(2,1);    % two right single stance durations
-    stimDelayL = now; %in units of now
+    % initialize stimulation control variables
+    canStim = false;    % default to no stimulation until conditions met
+    stimDelayL = now;   % in units of 'now'
     stimDelayR = now;
-
-    %     %Hreflex Alt Sol. find time from HS to midstance based on interpolation function from Omar
-    %     %in young healthy participant. If it's older adutls or clinical
-    %     %populations, this need to be changed.
-    %     stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
-    %     stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000;%in sec
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -118,41 +120,47 @@ end
 ghandle = guidata(AdaptationGUI);
 
 %% Set up nirs communication.
-% Pop up window to confirm parameter setup, this is helpful in case
-% debugging happened btw experiment session to avoid mistakenly forget to
-% log fNIRS.
-button=questdlg('Confirm that NIRS is recording, oxysoft_present is 1, rest duration is 20.');
+% Pop up window to confirm parameter setup, which is helpful in case
+% debugging happened between experiment session to avoid mistakenly
+% forgetting to log fNIRS data.
+button = questdlg(['Confirm that NIRS is recording, oxysoft_present ' ...
+    'is 1, and rest duration is 20.']);
 if ~strcmp(button,'Yes')
-    return; %Abort starting the tri
+    return;     % abort starting the trial
 end
 
-Oxysoft = nan; %initialize to nan, unless present.
+Oxysoft = NaN;  % initialize to 'NaN' unless present
 if oxysoft_present
     Oxysoft = actxserver('OxySoft.OxyApplication');
 end
 
-%Connect to Oxysoft
+% connect to Oxysoft software
 disp('Initial Setup')
 %Event code hardcoded: I-connected, O-Relax, T-TMStopCountDown, R-Rest
-%Event code from initial letter in nirsEventNames: A-AccRamp (to start), S-Split,
-%M-Mid, P-PostTied, D-DccRamp2Split
+%Event code from initial letter in nirsEventNames: A-AccRamp (to start),
+%S-Split, M-Mid, P-PostTied, D-DccRamp2Split
 %set up audio players
 audioids = {'relax','rest','stopAndRest','TMStartNow'};
 instructions = containers.Map();
 for i = 1 : length(audioids)
-    %         disp(strcat(audioids{i},'.mp3'))
+    % disp(strcat(audioids{i},'.mp3'))
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
     instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
 end
 
-%this should be changed if the protocol is changing to no ramp, straight to start, then the event would be 'Mid'
+%this should be changed if the protocol is changing to no ramp, straight to
+%start, then the event would be 'Mid'
 tmStartEventName = 'AccRamp';
-instructions(tmStartEventName) = instructions('TMStartNow'); %save TM will start now also into key Mid. When log event Mid will also play audio.
+%save TM will start now also into key Mid. When log event Mid will also
+%play audio.
+instructions(tmStartEventName) = instructions('TMStartNow');
 
-%% Parse the speeds to get steps where NIRS should be logged
-[nirsEventSteps, nirsEventNames] = parseEventsFromSpeeds(velL(:,1), velR(:,1));
-restIdx = strcmp(nirsEventNames, 'Rest');
-restSteps = nirsEventSteps(restIdx); %this is safe to call even if there is no rest in the protocol.
+%% Parse the speed profiles to identify steps where NIRS should be logged
+[nirsEventSteps,nirsEventNames] = ...
+    parseEventsFromSpeeds(velL(:,1),velR(:,1));
+restIdx = strcmp(nirsEventNames,'Rest');
+%this is safe to call even if there is no rest in the protocol.
+restSteps = nirsEventSteps(restIdx);
 
 %% ask user what trainIdx iteration they would like to start with
 if length(restSteps) > 1 %at least 2 rest exist, then ask which one to start from.
