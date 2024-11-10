@@ -1,9 +1,10 @@
 // Code to stimulate the tibial nerve of both legs for the Spinal Adaptation
-// study to measure H-reflexes during split-belt adaptation. This version of
-// the code has been further updated to include the gait event detection
-// state machine and to remove speed dependence (i.e., the need to manually
-// update the treadmill speeds before each trial) by storing the single
-// stance duration of the previous two strides.
+// study to measure H-reflexes during split-belt adaptation. Updated to
+// accept Serial input from MATLAB to indicate whether to stimulate on the
+// current stride. Includes the gait event detection state machine and
+// removes speed dependence (i.e., the need to manually update the treadmill
+// speeds before each trial) by storing the single stance duration of the
+// previous two strides.
 // date (started): 26 Mar. 2024
 // author(s): SL, NWB
 
@@ -62,21 +63,35 @@ void setup()
 
 void loop()
 {
+  // Check for input from MATLAB
+  if (Serial.available() > 0)
+  {
+    char command = Serial.read();
+    if (command == '1')
+    {
+      canStim = true;
+      Serial.println("Stimulation Enabled by MATLAB");
+    }
+    else if (command == '0')
+    {
+      canStim = false;
+      Serial.println("Stimulation Disabled by MATLAB");
+    }
+  }
+
+  // gait event state machine to update gait phase
   old_stanceL = new_stanceL;
   old_stanceR = new_stanceR;
-
   // read z-axis force plate sensor values to detect new stance phase
   float rightSensorVal = analogRead(rightSensorPin);
   float leftSensorVal = analogRead(leftSensorPin);
-
   // current step is stance if foot in contact with force plate
   new_stanceL = leftSensorVal > threshFz;  // detect left stance
   new_stanceR = rightSensorVal > threshFz; // detect right stance
-
-  LHS = new_stanceL && !old_stanceL; // left heel strike detection
-  RHS = new_stanceR && !old_stanceR; // right heel strike detection
-  LTO = !new_stanceL && old_stanceL; // left toe off detection
-  RTO = !new_stanceR && old_stanceR; // right toe off detection
+  LHS = new_stanceL && !old_stanceL;       // left heel strike detection
+  RHS = new_stanceR && !old_stanceR;       // right heel strike detection
+  LTO = !new_stanceL && old_stanceL;       // left toe off detection
+  RTO = !new_stanceR && old_stanceR;       // right toe off detection
 
   // gait event state machine to determine phase transitions
   switch (phase)
@@ -94,7 +109,7 @@ void loop()
     { // if left toe off, enter right single stance
       phase = 2;
       LstepCount++;       // increment left step count
-      timeRTO = millis(); // store time of LTO event
+      timeLTO = millis(); // store time of LTO event
       Serial.print("Left Step: ");
       Serial.println(LstepCount);
     }
@@ -177,13 +192,13 @@ void loop()
     break;
   }
 
-  timeSinceLTO = millis() - timeLTO;
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  // right leg stimulation condition
-  if ((!((RstepCount - 2) % numStrides)) && phase == 2 && canStim && (timeSinceLTO >= stimDelayR))
+  // right leg stimulation conditions based on phase, delay, and MATLAB input
+  timeSinceLTO = millis() - timeLTO;
+  if (phase == 2 && canStim && (timeSinceLTO >= stimDelayR))
   {
     Serial.println("Right Stimulation Triggered");
-    delay(rightDelayTime);
+    // delay(rightDelayTime);
     digitalWrite(rightOutputPin, HIGH);
     digitalWrite(rightViconOut, HIGH);
     // TODO: consider removing delay here too to allow state machine to
@@ -195,10 +210,10 @@ void loop()
   }
 
   // TODO: consider using ONLY RstepCount to force stimulation order of right left within one stride
-  timeSinceRTO = millis() - timeRTO;
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  // left leg stimulation condition
-  if ((!((RstepCount - 2) % numStrides)) && phase == 1 && canStim && (timeSinceRTO >= stimDelayL))
+  // left leg stimulation conditions based on phase, delay, and MATLAB input
+  timeSinceRTO = millis() - timeRTO;
+  if (phase == 1 && canStim && (timeSinceRTO >= stimDelayL))
   {
     Serial.println("Left Stimulation Triggered");
     delay(leftDelayTime);
