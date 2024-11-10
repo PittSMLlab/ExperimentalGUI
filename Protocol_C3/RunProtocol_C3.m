@@ -22,16 +22,15 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 
 % Extract Participant Experimental Parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% if you do not like the MATLAB GUI to receive experimental inputs as
-% above, comment out the above block and manually enter the desired values
-% for each of the three variables here (e.g., participantID = 'Test';).
+% comment out the above GUI block, and manually enter the desired values
+% below (e.g., participantID = 'Test';) if preferred
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
 participantID = answer{1};
 isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
 isSession1 = logical(str2double(answer{3}));% is first session?
-% Date threshold for copying recent files in datlogs
+% date threshold for copying recent files in datlogs
 threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
 
 %% Retrieve 6-Minute/10-Meter Walk Test Data Input from Experimenter
@@ -78,6 +77,7 @@ if isSession1                               % if session 1, ...
             disp('No response was provided, quitting the script now.');
             return;
     end
+    % display slow, fast, and middle speeds for experimenter documentation
     load(fullfile(dirProfile,'TM_Adaptation.mat'));
     fprintf('The slow treadmill speed is %.3f m/s.\n',velR(1));
     fprintf('The fast treadmill speed is %.3f m/s.\n',velL(1));
@@ -143,6 +143,9 @@ while currTrial < maxTrials % while more trials left to collect, ...
         disp(['Starting from trial #' num2str(currTrial)]);
     end
 
+    % TODO: implement
+    % 'runTrial(handles,nameTrial,pathProfile,indCtrlr,timesCountdown)'
+    % function that can be used across protocols
     switch currTrial
         case 1          % TM Baseline Mid (Tied)
             % open-loop controller with audio count down
