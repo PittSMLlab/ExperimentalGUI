@@ -358,6 +358,21 @@ try % so that if something fails, communications are closed properly
     datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
+
+    try         % send command to Arduino to reset right & left leg counts
+        fprintf(['Sending command to reset right and left leg step ' ...
+            'counts...\n']);
+        % replace 'R' and 'L' with appropriate command if needed by Arduino
+        write(portArduino,'R','char');  % reset right leg step count
+        write(portArduino,'L','char');  % reset left leg step count
+        fprintf(['Right and left leg step counts reset command sent ' ...
+            'successfully.\n']);
+    catch ME
+        % handle any potential communication errors
+        warning(ME.identifier,['Failed to send reset step count ' ...
+            'commands to Arduino: %s'],ME.message);
+    end
+
     %% Main loop
 
     old_velR = libpointer('doublePtr',velR(1,1));
@@ -766,12 +781,20 @@ catch ME
     disp(ME);
 end
 
-if hreflex_present %if hreflex, close communication with arduino.
+if hreflex_present      % if hreflex, close communication with arduino.
     datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
-    fprintf('Closing Arduino Port');
-    fclose(portArduino);
-    fprintf('Done Closing Arduino Port\n');
+    fprintf('Closing serial port communication with the Arduino...\n');
+    try
+        flush(portArduino); % flush remaining data in the buffer
+        clear(portArduino); % close and clear the serial port object
+        fprintf('Successfully close the Arduino serial port.\n');
+    catch ME
+        % handle errors and log the exception message
+        warning(ME.identifier, ...
+            'Failed to properly close Arduino serial port: %s',ME.message);
+    end
 end
+
 try %stopping the treadmill
     %see if the treadmill is supposed to stop at the end of the profile
     if get(ghandle.StoptreadmillEND_checkbox,'Value')==1 && STOP ~=1
