@@ -162,7 +162,7 @@ restIdx = strcmp(nirsEventNames,'Rest');
 %this is safe to call even if there is no rest in the protocol.
 restSteps = nirsEventSteps(restIdx);
 
-%% ask user what trainIdx iteration they would like to start with
+%% Ask user what trainIdx iteration they would like to start with
 if length(restSteps) > 1 %at least 2 rest exist, then ask which one to start from.
     trainIdx = inputdlg('Which split trainIdx would you like to start from (Valid entries: 1-3. Enter 1 if starting from the beginning)? ');
     disp(['Starting the Split trainIdx from ' trainIdx{1}]);
@@ -246,9 +246,9 @@ end
 %Default threshold
 if nargin<3
     % TODO: Left force plate is getting very noisy. 30N is not enough to be robust.
-    FzThreshold=100; %Newtons (30 is minimum for noise not to be an issue)
+    FzThreshold = 100; %Newtons (30 is minimum for noise not to be an issue)
 elseif FzThreshold<30
-    %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
+    % warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
 end
@@ -257,98 +257,73 @@ FzThreshold = 100; %impose 100 threshold because the force plates noise is +-60N
 datlog.messages{end+1,1} = 'Fz threshold is always set to 100N to be robust to noise even at low speed.';
 disp("Fz threshold is always set to 100N to be robust to noise even at low speed.")
 
-%Check that velL and velR are of equal length
-N=length(velL)+1;
-if length(velL)~=length(velR)
+% check that velL and velR are of equal length
+N = length(velL) + 1;
+if length(velL) ~= length(velR)
     disp('WARNING, velocity vectors of different length!');
     datlog.messages{end+1,1} = 'Velocity vectors of different length selected';
 end
 
-%Initialize nexus & treadmill communications
+% initialize nexus & treadmill communications
 try
-    % [MyClient] = openNexusIface();
-    %this was previously on
-    %     Client.LoadViconDataStreamSDK();
-    %     MyClient = Client();
-    %     Hostname = 'localhost:801'; %'localhost:801'
-    %     out = MyClient.Connect(Hostname);
-    %     out = MyClient.EnableMarkerData();
-    %     out = MyClient.EnableDeviceData();
-    %     MyClient.SetStreamMode(StreamMode.ServerPush);
-    %MyClient.SetStreamMode(StreamMode.ClientPull);
-
     %New code DMMO
     HostName = 'localhost:801';
-    %     fprintf( 'Loading SDK...' );
-    addpath( '..\dotNET' );
+    addpath('..\dotNET');
     dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
     if dssdkAssembly == ""
-        [ file, path ] = uigetfile( '*.dll' );
-        dssdkAssembly = fullfile( path, file );
-
+        [file,path] = uigetfile('*.dll');
+        dssdkAssembly = fullfile(path,file);
     end
 
     NET.addAssembly(dssdkAssembly);
     MyClient = ViconDataStreamSDK.DotNET.Client();
-    MyClient.Connect( HostName );
-    % Enable some different data types
-    out =MyClient.EnableSegmentData();
-    out =MyClient.EnableMarkerData();
-    out=MyClient.EnableUnlabeledMarkerData();
-    out=MyClient.EnableDeviceData();
+    MyClient.Connect(HostName);
+    % enable some different data types
+    out = MyClient.EnableSegmentData();
+    out = MyClient.EnableMarkerData();
+    out = MyClient.EnableUnlabeledMarkerData();
+    out = MyClient.EnableDeviceData();
 
-    MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
-
+    MyClient.SetStreamMode(ViconDataStreamSDK.DotNET.StreamMode.ClientPull);
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
     datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
-    datlog.errormsgs{end+1} = ME;%store specific error
+    datlog.errormsgs{end+1} = ME;   % store specific error
     disp(ME);
 end
-try
 
+try
     fprintf(['Open TM Comm. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     t = openTreadmillComm();
     fprintf(['Done Opening. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-
 catch ME
     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
     datlog.errormsgs{end+1} = ME;
     disp(ME);
-    %     log=['Error ocurred when opening communications with Nexus & Treadmill'];
-    %     listbox{end+1}=log;
-    %     disp(log);
 end
 
-try %So that if something fails, communications are closed properly
-
-    % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
+try % so that if something fails, communications are closed properly
     MyClient.GetFrame();
     % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
     datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
     % set(ghandle.listbox1,'String',listbox);
 
-    %Initiate variables
-    new_stanceL=false;
-    new_stanceR=false;
-    phase=0; %0= Double Support, 1 = single L support, 2= single R support
+    % initiate variables
+    new_stanceL = false;
+    new_stanceR = false;
+    phase=0;% 0= Double Support, 1 = single L support, 2 = single R support
     LstepCount=1;
     RstepCount=1;
-    % RTOTime(N)=TimeStamp;
-    % LTOTime(N)=TimeStamp;
-    % RHSTime(N)=TimeStamp;
-    % LHSTime(N)=TimeStamp;
     RTOTime(N) = now;
     LTOTime(N) = now;
     RHSTime(N) = now;
     LHSTime(N) = now;
-    commSendTime=zeros(2*N-1,6);
-    commSendFrame=zeros(2*N-1,1);
-    % stepFlag=0;
+    commSendTime = zeros(2*N-1,6);
+    commSendFrame = zeros(2*N-1,1);
 
-    [RBS,LBS,cur_incl] = readTreadmillPacket(t); %Read treadmill incline angle
-    lastRead=now;
+    [RBS,LBS,cur_incl] = readTreadmillPacket(t);% read treadmill incline angle
+    lastRead = now;
     datlog.inclineang = cur_incl;
     read_theta = cur_incl;
 
@@ -374,16 +349,16 @@ try %So that if something fails, communications are closed properly
         pause(1);
         play(AudioNow)
         %log it without saying "TM will start now" again.
-        datlog = nirsEvent('Mid_noaudio', 'M', ['Mid' num2str(nextRestIdx-1)], instructions, datlog, Oxysoft, oxysoft_present);
+        datlog = nirsEvent('Mid_noaudio','M',['Mid' num2str(nextRestIdx-1)],instructions,datlog,Oxysoft,oxysoft_present);
     end
 
     %Send first speed command & store
-    acc=1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
-    % acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
-    [payload] = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
+    acc = 1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
+    % acc = 400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
+    payload = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
     sendTreadmillPacket(payload,t);
     datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
-    commSendTime(1,:)=clock;
+    commSendTime(1,:) = clock;
     datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
@@ -395,7 +370,7 @@ try %So that if something fails, communications are closed properly
     framenum = libpointer('doublePtr',0);
 
     if numAudioCountDown %Adapted from open loop audio countdown
-        countDownPlayed = repmat(false, 1, 5*length(numAudioCountDown));
+        countDownPlayed = repmat(false,1,5*length(numAudioCountDown));
         %if there are speed changes in between, will have 4 counts for
         %each: 3-2-1-now & 1 for complete, moving on to next.
         %the last 4 index will be used for 3-2-1-now(stop) and will be reused
@@ -409,50 +384,44 @@ try %So that if something fails, communications are closed properly
     end
     tic;
 
-    while ~STOP %only runs if stop button is not pressed
-        while PAUSE %only runs if pause button is pressed
+    while ~STOP     % only runs if stop button is not pressed
+        while PAUSE % only runs if pause button is pressed
             pause(.2);
             datlog.messages(end+1,:) = {'Loop paused at ', now};
             disp(['Paused at ' num2str(clock)]);
-            %bring treadmill to a stop and keep it there!...
-            [payload] = getPayload(0,0,500,500,cur_incl);
-            %cur_incl
+            % bring treadmill to a stop and keep it there!...
+            payload = getPayload(0,0,500,500,cur_incl);
             sendTreadmillPacket(payload,t);
-            %do a quick save
+            % do a quick save
             try
                 save(savename,'datlog');
             catch ME
                 disp(ME);
             end
-            old_velR.Value = 1;%change the old values so that the treadmill knows to resume when the pause button is resumed
+            old_velR.Value = 1; % change the old values so that the treadmill knows to resume when the pause button is resumed
             old_velL.Value = 1;
         end
-        %newSpeed
         drawnow;
-        %     lastFrameTime=curTime;
-        %     curTime=clock;
-        %     elapsedFrameTime=etime(curTime,lastFrameTime);
-        old_stanceL=new_stanceL;
-        old_stanceR=new_stanceR;
+        old_stanceL = new_stanceL;
+        old_stanceR = new_stanceR;
 
-        %Read frame, update necessary structures
-
+        % Read frame, update necessary structures
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
         datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
 
-        %Read treadmill, if enough time has elapsed since last read
-        aux=(datevec(now)-datevec(lastRead));
-        if aux(6)>.1 || any(aux(1:5)>0)  %Only read if enough time has elapsed
-            [RBS, LBS,read_theta] = readTreadmillPacket(t);%also read what the treadmill is doing
-            lastRead=now;
+        % Read treadmill, if enough time has elapsed since last read
+        aux = datevec(now) - datevec(lastRead);
+        if aux(6) > 0.1 || any(aux(1:5) > 0)    % only read if enough time has elapsed
+            [RBS,LBS,read_theta] = readTreadmillPacket(t);  % also read what the treadmill is doing
+            lastRead = now;
         end
 
         datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now];%record the read
         set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
         set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
 
-        frameind.Value = frameind.Value+1;
+        frameind.Value = frameind.Value + 1;
 
         %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
         Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
@@ -462,20 +431,17 @@ try %So that if something fails, communications are closed properly
         Hy = MyClient.GetDeviceOutputValue( 'Handrail', 'Fy' );
         Hz = MyClient.GetDeviceOutputValue( 'Handrail', 'Fz' );
         Hm = sqrt(Hx.Value^2+Hy.Value^2+Hz.Value^2);
-        %     keyboard
         %if handrail force is too high, notify the experimentor
         if (Hm > 25)
-            set(ghandle.figure1,'Color',[238/255,5/255,5/255]);
+            set(ghandle.figure1,'Color',[238 5 5]./255);
         else
-            set(ghandle.figure1,'Color',[1,1,1]);
+            set(ghandle.figure1,'Color',[1 1 1]);
         end
 
         %% This section was on
-        %     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
         if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
             Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
             Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-            %         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
             if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
                 STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
                 disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
@@ -483,43 +449,40 @@ try %So that if something fails, communications are closed properly
             end
         end
         %%
-        %read from treadmill
-        %     [RBS,LBS,theta] = getCurrentData(t);
-        %     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-        %     set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
+        % read from treadmill
+        % [RBS,LBS,theta] = getCurrentData(t);
+        % set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
+        % set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
 
-        new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
-        new_stanceR=Fz_R.Value<-FzThreshold;
+        new_stanceL = Fz_L.Value < -FzThreshold;
+        new_stanceR = Fz_R.Value < -FzThreshold;
 
-        LHS=new_stanceL && ~old_stanceL;
-        RHS=new_stanceR && ~old_stanceR;
-        LTO=~new_stanceL && old_stanceL;
-        RTO=~new_stanceR && old_stanceR;
+        LHS = new_stanceL && ~old_stanceL;
+        RHS = new_stanceR && ~old_stanceR;
+        LTO = ~new_stanceL && old_stanceL;
+        RTO = ~new_stanceR && old_stanceR;
 
-        %Maquina de estados: 0 = initial, 1 = single L, 2= single R, 3 = DS from
-        %single L, 4= DS from single R
+        %Maquina de estados: 0 = initial, 1 = single L, 2= single R,
+        %3 = DS from single L, 4= DS from single R
         switch phase
-            case 0 %DS, only initial phase
-                if RTO
-                    phase=1; %Go to single L
-                    RstepCount=RstepCount+1;
-                    %                 RTOTime(RstepCount) = TimeStamp;
+            case 0          % DS, only initial phase
+                if RTO      % Go to single L
+                    phase=1;
+                    RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-                elseif LTO %Go to single R
+                elseif LTO  % Go to single R
                     phase=2;
                     LstepCount=LstepCount+1;
-                    %                 LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
-            case 1 %single L
+            case 1          % single L
                 if RHS
                     phase=3;
                     datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    %                 RHSTime(RstepCount) = TimeStamp;
                     RHSTime(RstepCount) = now;
                     % RHS marks the end of single stance L
                     durSSL(1) = durSSL(2);  % overwrite previous SSL duration
