@@ -52,17 +52,17 @@ restDuration = 20; %default 20s rest, could change for debugging
 
 %% Open the port to talk to Arduino
 if hreflex_present
-    %assume it's at com4 and baud rate 600, which is plenty
-    arduinoPort = serial('COM4','BAUD',600);
-    fprintf('Opening ArduinoPort')
-    fopen(arduinoPort); %if this doens't work bc port is busy, check that all Arduino softwares are closed.
-    fprintf('Doen Opening ArduinoPort')
+    % assume Arduino is COM4, and set the baud rate
+    % TODO: add 'try-catch' error handling
+    fprintf('Opening the Arduino serial communication port.');
+    portArduino = serialport('COM4',9600);
+    fprintf('Done opening the Arduino serial communication port.');
 
     if isCalibration
-        oxysoft_present = false; %calibrating Hreflex, don't try to connect to NIRS
-        stimInterval = 5; %stimulate every 5 strides in calibration to get more data points.
-        initStep2SkipForCalib = 5; %how many initial step to skip without delivering simulation, this helps to give some time for participants to settle in
-        totalCalibStims = 22; %default [8:2:28] stim current levels x 2 stim at each level
+        oxysoft_present = false;    % H-reflex calibration trial, no fNIRS
+        stimInterval = 5;           % stimulate every 5 strides
+        % skip first N steps for stimulation to allow participant to settle
+        initStep2SkipForCalib = 5;
 
         %load 2 sound to play to tell experimener L and R stim happened,
         %the L/R assignment is rather arbitrary
@@ -90,16 +90,16 @@ if hreflex_present
     %     stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000;%in sec
 end
 
-%% load GUI handle, audio mp3 files for countdown.
-global PAUSE%pause button value
+%% load GUI handle and audio mp3 files for trial countdown
+global PAUSE    % pause button value
 global STOP
 STOP = false;
 
-if ~ismember(-1, numAudioCountDown) %-1 has to be included, if not throw error
-    error('Incorrect input given. -1 must be included.\n')
+if ~ismember(-1,numAudioCountDown)  % if '-1' not included, throw an error
+    error('Incorrect input given. -1 must be included.\n');
 end
 
-if numAudioCountDown %Copie from open loop audiocoutndown
+if numAudioCountDown    % copied from open loop audiocountdown controller
     [audio_data,audio_fs]=audioread('TMStartIn3.mp3');
     AudioTMStart3 = audioplayer(audio_data,audio_fs);
     [audio_data,audio_fs]=audioread('TMStopIn3.mp3');
@@ -114,7 +114,8 @@ if numAudioCountDown %Copie from open loop audiocoutndown
     AudioTMChange3 = audioplayer(audio_data,audio_fs);
 end
 
-ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be updated
+% get handle to the GUI so displayed data can be updated
+ghandle = guidata(AdaptationGUI);
 
 %% Set up nirs communication.
 % Pop up window to confirm parameter setup, this is helpful in case
@@ -609,7 +610,7 @@ try %So that if something fails, communications are closed properly
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
-                fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
+                fprintf(portArduino,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
                 if isCalibration %play sound
                     play(CalibAudioR);
                 end
@@ -629,7 +630,7 @@ try %So that if something fails, communications are closed properly
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
-                fprintf(arduinoPort,2); %stim left
+                fprintf(portArduino,2); %stim left
                 if isCalibration %play sound
                     play(CalibAudioL);
                 end
@@ -854,7 +855,7 @@ end
 if hreflex_present %if hreflex, close communication with arduino.
     datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
     fprintf('Closing Arduino Port');
-    fclose(arduinoPort);
+    fclose(portArduino);
     fprintf('Done Closing Arduino Port\n');
 end
 try %stopping the treadmill
