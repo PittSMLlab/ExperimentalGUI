@@ -86,10 +86,6 @@ if hreflex_present
             stimInterval = 10;      % default: stimulate every 10 strides
         end
     end
-    % initialize stimulation control variables
-    canStim = false;    % default to no stimulation until conditions met
-    stimDelayL = now;   % in units of 'now'
-    stimDelayR = now;
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -382,7 +378,6 @@ try % so that if something fails, communications are closed properly
         end
         prevChangeTime = datetime('now');
     end
-    tic;
 
     while ~STOP     % only runs if stop button is not pressed
         while PAUSE % only runs if pause button is pressed
@@ -484,29 +479,14 @@ try % so that if something fails, communications are closed properly
                     phase=3;
                     datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     RHSTime(RstepCount) = now;
-                    % RHS marks the end of single stance L
-                    durSSL(1) = durSSL(2);  % overwrite previous SSL duration
-                    durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
-                    % delay of left leg stimulation from RTO is mean of single
-                    % stance duration divided by two (since targeting mid-point
-                    % of single stance for stimulus pulse)
-
-                    % Weighting most recent SSL duration more
-                    % heavily (e.g., 75% since likely more predictive)
-                    stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
-                    %plot cursor
+                    % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     % drawnow;
-
-                    %for Hreflex, stim is allowed after HS, and time when did HS happen
-                    canStim = true;
-                    tic;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
                         LstepCount=LstepCount+1;
-                        %                   LTOTime(LstepCount) = TimeStamp;
                         LTOTime(LstepCount) = now;
                         datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                         % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
@@ -516,28 +496,15 @@ try % so that if something fails, communications are closed properly
                 if LHS
                     phase=4;
                     datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    %                 LHSTime(LstepCount) = TimeStamp;
                     LHSTime(LstepCount) = now;
-                    % LHS marks the end of single stance R
-                    durSSR(1) = durSSR(2);  % overwrite previous SSR duration
-                    durSSR(2) = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
-                    % delay of right leg stimulation from LTO is mean of single
-                    % stance duration divided by two (since targeting mid-point
-                    % of single stance for stimulus pulse)
-                    stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
-                    %plot cursor
+                    % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     % drawnow;
-
-                    %for Hreflex, stim is allowed after HS, and time when did HS happen
-                    canStim = true;
-                    tic;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
                         RstepCount=RstepCount+1;
-                        %                 RTOTime(RstepCount) = TimeStamp;
                         RTOTime(RstepCount) = now;
                         datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                         % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
@@ -547,26 +514,21 @@ try % so that if something fails, communications are closed properly
                 if LTO
                     phase = 2; %To single R
                     LstepCount=LstepCount+1;
-                    %                 LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
             case 4 %DS, coming from single R
                 if RTO
-                    phase =1; %To single L
+                    phase = 1; %To single L
                     RstepCount=RstepCount+1;
-                    %                 RTOTime(RstepCount) = TimeStamp;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
                 end
         end
 
-        if hreflex_present %only do this if has the stimulator
-            % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-            timeSinceLTO = now - LTOTime(LstepCount);
-            %         timeSinceHS = toc; %Hreflex Alt Sol.
+        if hreflex_present      % only do this if has the stimulator
             if isnan(stimInterval)
                 shouldStimR = logical(stimR(RstepCount));
                 shouldStimL = logical(stimL(LstepCount));
@@ -575,9 +537,7 @@ try % so that if something fails, communications are closed properly
                 shouldStimL = mod(LstepCount,stimInterval) == 4;
             end
 
-            if (shouldStimR && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
-                %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
-                %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
+            if (shouldStimR && phase == 2)
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
@@ -585,19 +545,12 @@ try % so that if something fails, communications are closed properly
                 if isCalibration %play sound
                     play(CalibAudioR);
                 end
-                canStim = false; %don't stim again untill LHS.
-                datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
-
-                %             fprintf('\nR Stim:')
-                %             disp(timeSinceHS);
+                datlog.stim.R(end+1,:) = RstepCount;
             end
 
-            % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-            timeSinceRTO = now - RTOTime(RstepCount);
             % Changed to using ONLY RstepCount to force stimulation order
             % of left and right within one stride
-            if (shouldStimL && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
-                %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol.
+            if (shouldStimL && phase == 1)
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
@@ -605,11 +558,7 @@ try % so that if something fails, communications are closed properly
                 if isCalibration %play sound
                     play(CalibAudioL);
                 end
-                canStim = false; %don't stim right away.
-                datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
-
-                %             fprintf('\nL Stim:')
-                %             disp(timeSinceHS);
+                datlog.stim.L(end+1,:) = RstepCount;
             end
         end
 
@@ -789,15 +738,11 @@ try % so that if something fails, communications are closed properly
     end %While, when STOP button is pressed
 
     if STOP
-        %     datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
-        %     log=['Stop button pressed, stopping... ' num2str(clock)];
-        %     listbox{end+1}=log;
         %Shuqi: 02/07/2024, adjusted to log time with precision
         datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
-    else
     end
 
     % log the final event marking trial end, without audio telling participant
@@ -810,8 +755,6 @@ try % so that if something fails, communications are closed properly
 catch ME
     datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
     datlog.errormsgs{end+1} = ME;
-    %     log=['Error ocurred during the control loop'];%End try
-    %     listbox{end+1}=log;
     disp('Error ocurred during the control loop, see datlog for details...');
 end
 %% Closing routine
@@ -864,7 +807,7 @@ try %stopping the treadmill
     counter=0;
     while ~stopped && counter<5 %Try 5 times to stop the treadmill smoothly
         disp('Treadmill did not stop when requested. Trying again.')
-        %smoothStop(t)
+        % smoothStop(t)
         fprintf(['Trying to close TM4. Date Time: ',num2str(counter),datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
         pause(1) %Give time to smoothStop to execute everything
         [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t)
@@ -879,18 +822,13 @@ catch ME
     datlog.errormsgs{end+1} = ME;
 end
 
-% pause(1)
 disp('closing comms');
 try
     closeNexusIface(MyClient); %This was on before
-    %      MyClient.Disconnect();
     closeTreadmillComm(t);
-    %     keyboard
 catch ME
     datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
     datlog.errormsgs{end+1} = ME;
-    %     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
-    %     listbox{end+1}=log;
     disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
     disp(ME);
 end
@@ -908,35 +846,25 @@ end
 %convert force times
 datlog.forces.data(1,:) = [];
 temp = find(datlog.forces.data(:,1)==0,1,'first');
-% keyboard
 datlog.forces.data(temp:end,:) = [];
 for z = 1:temp-1
     datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));
 end
 %convert RHS times
-% temp = leng
-% temp = find(datlog.stepdata.RHSdata(:,1) == 0,1,'first');
-% remove the clean up routine, bc 0 now means break.
 datlog.stepdata.RHSdata(temp:end,:) = [];
 temp = size(datlog.stepdata.RHSdata,1)+1;
 for z = 1:temp-1
     datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert LHS times
-% temp = find(datlog.stepdata.LHSdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
-% datlog.stepdata.LHSdata(temp:end,:) = [];
 for z = 1:temp-1
     datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert RTO times
-% temp = find(datlog.stepdata.RTOdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
-% datlog.stepdata.RTOdata(temp:end,:) = [];
 for z = 1:temp-1
     datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert LTO times
-% temp = find(datlog.stepdata.LTOdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
-% datlog.stepdata.LTOdata(temp:end,:) = [];
 for z = 1:temp-1
     datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
