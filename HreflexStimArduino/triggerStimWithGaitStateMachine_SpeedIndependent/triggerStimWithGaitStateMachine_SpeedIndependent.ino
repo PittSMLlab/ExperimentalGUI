@@ -67,6 +67,25 @@ void loop()
   if (Serial.available() > 0)
   {
     char command = Serial.read();
+
+    // process the received command
+    switch (command)
+    {
+    case 'R':
+      RstepCount = 0; // reset right leg step count
+      Serial.println("Right leg step count reset.");
+      break;
+
+    case 'L':
+      LstepCount = 0; // reset left leg step count
+      Serial.println("Left leg step count reset.");
+      break;
+
+    default:
+      Serial.println("Unknown command received.");
+      break;
+    }
+
     if (command == '1')
     {
       canStim = true;
@@ -124,6 +143,7 @@ void loop()
       //   // if missed entire phase switch due to short double stance
       //   phase = 2;
       //   LstepCount++;
+      //   timeLTO = millis();
       // }
       timeRHS = millis(); // update current RHS time
       // RHS marks the end of single stance L
@@ -152,6 +172,7 @@ void loop()
       //   // if missed entire phase switch due to short double stance
       //   phase = 1;
       //   RstepCount++;
+      //   timeRTO = millis();
       // }
       timeLHS = millis(); // update current LHS time
       // LHS marks the end of single stance R
