@@ -339,17 +339,18 @@ while currTrial < maxTrials % while more trials left to collect, ...
 end
 
 %% Transfer the Data After the Experiment Has Finished
+tic;
 transferData_PC1_C3(participantID,isSession1,threshTime);
+toc;
 
-%% Run Reconstruct & Label Pipeline
+%% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
+tic;
 sess = 'Session1';
 if ~isSession1          % if current session is second walking session, ...
     sess = 'Session2';
 end
 dirSrvrData = fullfile('W:\Nathan\C3\Data',participantID,sess,'PC1');
-dataMotion.reconstructAndLabelSession(dirSrvrData);
-
-%% Automatically Fill Marker Gaps
-
-%% Check Marker Data Quality
+dataMotion.processAndFillSmallMarkerGapsSession(dirSrvrData);
+% dataMotion.reconstructAndLabelSession(dirSrvrData);
+toc;
 

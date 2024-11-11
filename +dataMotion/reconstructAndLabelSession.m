@@ -53,15 +53,9 @@ for tr = indsTrials
     pathTrial = fullfile(trialFiles(tr).folder,nameTrialNoExt);
     fprintf('Processing trial %d: %s\n',tr,pathTrial);
 
-    % export trial to C3D using the function from previous implementation
+    % run reconstruct and label pipeline on this trial
     dataMotion.reconstructAndLabelTrial(pathTrial,vicon);
 end
-
-% close the Vicon connection if it was created within this function
-% if nargin < 3 || isempty(vicon)
-%     vicon.Disconnect();
-%     fprintf('Disconnected from Vicon Nexus.\n');
-% end
 
 end
 
