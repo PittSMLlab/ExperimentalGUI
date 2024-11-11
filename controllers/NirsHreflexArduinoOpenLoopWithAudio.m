@@ -481,13 +481,13 @@ try % so that if something fails, communications are closed properly
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+                    set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                 elseif LTO  % Go to single R
                     phase=2;
                     LstepCount=LstepCount+1;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+                    set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
             case 1          % single L
                 if RHS
@@ -497,14 +497,14 @@ try % so that if something fails, communications are closed properly
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
-                    % drawnow;
+                    drawnow;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
                         LstepCount=LstepCount+1;
                         LTOTime(LstepCount) = now;
                         datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                        % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+                        set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                     end
                 end
             case 2 %single R
@@ -515,14 +515,14 @@ try % so that if something fails, communications are closed properly
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
-                    % drawnow;
+                    drawnow;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
                         RstepCount=RstepCount+1;
                         RTOTime(RstepCount) = now;
                         datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                        % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+                        set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                     end
                 end
             case 3 %DS, coming from single L
@@ -686,11 +686,11 @@ try % so that if something fails, communications are closed properly
             sendTreadmillPacket(payload,t);
             datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now]; %record the command
             disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
-            % if (velR(RstepCount,1) ~= old_velR.Value)
-            %  set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-            % else %(velL(LstepCount) ~= old_velL.Value)
-            %  set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
-            % end
+            if (velR(RstepCount,1) ~= old_velR.Value)
+                set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+            else %(velL(LstepCount) ~= old_velL.Value)
+                set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+            end
         else
             %simply record what the treadmill should be doing
             %datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command
