@@ -23,6 +23,7 @@ unsigned long timeLTO = 0;        // time of most recent LTO events
 unsigned long timeRTO = 0;        // time of most recent RTO events
 unsigned long stimDelayL = 100;   // initialize RTO delay to 100 ms
 unsigned long stimDelayR = 100;   // initialize LTO delay to 100 ms
+float stimPercent = 0.65;         // Percentage of single stance phase
 unsigned long durSSL[2] = {0, 0}; // two left single stance durations
 unsigned long durSSR[2] = {0, 0}; // two right single stance durations
 bool canStim = false;             // is stimulation allowed at this time?
@@ -157,7 +158,7 @@ void updateGaitEventStateMachine()
       // stance for stimulus pulse)
       // TODO: consider weighting most recent SSL duration more heavily
       // (e.g., 75% since likely more predictive)
-      stimDelayL = ((durSSL[0] / 3) + (2 * durSSL[1] / 3)) / 2;
+      stimDelayL = ((durSSL[0] / 3) + (2 * durSSL[1] / 3)) * stimPercent;
       timeRHS = millis(); // update current RHS time
       canStim = true;     // enable stimulation
     }
@@ -181,7 +182,7 @@ void updateGaitEventStateMachine()
       // delay of right leg stimulation from LTO is mean of single stance
       // duration divided by two (since targeting mid-point of single
       // stance for stimulus pulse)
-      stimDelayR = ((durSSR[0] / 3) + (2 * durSSR[1] / 3)) / 2;
+      stimDelayR = ((durSSR[0] / 3) + (2 * durSSR[1] / 3)) * stimPercent;
       timeLHS = millis(); // update current LHS time
       canStim = true;     // enable stimulation
     }
