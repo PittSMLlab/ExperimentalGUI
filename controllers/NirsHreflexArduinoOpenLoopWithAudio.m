@@ -364,9 +364,7 @@ try % so that if something fails, communications are closed properly
     try         % send command to Arduino to reset right & left leg counts
         fprintf(['Sending command to reset right and left leg step ' ...
             'counts...\n']);
-        % replace 'R' and 'L' with appropriate command if needed by Arduino
-        write(portArduino,'R','char');  % reset right leg step count
-        write(portArduino,'L','char');  % reset left leg step count
+        writeline(portArduino,"RESET_COUNTERS");    % reset step counters
         fprintf(['Right and left leg step counts reset command sent ' ...
             'successfully.\n']);
     catch ME
@@ -432,16 +430,15 @@ try % so that if something fails, communications are closed properly
         datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now];%record the read
         set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
         set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-
         frameind.Value = frameind.Value + 1;
 
         %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
-        Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
-        Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
+        Fz_R = MyClient.GetDeviceOutputValue('Right Treadmill','Fz');
+        Fz_L = MyClient.GetDeviceOutputValue('Left Treadmill','Fz');
         datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
-        Hx = MyClient.GetDeviceOutputValue( 'Handrail', 'Fx' );
-        Hy = MyClient.GetDeviceOutputValue( 'Handrail', 'Fy' );
-        Hz = MyClient.GetDeviceOutputValue( 'Handrail', 'Fz' );
+        Hx = MyClient.GetDeviceOutputValue('Handrail','Fx');
+        Hy = MyClient.GetDeviceOutputValue('Handrail','Fy');
+        Hz = MyClient.GetDeviceOutputValue('Handrail','Fz');
         Hm = sqrt(Hx.Value^2+Hy.Value^2+Hz.Value^2);
         %if handrail force is too high, notify the experimentor
         if (Hm > 25)
@@ -452,8 +449,8 @@ try % so that if something fails, communications are closed properly
 
         %% This section was on
         if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
-            Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
-            Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+            Fz_R = MyClient.GetDeviceOutputValue('Right','Fz');
+            Fz_L = MyClient.GetDeviceOutputValue('Left','Fz');
             if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
                 STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
                 disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
@@ -468,7 +465,6 @@ try % so that if something fails, communications are closed properly
 
         new_stanceL = Fz_L.Value < -FzThreshold;
         new_stanceR = Fz_R.Value < -FzThreshold;
-
         LHS = new_stanceL && ~old_stanceL;
         RHS = new_stanceR && ~old_stanceR;
         LTO = ~new_stanceL && old_stanceL;
@@ -559,27 +555,36 @@ try % so that if something fails, communications are closed properly
 
             if (shouldStimR && phase == 2 && canStim)
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue
+                    continue;
                 end
-                fprintf(portArduino,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
-                if isCalibration %play sound
+                if isCalibration    % play sound
                     play(CalibAudioR);
                 end
+                try         % send command to Arduino to stimulate right
+                    writeline(portArduino,"STIM_RIGHT");
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send right leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
+                end
                 canStim = false;
-                % TODO: update datalog to read serial port commands from
-                % the Arduino
+                % TODO: update to read serial port data from the Arduino
                 % datlog.stim.R(end+1,:) = RstepCount;
             end
 
-            % Changed to using ONLY RstepCount to force stimulation order
-            % of left and right within one stride
             if (shouldStimL && phase == 1 && canStim)
-                if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue
+                if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                    continue;
                 end
-                fprintf(portArduino,2); %stim left
-                if isCalibration %play sound
+                if isCalibration    % play sound
                     play(CalibAudioL);
+                end
+                try         % send command to Arduino to stimulate left
+                    writeline(portArduino,"STIM_LEFT");
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send left leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
                 end
                 canStim = false;
                 % datlog.stim.L(end+1,:) = RstepCount;
