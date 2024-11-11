@@ -21,8 +21,6 @@ unsigned long timeLHS = 0;        // time of most recent LHS events
 unsigned long timeRHS = 0;        // time of most recent RHS events
 unsigned long timeLTO = 0;        // time of most recent LTO events
 unsigned long timeRTO = 0;        // time of most recent RTO events
-unsigned long timeSinceLTO = 0;   // time since most recent LTO event
-unsigned long timeSinceRTO = 0;   // time since most recent RTO event
 unsigned long stimDelayL = 100;   // initialize RTO delay to 100 ms
 unsigned long stimDelayR = 100;   // initialize LTO delay to 100 ms
 unsigned long durSSL[2] = {0, 0}; // two left single stance durations
@@ -59,52 +57,12 @@ const int leftViconOut = 12;
 void setup()
 {
   Serial.begin(9600);
-  Serial.println("\n\n\n\nSTART");
+  Serial.println("START");
 }
 
 void loop()
 {
-  // Check for input from MATLAB
-  if (Serial.available() > 0)
-  {
-    char command = Serial.read();
-
-    // process the received command
-    switch (command)
-    {
-    case 'R':
-      RstepCount = 0; // reset right leg step count
-      Serial.println("Right leg step count reset.");
-      break;
-
-    case 'L':
-      LstepCount = 0; // reset left leg step count
-      Serial.println("Left leg step count reset.");
-      break;
-
-    default:
-      Serial.println("Unknown command received.");
-      break;
-    }
-
-    if (command == '1')
-    {
-      canStim = true;
-      Serial.println("Stimulation Enabled by MATLAB");
-    }
-    else if (command == '0')
-    {
-      canStim = false;
-      Serial.println("Stimulation Disabled by MATLAB");
-    }
-  }
-
-  // check Serial for left and right stimulation permissions
-  if (Serial.available() >= 2)
-  {
-    shouldStimL = Serial.read() == '1'; // Left stimulation control
-    shouldStimR = Serial.read() == '1'; // Right stimulation control
-  }
+  processSerialCommands();
 
   // gait event state machine to update gait phase
   old_stanceL = new_stanceL;
@@ -254,5 +212,36 @@ void loop()
     digitalWrite(leftOutputPin, LOW);
     digitalWrite(leftViconOut, LOW);
     canStim = false;
+  }
+}
+
+void processSerialCommands()
+{
+  // check for input from MATLAB
+  if (Serial.available() > 0)
+  {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    if (command == "RESET_COUNTERS")
+    {
+      LstepCount = 0;
+      RstepCount = 0;
+      Serial.println("Counters reset.");
+    }
+    else if (command == "STIM_RIGHT")
+    {
+      shouldStimR = true;
+      Serial.println("Right leg stimulation enabled.");
+    }
+    else if (command == "STIM_LEFT")
+    {
+      shouldStimL = true;
+      Serial.println("Left leg stimulation enabled.");
+    }
+    else
+    {
+      Serial.println("Unknown command received.");
+    }
   }
 }
