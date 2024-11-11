@@ -20,6 +20,16 @@ if nargin < 4 || isempty(maxGapSize)
     maxGapSize = 10;
 end
 
+% validate markerGaps structure format
+markers = fieldnames(markerGaps);
+for i = 1:numel(markers)
+    gaps = markerGaps.(markers{i});
+    if isempty(gaps) || size(gaps,2) ~= 2
+        error(['Invalid format in markerGaps for marker %s. Expecting ' ...
+            'a non-empty Nx2 matrix.'],markers{i});
+    end
+end
+
 % initialize the Vicon Nexus object if not provided
 if nargin < 3 || isempty(vicon)
     fprintf(['No Vicon SDK object provided. Connecting to Vicon ' ...
@@ -40,14 +50,18 @@ end
 subject = subject{1};
 
 % process each marker gap in the markerGaps struct
-markers = fieldnames(markerGaps);
-for mrkr = 1:length(markers)
+for mrkr = 1:numel(markers)
     nameMarker = markers{mrkr};      % get marker name
     gaps = markerGaps.(nameMarker);  % retrieve gap indices for marker
 
-    % get marker trajectory data
-    [trajX,trajY,trajZ,existsTraj] = ...
-        vicon.GetTrajectory(subject,nameMarker);
+    try     % get marker trajectory data
+        [trajX,trajY,trajZ,existsTraj] = ...
+            vicon.GetTrajectory(subject,nameMarker);
+    catch
+        warning(['Failed to retrieve trajectory for marker %s. ' ...
+            'Skipping...'],nameMarker);
+        continue;
+    end
 
     % process and fill gaps smaller than maxGapSize
     for indGap = 1:size(gaps,1)
@@ -56,7 +70,7 @@ for mrkr = 1:length(markers)
         gapLength = gapEnd - gapStart + 1;
 
         % fill gap if it is within the allowed maxGapSize
-        if gapLength <= maxGapSize
+        if gapLength <= maxGapSize && any(existsTraj)
             [trajX,trajY,trajZ,existsTraj] = ...
                 fillGap(trajX,trajY,trajZ,existsTraj,gaps(indGap,:));
         end
@@ -90,9 +104,12 @@ framesToFill = gapRange(1):gapRange(2);
 existingFrames = find(existsTraj);      % get frames with data
 
 % interpolate missing frames
-trajX(framesToFill) = interp1(existingFrames,trajX(existingFrames),framesToFill,'spline');
-trajY(framesToFill) = interp1(existingFrames,trajY(existingFrames),framesToFill,'spline');
-trajZ(framesToFill) = interp1(existingFrames,trajZ(existingFrames),framesToFill,'spline');
+trajX(framesToFill) = interp1(existingFrames,trajX(existingFrames), ...
+    framesToFill,'spline');
+trajY(framesToFill) = interp1(existingFrames,trajY(existingFrames), ...
+    framesToFill,'spline');
+trajZ(framesToFill) = interp1(existingFrames,trajZ(existingFrames), ...
+    framesToFill,'spline');
 existsTraj(framesToFill) = true;        % update existence array
 
 end
