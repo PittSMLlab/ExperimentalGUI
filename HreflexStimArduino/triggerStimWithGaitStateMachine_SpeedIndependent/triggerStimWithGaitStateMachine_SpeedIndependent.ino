@@ -9,26 +9,29 @@
 // author(s): SL, NWB
 
 // initialize variables to track gait events and phases
-bool new_stanceL = false;         // is current step left foot stance?
-bool new_stanceR = false;         // is current step right foot stance?
-bool old_stanceL = false;         // is previous step left foot stance?
-bool old_stanceR = false;         // is previous step right foot stance?
-bool LHS = false;                 // is there a left heel strike event?
-bool RHS = false;                 // is there a right heel strike event?
-bool LTO = false;                 // is there a left toe off event?
-bool RTO = false;                 // is there a right toe off event?
-unsigned long timeLHS = 0;        // time of most recent LHS events
-unsigned long timeRHS = 0;        // time of most recent RHS events
-unsigned long timeLTO = 0;        // time of most recent LTO events
-unsigned long timeRTO = 0;        // time of most recent RTO events
-unsigned long stimDelayL = 100;   // initialize RTO delay to 100 ms
-unsigned long stimDelayR = 100;   // initialize LTO delay to 100 ms
-float stimPercent = 0.65;         // Percentage of single stance phase
-unsigned long durSSL[2] = {0, 0}; // two left single stance durations
-unsigned long durSSR[2] = {0, 0}; // two right single stance durations
-bool canStim = false;             // is stimulation allowed at this time?
-bool shouldStimL = false;         // should stimulate left leg this stride
-bool shouldStimR = false;         // should stimulate right leg this stride
+bool new_stanceL = false;       // is current step left foot stance?
+bool new_stanceR = false;       // is current step right foot stance?
+bool old_stanceL = false;       // is previous step left foot stance?
+bool old_stanceR = false;       // is previous step right foot stance?
+bool LHS = false;               // is there a left heel strike event?
+bool RHS = false;               // is there a right heel strike event?
+bool LTO = false;               // is there a left toe off event?
+bool RTO = false;               // is there a right toe off event?
+unsigned long timeLHS = 0;      // time of most recent LHS events
+unsigned long timeRHS = 0;      // time of most recent RHS events
+unsigned long timeLTO = 0;      // time of most recent LTO events
+unsigned long timeRTO = 0;      // time of most recent RTO events
+unsigned long stimDelayL = 100; // initialize RTO delay to 100 ms
+unsigned long stimDelayR = 100; // initialize LTO delay to 100 ms
+float stimPercent = 0.65;       // Percentage of single stance phase
+float alpha = 0.7;              // smoothing factor (0 < alpha <= 1)
+float estSSL = 0.0;             // estimated single stance duration left
+float estSSR = 0.0;             // estimated single stance duration right
+unsigned long durSSL = 0;       // two left single stance durations
+unsigned long durSSR = 0;       // two right single stance durations
+bool canStim = false;           // is stimulation allowed at this time?
+bool shouldStimL = false;       // should stimulate left leg this stride
+bool shouldStimR = false;       // should stimulate right leg this stride
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
@@ -151,15 +154,11 @@ void updateGaitEventStateMachine()
       // }
       timeRHS = millis(); // update current RHS time
       // RHS marks the end of single stance L
-      durSSL[0] = durSSL[1]; // overwrite previous SSL duration
       // compute duration of left leg single stance phase
-      durSSL[1] = timeRHS - timeRTO;
-      // delay of left leg stimulation from RTO is mean of single stance
-      // duration divided by two (since targeting mid-point of single
-      // stance for stimulus pulse)
-      // TODO: consider weighting most recent SSL duration more heavily
-      // (e.g., 75% since likely more predictive)
-      stimDelayL = ((durSSL[0] / 3) + (2 * durSSL[1] / 3)) * stimPercent;
+      durSSL = timeRHS - timeRTO;
+      // estimate single stance duration using exponential updating factor
+      estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
+      stimDelayL = estSSL * stimPercent;
       canStim = true; // enable stimulation
     }
     break;
@@ -177,13 +176,11 @@ void updateGaitEventStateMachine()
       // }
       timeLHS = millis(); // update current LHS time
       // LHS marks the end of single stance R
-      durSSR[0] = durSSR[1]; // overwrite previous SSR duration
       // compute duration of right leg single stance phase
-      durSSR[1] = timeLHS - timeLTO;
-      // delay of right leg stimulation from LTO is mean of single stance
-      // duration divided by two (since targeting mid-point of single
-      // stance for stimulus pulse)
-      stimDelayR = ((durSSR[0] / 3) + (2 * durSSR[1] / 3)) * stimPercent;
+      durSSR = timeLHS - timeLTO;
+      // estimate single stance duration using exponential updating factor
+      estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
+      stimDelayR = estSSR * stimPercent;
       canStim = true; // enable stimulation
     }
     break;
