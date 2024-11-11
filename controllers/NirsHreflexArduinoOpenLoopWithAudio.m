@@ -86,6 +86,8 @@ if hreflex_present
             stimInterval = 10;      % default: stimulate every 10 strides
         end
     end
+    % initialize stimulation control variables
+    canStim = false;    % default to no stimulation until conditions met
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -498,6 +500,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     drawnow;
+                    canStim = true;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
@@ -516,6 +519,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     drawnow;
+                    canStim = true;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
@@ -543,6 +547,7 @@ try % so that if something fails, communications are closed properly
                 end
         end
 
+        % TODO: move this code up into the state machine
         if hreflex_present      % only do this if has the stimulator
             if isnan(stimInterval)
                 shouldStimR = logical(stimR(RstepCount));
@@ -552,7 +557,7 @@ try % so that if something fails, communications are closed properly
                 shouldStimL = mod(LstepCount,stimInterval) == 4;
             end
 
-            if (shouldStimR && phase == 2)
+            if (shouldStimR && phase == 2 && canStim)
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
@@ -560,12 +565,15 @@ try % so that if something fails, communications are closed properly
                 if isCalibration %play sound
                     play(CalibAudioR);
                 end
-                datlog.stim.R(end+1,:) = RstepCount;
+                canStim = false;
+                % TODO: update datalog to read serial port commands from
+                % the Arduino
+                % datlog.stim.R(end+1,:) = RstepCount;
             end
 
             % Changed to using ONLY RstepCount to force stimulation order
             % of left and right within one stride
-            if (shouldStimL && phase == 1)
+            if (shouldStimL && phase == 1 && canStim)
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue
                 end
@@ -573,7 +581,8 @@ try % so that if something fails, communications are closed properly
                 if isCalibration %play sound
                     play(CalibAudioL);
                 end
-                datlog.stim.L(end+1,:) = RstepCount;
+                canStim = false;
+                % datlog.stim.L(end+1,:) = RstepCount;
             end
         end
 
