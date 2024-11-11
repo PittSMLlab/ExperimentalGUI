@@ -149,18 +149,18 @@ void updateGaitEventStateMachine()
       //   LstepCount++;
       //   timeLTO = millis();
       // }
+      timeRHS = millis(); // update current RHS time
       // RHS marks the end of single stance L
       durSSL[0] = durSSL[1]; // overwrite previous SSL duration
       // compute duration of left leg single stance phase
-      durSSL[1] = millis() - timeRTO;
+      durSSL[1] = timeRHS - timeRTO;
       // delay of left leg stimulation from RTO is mean of single stance
       // duration divided by two (since targeting mid-point of single
       // stance for stimulus pulse)
       // TODO: consider weighting most recent SSL duration more heavily
       // (e.g., 75% since likely more predictive)
       stimDelayL = ((durSSL[0] / 3) + (2 * durSSL[1] / 3)) * stimPercent;
-      timeRHS = millis(); // update current RHS time
-      canStim = true;     // enable stimulation
+      canStim = true; // enable stimulation
     }
     break;
 
@@ -175,16 +175,16 @@ void updateGaitEventStateMachine()
       //   RstepCount++;
       //   timeRTO = millis();
       // }
+      timeLHS = millis(); // update current LHS time
       // LHS marks the end of single stance R
       durSSR[0] = durSSR[1]; // overwrite previous SSR duration
       // compute duration of right leg single stance phase
-      durSSR[1] = millis() - timeLTO;
+      durSSR[1] = timeLHS - timeLTO;
       // delay of right leg stimulation from LTO is mean of single stance
       // duration divided by two (since targeting mid-point of single
       // stance for stimulus pulse)
       stimDelayR = ((durSSR[0] / 3) + (2 * durSSR[1] / 3)) * stimPercent;
-      timeLHS = millis(); // update current LHS time
-      canStim = true;     // enable stimulation
+      canStim = true; // enable stimulation
     }
     break;
 
