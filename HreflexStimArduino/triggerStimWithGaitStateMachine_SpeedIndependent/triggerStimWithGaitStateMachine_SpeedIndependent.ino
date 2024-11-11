@@ -64,41 +64,7 @@ void loop()
 {
   processSerialCommands();
   updateGaitEventStateMachine();
-
-  // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  // right leg stimulation conditions based on phase, delay, and MATLAB input
-  timeSinceLTO = millis() - timeLTO;
-  if (phase == 2 && canStim && shouldStimR && (timeSinceLTO >= stimDelayR))
-  {
-    Serial.println("Right Stimulation Triggered");
-    // delay(rightDelayTime);
-    digitalWrite(rightOutputPin, HIGH);
-    digitalWrite(rightViconOut, HIGH);
-    // TODO: consider removing delay here too to allow state machine to
-    // continue running for these 20 ms
-    delay(stimPulseDuration); // stimulation duration
-    digitalWrite(rightOutputPin, LOW);
-    digitalWrite(rightViconOut, LOW);
-    canStim = false;
-  }
-
-  // TODO: consider using ONLY RstepCount to force stimulation order of right left within one stride
-  // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  // left leg stimulation conditions based on phase, delay, and MATLAB input
-  timeSinceRTO = millis() - timeRTO;
-  if (phase == 1 && canStim && shouldStimL && (timeSinceRTO >= stimDelayL))
-  {
-    Serial.println("Left Stimulation Triggered");
-    // delay(leftDelayTime);
-    digitalWrite(leftOutputPin, HIGH);
-    digitalWrite(leftViconOut, HIGH);
-    // TODO: consider removing delay here too to allow state machine to
-    // continue running for these 20 ms
-    delay(stimPulseDuration); // stimulation duration
-    digitalWrite(leftOutputPin, LOW);
-    digitalWrite(leftViconOut, LOW);
-    canStim = false;
-  }
+  triggerStimulation();
 }
 
 void processSerialCommands()
@@ -242,5 +208,43 @@ void updateGaitEventStateMachine()
       Serial.println(RstepCount);
     }
     break;
+  }
+}
+
+void triggerStimulation()
+{
+  unsigned long timeSinceLTO = millis() - timeLTO;
+  unsigned long timeSinceRTO = millis() - timeRTO;
+
+  // right leg stimulation trigger conditions
+  // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
+  if (phase == 2 && canStim && shouldStimR && timeSinceLTO >= stimDelayR)
+  {
+    Serial.println("Right Stimulation Triggered");
+    digitalWrite(rightOutputPin, HIGH);
+    digitalWrite(rightViconOut, HIGH);
+    // TODO: consider removing delay here too to allow state machine to
+    // continue running for these 20 ms
+    delay(stimPulseDuration);
+    digitalWrite(rightOutputPin, LOW);
+    digitalWrite(rightViconOut, LOW);
+    canStim = false;
+    shouldStimR = false; // Reset trigger for next cycle
+  }
+
+  // left leg stimulation trigger conditions
+  // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
+  if (phase == 1 && canStim && shouldStimL && timeSinceRTO >= stimDelayL)
+  {
+    Serial.println("Left Stimulation Triggered");
+    digitalWrite(leftOutputPin, HIGH);
+    digitalWrite(leftViconOut, HIGH);
+    // TODO: consider removing delay here too to allow state machine to
+    // continue running for these 20 ms
+    delay(stimPulseDuration);
+    digitalWrite(leftOutputPin, LOW);
+    digitalWrite(leftViconOut, LOW);
+    canStim = false;
+    shouldStimL = false; // Reset trigger for next cycle
   }
 }
