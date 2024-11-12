@@ -1,4 +1,5 @@
-function fillSmallMarkerGapsSpline(markerGaps,pathTrial,vicon,maxGapSize)
+function markerGapsUpdated = ...
+    fillSmallMarkerGapsSpline(markerGaps,pathTrial,vicon,maxGapSize)
 %FILLSMALLMARKERGAPSSPLINE Fills small marker trajectory gaps via spline
 %   This function fills gaps in all marker trajectories identified in
 % markerGaps using spline interpolation for gaps smaller than the specified
@@ -11,6 +12,8 @@ function fillSmallMarkerGapsSpline(markerGaps,pathTrial,vicon,maxGapSize)
 %   vicon: (optional) Vicon Nexus SDK object; connects if not supplied
 %   maxGapSize: (optional) integer specifying maximum gap size to fill,
 %       (default: 10 frames)
+% output(s):
+%   updatedMarkerGaps: struct with only remaining gaps after processing
 
 % TODO: add a GUI input option if helpful
 narginchk(2,4);         % verify correct number of input arguments
@@ -63,18 +66,32 @@ for mrkr = 1:numel(markers)
         continue;
     end
 
+    % preallocate remaining gaps array based on initial size
+    gapsRemaining = gaps;   % store indices of gaps that were not filled
+    indNextGap = 1;         % track the index for remaining gaps
+
     % process and fill gaps smaller than maxGapSize
     for indGap = 1:size(gaps,1)
         gapStart = gaps(indGap,1);
         gapEnd = gaps(indGap,2);
         gapLength = gapEnd - gapStart + 1;
 
-        % fill gap if it is within the allowed maxGapSize
+        % fill gap if it is within the allowed 'maxGapSize'
         if gapLength <= maxGapSize && any(existsTraj)
             [trajX,trajY,trajZ,existsTraj] = ...
                 fillGap(trajX,trajY,trajZ,existsTraj,gaps(indGap,:));
+        else
+            % retain the gap in 'gapsRemaining' if it exceeds 'maxGapSize'
+            % that is, if gap was not filled, add it to 'gapsRemaining'
+            gapsRemaining(indNextGap,:) = gaps(indGap,:);
+            indNextGap = indNextGap + 1;    % increment gap index
         end
     end
+
+    % remove any excess preallocated rows in 'gapsRemaining'
+    gapsRemaining(indNextGap:end,:) = [];
+    % update markerGaps with only the remaining gaps
+    markerGaps.(nameMarker) = gapsRemaining;
 
     % update trajectory in Vicon Nexus
     vicon.SetTrajectory(subject,nameMarker,trajX,trajY,trajZ,existsTraj);
@@ -88,6 +105,9 @@ try                     % try saving the processed trial
 catch ME
     warning(ME.identifier,'%s',ME.message);
 end
+
+% output the updated markerGaps with only remaining gaps
+markerGapsUpdated = markerGaps;
 
 end
 
