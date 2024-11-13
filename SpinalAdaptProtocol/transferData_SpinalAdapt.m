@@ -24,13 +24,13 @@ dirSrvrData = fullfile(dirSrvrSpinalAdapt,'Data',participantID);
 dirSrvrRaw = fullfile(dirSrvrSpinalAdapt,'RawBackupData',participantID);
 
 % define source and destination paths in specified order
-srcs = {dirData
-    dirProfiles fullfile(dirNIRS,participantID)
-    dirData fullfile(dirNIRS,participantID)
+srcs = {dirData ...
+    dirProfiles fullfile(dirNIRS,participantID) ...
+    dirData fullfile(dirNIRS,participantID) ...
     fullfile(dirExpGUI,'datlogs') fullfile(dirExpGUI,'datlogs')};
-dests = {fullfile(dirSrvrData,'Vicon')
-    fullfile(dirSrvrData,'SpeedProfiles') fullfile(dirSrvrData,'NIRS')
-    fullfile(dirSrvrRaw,'Vicon') fullfile(dirSrvrRaw,'NIRS')
+dests = {fullfile(dirSrvrData,'Vicon') ...
+    fullfile(dirSrvrData,'SpeedProfiles') fullfile(dirSrvrData,'NIRS') ...
+    fullfile(dirSrvrRaw,'Vicon') fullfile(dirSrvrRaw,'NIRS') ...
     fullfile(dirSrvrData,'DataLogs') fullfile(dirSrvrRaw,'DataLogs')};
 
 % check if PC1 data directory exists, else raise a warning
