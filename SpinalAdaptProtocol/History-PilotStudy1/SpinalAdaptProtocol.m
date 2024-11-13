@@ -64,9 +64,9 @@ switch profileToGen
             return;  % Abort starting the trial
         end
         % generate baseline speed profiles only
-        GenerateProfileSpinalStudy(slow, fast, true, profileDir);
+        GenerateProfileSpinalBoutStudy(slow, fast, true, profileDir);
         % generate rest of profiles after determining dominant leg & ramp
-        GenerateProfileSpinalStudy(slow, fast, false, profileDir, ...
+        GenerateProfileSpinalBoutStudy(slow, fast, false, profileDir, ...
             fastLeg, ramp2Split);
     case 'No, I generated them already'
         % continue.
@@ -314,10 +314,9 @@ while currCond < maxCond
 end
 
 %% Transfer the Data After the Experiment Has Finished
-% TODO: uncomment after verifying 'transferData_SpinalAdapt' function
-% tic;
-% transferData_SpinalAdapt(subjectID,threshTime);
-% toc;
+tic;
+transferData_SpinalAdapt(subjectID,threshTime);
+toc;
 
 %% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
 % TODO: uncomment after verifying works properly
