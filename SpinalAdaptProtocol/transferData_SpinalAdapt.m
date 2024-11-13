@@ -14,21 +14,24 @@ narginchk(2,2);         % verify correct number of input arguments
 
 % define data paths based on input parameters
 dirExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
-dirProfiles = fullfile(dirExpGUI,'profiles','SpinalAdapt',participantID);
+dirProfiles = fullfile(dirExpGUI,'profiles','SpinalAdaptNirsStudy', ...
+    participantID);
+dirNIRS = 'C:\Users\cntctsml\Documents\Oxysoft Data\SpinalAdaptStudy';
 dirData = fullfile(['C:\Users\Public\Documents\Vicon Training\' ...
-    'SpinalAdapt'],participantID,sess);
-dirSrvrC3 = 'W:\SpinalAdaptStudy';
-dirSrvrData = fullfile(dirSrvrC3,'Data',participantID);
-dirSrvrRaw = fullfile(dirSrvrC3,'RawBackupData',participantID);
+    'SpinalAdaptStudy'],participantID,'New Session');
+dirSrvrSpinalAdapt = 'W:\SpinalAdaptStudy';
+dirSrvrData = fullfile(dirSrvrSpinalAdapt,'Data',participantID);
+dirSrvrRaw = fullfile(dirSrvrSpinalAdapt,'RawBackupData',participantID);
 
 % define source and destination paths in specified order
-srcs = {dirData dirProfiles ... *add NIRS local directory here*
-    dirData ... *and here*
-    fullfile(dirExpGUI,'datlogs')};
+srcs = {dirData
+    dirProfiles fullfile(dirNIRS,participantID)
+    dirData fullfile(dirNIRS,participantID)
+    fullfile(dirExpGUI,'datlogs') fullfile(dirExpGUI,'datlogs')};
 dests = {fullfile(dirSrvrData,'Vicon')
     fullfile(dirSrvrData,'SpeedProfiles') fullfile(dirSrvrData,'NIRS')
     fullfile(dirSrvrRaw,'Vicon') fullfile(dirSrvrRaw,'NIRS')
-    fullfile(dirSrvrData,'DataLogs')};
+    fullfile(dirSrvrData,'DataLogs') fullfile(dirSrvrRaw,'DataLogs')};
 
 % check if PC1 data directory exists, else raise a warning
 if ~isfolder(dirData)
