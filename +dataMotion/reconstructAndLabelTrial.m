@@ -36,7 +36,7 @@ catch ME
     warning(ME.identifier,'%s',ME.message);
 end
 
-% Saves the changes made (reconstruction and labeling) back to trial file
+% saves the changes made (reconstruction and labeling) back to trial file
 fprintf('Saving the trial...\n');
 try                     % try saving the processed trial
     vicon.SaveTrial(200);
@@ -44,12 +44,6 @@ try                     % try saving the processed trial
 catch ME
     warning(ME.identifier,'%s',ME.message);
 end
-
-% close the Vicon connection if it was created within this function
-% if nargin < 2 || isempty(vicon)
-%     vicon.Disconnect();
-%     fprintf('Disconnected from Vicon Nexus.\n');
-% end
 
 end
 

@@ -52,7 +52,8 @@ if isempty(subject)
 end
 subject = subject{1};
 
-% process each marker gap in the markerGaps struct
+% process each marker gap in the 'markerGaps' struct
+fprintf('Filling small marker gaps with spline interpolation...\n');
 for mrkr = 1:numel(markers)
     nameMarker = markers{mrkr};      % get marker name
     gaps = markerGaps.(nameMarker);  % retrieve gap indices for marker
@@ -70,7 +71,7 @@ for mrkr = 1:numel(markers)
     gapsRemaining = gaps;   % store indices of gaps that were not filled
     indNextGap = 1;         % track the index for remaining gaps
 
-    % process and fill gaps smaller than maxGapSize
+    % process and fill gaps smaller than 'maxGapSize'
     for indGap = 1:size(gaps,1)
         gapStart = gaps(indGap,1);
         gapEnd = gaps(indGap,2);
@@ -96,6 +97,7 @@ for mrkr = 1:numel(markers)
     % update trajectory in Vicon Nexus
     vicon.SetTrajectory(subject,nameMarker,trajX,trajY,trajZ,existsTraj);
 end
+fprintf('Small marker gap spline filling complete.\n');
 
 % saves the changes made back to the trial file
 fprintf('Saving the trial...\n');
