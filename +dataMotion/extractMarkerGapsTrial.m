@@ -56,14 +56,16 @@ for mrkr = 1:length(markers)        % for each marker, ...
 
     % identify gaps as sequences where trajExists is false
     indsGap = find(~existsTraj);
+    if isempty(indsGap)             % if no gaps for a marker, ...
+        continue;
+    end
 
     % identify start and end indices of each trajectory gap
-    % TODO: handle case of empty 'indsGap'
-    startsGaps = indsGap([true diff(indsGap) > 1])';    % start of gaps
-    endsGaps = indsGap([diff(indsGap) > 1 true])';      % end of gaps
+    gapsStarts = indsGap([true diff(indsGap) > 1])';    % start of gaps
+    gapsEnds = indsGap([diff(indsGap) > 1 true])';      % end of gaps
 
     % store gap data for this marker in the output structure
-    markerGaps.(nameMarker) = [startsGaps endsGaps];
+    markerGaps.(nameMarker) = [gapsStarts gapsEnds];
 end
 
 end

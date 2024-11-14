@@ -20,17 +20,21 @@ end
 
 % get all trial files that start with 'Trial'
 trialFiles = dir(fullfile(pathSess,'Trial*.x1d'));
-numTrials = length(trialFiles);
-
-% check if any trial files were found
-if numTrials == 0
+if isempty(trialFiles)      % if no trial files found, ...
     fprintf('No trials found in session folder: %s\n',pathSess);
     return;
 end
 
-% if 'indsTrials' not provided, process all trials
-if nargin < 2 || isempty(indsTrials)
-    indsTrials = 1:numTrials;
+% extract trial indices from filenames
+[~,namesFiles] = cellfun(@(s) fileparts(s),{trialFiles.name}, ...
+    'UniformOutput',false);
+indsTrialsAll = cellfun(@(s) str2double(s(end-1:end)),namesFiles);
+
+% select trials to process
+if nargin < 2 || isempty(indsTrials)    % if 'indsTrials' not provided, ...
+    indsTrials = indsTrialsAll;         % process all trials
+else    % otherwise, ensure no values provided as input do not exist
+    indsTrials = indsTrials(ismember(indsTrials,indsTrialsAll));
 end
 
 % initialize the Vicon Nexus object if not provided
@@ -40,26 +44,13 @@ if nargin < 3 || isempty(vicon)
     vicon = ViconNexus();
 end
 
-% process each specified trial
-for tr = indsTrials
-    if tr > numTrials
-        warning('Trial index %d is out of range. Skipping...',tr);
-        continue;
-    end
-
-    [~,nameTrialNoExt] = fileparts(trialFiles(tr).name);
-    pathTrial = fullfile(trialFiles(tr).folder,nameTrialNoExt);
+for tr = indsTrials     % for each trial specified, ...
+    pathTrial = fullfile(pathSess,sprintf('Trial%02d',tr));
     fprintf('Processing trial %d: %s\n',tr,pathTrial);
 
-    % export trial to C3D using the function from previous implementation
+    % export trial to C3D using previously implemented function
     dataMotion.exportTrialToC3D(pathTrial,vicon);
 end
-
-% close the Vicon connection if it was created within this function
-% if nargin < 3 || isempty(vicon)
-%     vicon.Disconnect();
-%     fprintf('Disconnected from Vicon Nexus.\n');
-% end
 
 end
 
