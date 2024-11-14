@@ -103,7 +103,7 @@ end
 [audio_data,audio_fs] = audioread('TimeToWalk.mp3');
 AudioTimeUp = audioplayer(audio_data,audio_fs);
 
-% load adapation GUI and get handle
+% load AdapationGUI and get the GUI figure handle
 handles = guidata(AdaptationGUI);
 
 global profilename
@@ -344,6 +344,10 @@ transferData_PC1_C3(participantID,isSession1,threshTime);
 toc;
 
 %% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE THE
+% NEXT EXPERIMENTER NEEDS THE LAB SPACE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 tic;
 sess = 'Session1';
 if ~isSession1          % if current session is second walking session, ...
