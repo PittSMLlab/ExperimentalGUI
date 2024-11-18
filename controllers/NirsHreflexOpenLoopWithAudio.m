@@ -74,6 +74,10 @@ if hreflex_present
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
     durSSL = zeros(2,1);    % two left single stance durations
     durSSR = zeros(2,1);    % two right single stance durations
+    % percentSS2Stim = 0.65;  % percentage of single stance phase
+    % alpha = 0.7;            % smoothing factor (0 < alpha <= 1)
+    % estSSL = 0;             % estimated single stance duration left
+    % estSSR = 0;             % estimated single stance duration right
     stimDelayL = now; %in units of now
     stimDelayR = now;
     
@@ -515,10 +519,13 @@ end
                 % delay of left leg stimulation from RTO is mean of single
                 % stance duration divided by two (since targeting mid-point
                 % of single stance for stimulus pulse)
-                
+
                 % Weighting most recent SSL duration more
-                % heavily (e.g., 75% since likely more predictive)
+                % heavily (e.g., 67% since likely more predictive)
                 stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
+                % estimate single stance duration using exponential updating factor
+                % estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
+                % stimDelayL = estSSL * percentSS2Stim;
                 set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
@@ -550,6 +557,9 @@ end
                 % stance duration divided by two (since targeting mid-point
                 % of single stance for stimulus pulse)
                 stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
+                % estimate single stance duration using exponential updating factor
+                % estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
+                % stimDelayR = estSSR * percentSS2Stim;
                 set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
