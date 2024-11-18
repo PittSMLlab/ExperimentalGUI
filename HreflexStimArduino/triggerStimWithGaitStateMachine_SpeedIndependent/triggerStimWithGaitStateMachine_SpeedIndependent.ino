@@ -2,10 +2,10 @@
 // study to measure H-reflexes during split-belt adaptation. Updated to
 // accept Serial input from MATLAB to indicate whether to stimulate on the
 // current stride. Includes the gait event detection state machine and
-// removes speed dependence (i.e., the need to manually update the treadmill
-// speeds before each trial) by storing the single stance duration of the
+// removes speed dependence by storing the single stance duration of the
 // previous two strides.
 // date (started): 26 Mar. 2024
+// date (updated): 18 Nov. 2024
 // author(s): SL, NWB
 
 // initialize variables to track gait events and phases
@@ -30,9 +30,14 @@ float estSSR = 0.0;                  // estimated single stance duration right
 unsigned long durSSL = 0;            // two left single stance durations
 unsigned long durSSR = 0;            // two right single stance durations
 bool canStim = false;                // is stimulation allowed at this time?
-bool shouldStimL = false;            // should stimulate left leg this stride
-bool shouldStimR = false;            // should stimulate right leg this stride
-bool shouldRunSM = false;            // should run gait event state machine
+bool shouldStimL = false;            // should stimulate left leg this stride?
+bool shouldStimR = false;            // should stimulate right leg this stride?
+bool shouldRunSM = false;            // should run gait event state machine?
+bool isStimmingL = false;            // is the left stimulator currently on?
+bool isStimmingR = false;            // is the right stimulator currently on?
+unsigned long timeStimStartL = 0;    // time when left stimulation started
+unsigned long timeStimStartR = 0;    // time when right stimulation started
+
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
@@ -48,7 +53,7 @@ int numStepsR = 0; // right step counter
 // TODO: it may be necessary to increase to account for left FP noise and
 // higher baud rate in Arduino than in MATLAB (more susceptible to false gait
 // event detection))
-const int threshFz = 5;      // force thresh. bits to detect stance phase
+const int threshFz = 5;      // force threshold bits to detect stance phase
 const int durStimPulse = 20; // stimulation pulse duration [ms]
 
 // right and left stimulator pin configurations
@@ -63,6 +68,10 @@ void setup()
 {
   Serial.begin(9600);
   Serial.println("START");
+  pinMode(pinOutStimR, OUTPUT);
+  pinMode(pinOutViconR, OUTPUT);
+  pinMode(pinOutStimL, OUTPUT);
+  pinMode(pinOutViconL, OUTPUT);
 }
 
 void loop()
@@ -73,6 +82,7 @@ void loop()
     updateGaitEventStateMachine();
     triggerStimulation();
   }
+  handleStimulationTimeout();
 }
 
 void processSerialCommands()
@@ -226,33 +236,46 @@ void triggerStimulation()
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  if (phase == 2 && canStim && shouldStimR && timeSinceLTO >= timeTargetStimR)
+  if (phase == 2 && canStim && shouldStimR && timeSinceLTO >= timeTargetStimR && !isStimmingR)
   {
     Serial.println("Right Stimulation Triggered");
     digitalWrite(pinOutStimR, HIGH);
     digitalWrite(pinOutViconR, HIGH);
-    // TODO: consider removing delay here too to allow state machine to
-    // continue running for these 20 ms
-    delay(durStimPulse);
-    digitalWrite(pinOutStimR, LOW);
-    digitalWrite(pinOutViconR, LOW);
+    isStimmingR = true;
+    timeStimStartR = millis();
     canStim = false;
-    shouldStimR = false; // Reset trigger for next cycle
+    shouldStimR = false; // reset trigger for next cycle
   }
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  if (phase == 1 && canStim && shouldStimL && timeSinceRTO >= timeTargetStimL)
+  if (phase == 1 && canStim && shouldStimL && timeSinceRTO >= timeTargetStimL && !isStimmingL)
   {
     Serial.println("Left Stimulation Triggered");
     digitalWrite(pinOutStimL, HIGH);
     digitalWrite(pinOutViconL, HIGH);
-    // TODO: consider removing delay here too to allow state machine to
-    // continue running for these 20 ms
-    delay(durStimPulse);
+    isStimmingL = true;
+    timeStimStartL = millis();
+    canStim = false;
+    shouldStimL = false; // reset trigger for next cycle
+  }
+}
+
+void handleStimulationTimeout()
+{
+  if (isStimmingR && millis() - timeStimStartR >= durStimPulse)
+  {
+    digitalWrite(pinOutStimR, LOW);
+    digitalWrite(pinOutViconR, LOW);
+    isStimmingR = false;
+    Serial.println("Right Stimulation Ended");
+  }
+
+  if (isStimmingL && millis() - timeStimStartL >= durStimPulse)
+  {
     digitalWrite(pinOutStimL, LOW);
     digitalWrite(pinOutViconL, LOW);
-    canStim = false;
-    shouldStimL = false; // Reset trigger for next cycle
+    isStimmingL = false;
+    Serial.println("Left Stimulation Ended");
   }
 }
