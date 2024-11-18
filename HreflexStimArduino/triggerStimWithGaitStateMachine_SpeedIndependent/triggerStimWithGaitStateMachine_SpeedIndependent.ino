@@ -32,6 +32,7 @@ unsigned long durSSR = 0;            // two right single stance durations
 bool canStim = false;                // is stimulation allowed at this time?
 bool shouldStimL = false;            // should stimulate left leg this stride
 bool shouldStimR = false;            // should stimulate right leg this stride
+bool shouldRunSM = false;            // should run gait event state machine
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
@@ -67,8 +68,11 @@ void setup()
 void loop()
 {
   processSerialCommands();
-  updateGaitEventStateMachine();
-  triggerStimulation();
+  if (shouldRunSM)
+  {
+    updateGaitEventStateMachine();
+    triggerStimulation();
+  }
 }
 
 void processSerialCommands()
@@ -79,11 +83,17 @@ void processSerialCommands()
     String command = Serial.readStringUntil('\n');
     command.trim();
 
-    if (command == "RESET_COUNTERS")
+    if (command == "START_SM")
     {
       numStepsL = 0;
       numStepsR = 0;
-      Serial.println("Counters reset.");
+      shouldRunSM = true;
+      Serial.println("Reset step counters, and started state machine.");
+    }
+    else if (command == "STOP_SM")
+    {
+      shouldRunSM = false;
+      Serial.println("Stopped state machine.");
     }
     else if (command == "STIM_RIGHT")
     {

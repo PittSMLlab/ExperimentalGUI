@@ -56,7 +56,7 @@ if hreflex_present
     try
         % Configure and open serial port communication with Arduino
         fprintf('Opening the Arduino serial communication port.\n');
-        portArduino = serialport('COM4', 9600);
+        portArduino = serialport('COM4',9600);
         configureTerminator(portArduino,'LF');  % set serial com terminator
         fprintf('Done opening the Arduino serial communication port.\n');
     catch ME
@@ -69,8 +69,8 @@ if hreflex_present
 
     if isCalibration        % if H-reflex calibration trial, ...
         oxysoft_present = false;    % disable fNIRS in H-reflex calibration
-%         stimInterval = 5;           % stimulate every 5 strides
-%         initStep2SkipForCalib = 5;  % skip first strides for settling in
+        %         stimInterval = 5;           % stimulate every 5 strides
+        %         initStep2SkipForCalib = 5;  % skip first strides for settling in
 
         % load calibration audio for left and right stimulation events
         [audio_data,audio_fs]=audioread('L.mp3');
@@ -78,15 +78,15 @@ if hreflex_present
         [audio_data,audio_fs]=audioread('R.mp3');
         CalibAudioR = audioplayer(audio_data,audio_fs);
     end
-%     else                    % otherwise, ...
-        % set stimulation interval based on stimL and stimR inputs present
-        if exist('stimL','var') && exist('stimR','var')
-            % if 'stimL' and 'stimR' variables exist, ...
-            stimInterval = nan;     % override stimulation interval
-        else
-            stimInterval = 10;      % default: stimulate every 10 strides
-        end
-%     end
+    %     else                    % otherwise, ...
+    % set stimulation interval based on stimL and stimR inputs present
+    if exist('stimL','var') && exist('stimR','var')
+        % if 'stimL' and 'stimR' variables exist, ...
+        stimInterval = nan;     % override stimulation interval
+    else
+        stimInterval = 10;      % default: stimulate every 10 strides
+    end
+    %     end
     % initialize stimulation control variables
     canStim = false;    % default to no stimulation until conditions met
 end
@@ -365,15 +365,14 @@ try % so that if something fails, communications are closed properly
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
-    try         % send command to Arduino to reset right & left leg counts
+    try         % send command to Arduino to start state machine
         fprintf(['Sending command to reset right and left leg step ' ...
-            'counts...\n']);
-        writeline(portArduino,"RESET_COUNTERS");    % reset step counters
-        fprintf(['Right and left leg step counts reset command sent ' ...
-            'successfully.\n']);
+            'counts and start the state machine...\n']);
+        writeline(portArduino,"START_SM");    % reset step counters & start
+        fprintf('Start state machine command sent successfully.\n');
     catch ME
         % handle any potential communication errors
-        warning(ME.identifier,['Failed to send reset step count ' ...
+        warning(ME.identifier,['Failed to send start state machine ' ...
             'commands to Arduino: %s'],ME.message);
     end
 
@@ -770,6 +769,16 @@ try % so that if something fails, communications are closed properly
             nextRestIdx = nextRestIdx + 1;
         end
     end %While, when STOP button is pressed
+
+    try         % send command to Arduino to stop state machine
+        fprintf('Sending command to stop the state machine...\n');
+        writeline(portArduino,"STOP_SM");    % stop state machine
+        fprintf('Stop state machine command sent successfully.\n');
+    catch ME
+        % handle any potential communication errors
+        warning(ME.identifier,['Failed to send stop state machine ' ...
+            'commands to Arduino: %s'],ME.message);
+    end
 
     if STOP
         %Shuqi: 02/07/2024, adjusted to log time with precision
