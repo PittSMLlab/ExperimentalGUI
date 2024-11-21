@@ -55,6 +55,7 @@ threshTime = datetime(answer{1});
     
 if PCNum == 1
     button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
+    %takes 5mins per trial for gap filling
 else
     button=questdlg('Do you want to batch process export c3d away after copying the data (Select yes if you have 1 hours time on this computer)?');
 end
@@ -123,7 +124,9 @@ fprintf('...Data copying successful...')
 
 if batchProcess
     if PCNum == 1
-        % reconstruct and label and fill gaps
+        % reconstruct and label and fill gaps, this is very time consuming.
+        % Do not do this on the testing computer unless you are sure you
+        % have enough time.
         try
             tic %TODO: we may want to log the output for debugging/checking later.
             fprintf('...Reconstruct and label and gap filling...\n')
