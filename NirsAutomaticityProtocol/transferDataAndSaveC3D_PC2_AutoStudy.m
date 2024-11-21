@@ -41,18 +41,20 @@ else
     end
 end
 
-if strcmp(visitNum,'V01') %longest, about 4-4.5 hours
-    threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
-elseif strcmp(visitNum,'V02') %longest, about 4-4.5 hours
-    threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3.5); %get everything from 5 hours ago
-elseif strcmp(visitNum,'V03') %longest, about 4-4.5 hours
-    threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3); %get everything from 5 hours ago
+if PCNum == 1
+    if strcmp(visitNum,'V01') %longest, about 4-4.5 hours
+        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
+    elseif strcmp(visitNum,'V02') %longest, about 4-4.5 hours
+        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3.5); %get everything from 5 hours ago
+    elseif strcmp(visitNum,'V03') %longest, about 4-4.5 hours
+        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3); %get everything from 5 hours ago
+    end
+    answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
+            'Datalog time',[1 45;],...
+            {char(threshTime)});
+    threshTime = datetime(answer{1});
 end
-answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
-        'Datalog time',[1 45;],...
-        {char(threshTime)});
-threshTime = datetime(answer{1});
-    
+
 if PCNum == 1
     button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
     %takes 5mins per trial for gap filling
@@ -72,7 +74,6 @@ if PCNum == 2
     % define data paths based on input parameters
     dirLocalData = fullfile(['C:\Users\Public\Documents\Vicon Training\' ...
         studyName],participantID,visitNum);
-%     fprintf('\nTransfering data from %s \nto %s\nAnd to backup folder: %s\n', dirLocalData,dirSrvrData,dirSrvrRaw);
 
     % define source and destination paths in specified order
     srcs = {dirLocalData dirLocalData};
@@ -120,7 +121,7 @@ for i = 1:numel(dests)
         error('Data transfer unsuccessful; destination folder should have been created with data copoied inside, but not found: %s\n',dests{i});
     end
 end
-fprintf('...Data copying successful...')
+fprintf('...Data copying successful...\n')
 
 if batchProcess
     if PCNum == 1

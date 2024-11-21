@@ -11,12 +11,24 @@ function transferDataAndSaveC3D_PC2_C3(participantID,isSession1,indsTrials)
 %   indsTrials: (optional) indices of the trials to export to C3D; if
 %       omitted, all trials are processed
 
-% TODO: update function to open a GUI for user input if no inputs provided
-narginchk(2,3);         % verify correct number of input arguments
-
-% set default for indsTrials if not provided
-if nargin < 3
-    indsTrials = [];    % empty to indicate all trials
+if nargin == 0 %no input provided
+    answer = inputdlg({'SubjectID (e.g., C3S01)','Session (1 or 2)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))'},...
+    'Copy PC2 Data to Server',[1 45; 1 45; 1 45],...
+    {'C3S01','1','[ ]'});
+    participantID = answer{1};
+    indsTrials = eval(answer{3});
+    if strcmp(answer{2},'1')
+        isSession1 = true;
+    else
+        isSession1 = false;
+    end
+else
+    % TODO: update function to open a GUI for user input if no inputs provided
+    narginchk(2,3);         % verify correct number of input arguments
+    % set default for indsTrials if not provided
+    if nargin < 3
+        indsTrials = [];    % empty to indicate all trials
+    end
 end
 
 % determine session name based on boolean input
