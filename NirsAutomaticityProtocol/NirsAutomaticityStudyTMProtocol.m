@@ -1,7 +1,39 @@
 %% set up trial condition and dominant leg for each participant
-intervention = false; %true for visit 3, false for visit 2 and 4
-% AUC: false for visits 1 and 3, true for visit 2
-dominantRight = true; %true if right dominant, false if left dominant
+StudyID = 'AUC'; %change this manually if it's AUF or MAU
+opts.Interpreter = 'tex';
+opts.Default = '1';
+if strcmp(StudyID, 'AUF') %this is 4 visits study
+    visitNum = questdlg('What visit is this?','', ...
+        '1','2','3','4',opts);
+    if strcmp(visitNum,'3') %3rd visit is intervention
+        intervention = true;
+    else
+        intervention = false;
+    end
+else %AUC, and MAU are 3 visits studies
+    visitNum = questdlg('What visit is this?','', ...
+        '1','2','3',opts);
+    if strcmp(visitNum,'2') %2nd visit is intervention for 3-visits studies
+        intervention = true;
+    else
+        intervention = false;
+    end
+end
+opts.Interpreter = 'tex';
+opts.Default = 'Right';
+dominantRight = questdlg(['Dominant leg is: '],'', ...
+    'Left','Right',opts);
+if strcmp(dominantRight,'Right')
+    dominantRight = true;
+else
+    dominantRight = false;
+end
+%display the selections
+intervention
+dominantRight
+% intervention = true; %true for visit 3, false for visit 2 and 4
+% % AUC: false for visits 1 and 3, true for visit 2
+% dominantRight = true; %true if right dominant, false if left dominant
 
 %% Set up GUI and run exp
 %load adapation GUI and get handle
