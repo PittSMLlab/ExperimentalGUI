@@ -137,7 +137,7 @@ if batchProcess
         % export session trials to C3D using dataMotion functions
         try
             fprintf('...Exporting file to c3d...\n')
-            dataMotion.exportSessionToC3D(fullfile(fullfile,'Vicon'),indsTrials);
+            dataMotion.exportSessionToC3D(fullfile(dirSrvrData,'PC2'),indsTrials);
         catch ME
             warning(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
         end
