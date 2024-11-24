@@ -23,7 +23,7 @@ unsigned long timeLTO = 0;           // time of most recent LTO events
 unsigned long timeRTO = 0;           // time of most recent RTO events
 unsigned long timeTargetStimL = 100; // initialize RTO delay to 100 ms
 unsigned long timeTargetStimR = 100; // initialize LTO delay to 100 ms
-float percentSS2Stim = 0.65;         // percentage of single stance phase
+float percentSS2Stim = 0.50;         // percentage of single stance phase
 float alpha = 0.7;                   // smoothing factor (0 < alpha <= 1)
 float estSSL = 0.0;                  // estimated single stance duration left
 float estSSR = 0.0;                  // estimated single stance duration right
@@ -95,6 +95,12 @@ void processSerialCommands()
 
     if (command == "START_SM")
     {
+      // reset gait event state machine variables at start of trial
+      isCurrStanceL = false;
+      isCurrStanceR = false;
+      isPrevStanceL = false;
+      isPrevStanceR = false;
+      phase = 0;
       numStepsL = 0;
       numStepsR = 0;
       shouldRunSM = true;
