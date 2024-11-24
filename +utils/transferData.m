@@ -65,15 +65,12 @@ for k = 1:length(srcContents)   % for each item in source directory, ...
                 % ~areFilesIdentical(srcItem,destItem)
                 try
                     copyfile(srcItem,destItem);
-                    % Uncomment below line to enable copied file logging
-                    % fprintf('Copied file: %s\n',destItem);
                 catch ME
                     warning('Failed to copy file "%s": %s', ...
                         srcItem,ME.message);
                 end
             end
         end
-        % TODO: add optional input if user desires verbose output
     end
 end
 

@@ -43,11 +43,12 @@ for p = 1:numel(srcs)               % for each source-destination pair, ...
             utils.transferData(src,dest,threshTime);% call transfer fxn
         else
             fprintf('Transferring from %s to %s\n',src,dest);
-            utils.transferData(src,dest);   % call data transfer fxn
+            utils.transferData(src,dest);       % call data transfer fxn
         end
-        status(p) = true;           % Mark successful if no errors occurred
+        status(p) = true;           % mark successful if no errors occurred
     catch ME
-        warning('Failed to transfer from %s to %s: %s',src,dest,ME.message);
+        warning('Failed to transfer from %s to %s: %s', ...
+            src,dest,ME.message);
     end
 end
 
