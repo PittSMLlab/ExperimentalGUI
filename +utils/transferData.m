@@ -26,10 +26,10 @@ if ~(ischar(dest) || isstring(dest))
     error('Destination directory must be a string or character array.');
 end
 
-if nargin < 3
-    threshTime = [];            % set default if not provided
-elseif ~isa(threshTime,'datetime')
-    error('Threshold time must be a datetime object.');
+if nargin < 3                   % if no third 'threshTime' input, ...
+    threshTime = [];            % set to empty by default if not provided
+elseif ~isempty(threshTime) && ~isa(threshTime,'datetime')
+    error('Threshold time must be a ''datetime'' object if provided.');
 end
 
 if ~isfolder(dest)              % if destination folder does not exist, ...
