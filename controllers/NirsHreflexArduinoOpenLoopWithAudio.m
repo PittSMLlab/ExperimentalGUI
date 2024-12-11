@@ -570,52 +570,52 @@ try % so that if something fails, communications are closed properly
         end
 
         % TODO: move this code up into the state machine
-        if hreflex_present      % only do this if has the stimulator
-            if isnan(stimInterval)
-                shouldStimR = logical(stimR(RstepCount));
-                shouldStimL = logical(stimL(LstepCount));
-            else
-                shouldStimR = mod(RstepCount,stimInterval) == 4;
-                shouldStimL = mod(LstepCount,stimInterval) == 4;
-            end
-
-            if (shouldStimR && phase == 2 && canStim)
-                if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue;
-                end
-                if isCalibration    % play sound
-                    play(CalibAudioR);
-                end
-                % try         % send command to Arduino to stimulate right
-                %     writeline(portArduino,"STIM_RIGHT");
-                % catch ME
-                %     % handle any potential communication errors
-                %     warning(ME.identifier,['Failed to send right leg ' ...
-                %         'stimulation command to Arduino: %s'],ME.message);
-                % end
-                canStim = false;
-                % TODO: update to read serial port data from the Arduino
-                % datlog.stim.R(end+1,:) = RstepCount;
-            end
-
-            if (shouldStimL && phase == 1 && canStim)
-                if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue;
-                end
-                if isCalibration    % play sound
-                    play(CalibAudioL);
-                end
-                % try         % send command to Arduino to stimulate left
-                %     writeline(portArduino,"STIM_LEFT");
-                % catch ME
-                %     % handle any potential communication errors
-                %     warning(ME.identifier,['Failed to send left leg ' ...
-                %         'stimulation command to Arduino: %s'],ME.message);
-                % end
-                canStim = false;
-                % datlog.stim.L(end+1,:) = RstepCount;
-            end
-        end
+%         if hreflex_present      % only do this if has the stimulator
+%             if isnan(stimInterval)
+%                 shouldStimR = logical(stimR(RstepCount));
+%                 shouldStimL = logical(stimL(LstepCount));
+%             else
+%                 shouldStimR = mod(RstepCount,stimInterval) == 4;
+%                 shouldStimL = mod(LstepCount,stimInterval) == 4;
+%             end
+% 
+%             if (shouldStimR && phase == 2 && canStim)
+%                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+%                     continue;
+%                 end
+%                 if isCalibration    % play sound
+%                     play(CalibAudioR);
+%                 end
+%                 % try         % send command to Arduino to stimulate right
+%                 %     writeline(portArduino,"STIM_RIGHT");
+%                 % catch ME
+%                 %     % handle any potential communication errors
+%                 %     warning(ME.identifier,['Failed to send right leg ' ...
+%                 %         'stimulation command to Arduino: %s'],ME.message);
+%                 % end
+%                 canStim = false;
+%                 % TODO: update to read serial port data from the Arduino
+%                 % datlog.stim.R(end+1,:) = RstepCount;
+%             end
+% 
+%             if (shouldStimL && phase == 1 && canStim)
+%                 if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+%                     continue;
+%                 end
+%                 if isCalibration    % play sound
+%                     play(CalibAudioL);
+%                 end
+%                 % try         % send command to Arduino to stimulate left
+%                 %     writeline(portArduino,"STIM_LEFT");
+%                 % catch ME
+%                 %     % handle any potential communication errors
+%                 %     warning(ME.identifier,['Failed to send left leg ' ...
+%                 %         'stimulation command to Arduino: %s'],ME.message);
+%                 % end
+%                 canStim = false;
+%                 % datlog.stim.L(end+1,:) = RstepCount;
+%             end
+%         end
 
         %check if should log NIRS events
         if nextNirsEventIdx <= length(nirsEventSteps)
