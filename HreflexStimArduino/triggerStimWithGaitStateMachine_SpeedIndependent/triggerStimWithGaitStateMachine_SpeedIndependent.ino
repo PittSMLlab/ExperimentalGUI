@@ -31,14 +31,15 @@ float estSSL = 0.0;                    // estimated single stance duration left
 float estSSR = 0.0;                    // estimated single stance duration right
 unsigned long durSSL = 0;              // two left single stance durations
 unsigned long durSSR = 0;              // two right single stance durations
-bool canStim = false;                  // is stimulation allowed at this time?
-bool shouldStimL = false;              // should stimulate left leg this stride?
-bool shouldStimR = false;              // should stimulate right leg this stride?
-bool shouldRunSM = false;              // should run gait event state machine?
-bool isStimmingL = false;              // is the left stimulator currently on?
-bool isStimmingR = false;              // is the right stimulator currently on?
-unsigned long timeStimStartL = 0;      // time when left stimulation started
-unsigned long timeStimStartR = 0;      // time when right stimulation started
+bool canStimL = false;                 // is stimulation allowed at this time?
+bool canStimR = false;                 // is stimulation allowed at this time?
+// bool shouldStimL = false;              // should stimulate left leg this stride?
+// bool shouldStimR = false;              // should stimulate right leg this stride?
+bool shouldRunSM = false;         // should run gait event state machine?
+bool isStimmingL = false;         // is the left stimulator currently on?
+bool isStimmingR = false;         // is the right stimulator currently on?
+unsigned long timeStimStartL = 0; // time when left stimulation started
+unsigned long timeStimStartR = 0; // time when right stimulation started
 
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
@@ -69,7 +70,6 @@ const int pinOutViconL = 12;
 void setup()
 {
   Serial.begin(115200);
-  // Serial.println("START");
   pinMode(pinOutStimR, OUTPUT);
   pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
@@ -82,12 +82,12 @@ void loop()
   {
     processSerialCommands();
   }
-  if (shouldRunSM)
+  else
   {
     updateGaitEventStateMachine();
     triggerStimulation();
+    handleStimulationTimeout();
   }
-  handleStimulationTimeout();
 }
 
 void processSerialCommands()
@@ -109,19 +109,14 @@ void processSerialCommands()
       numStepsL = 0;
       numStepsR = 0;
       shouldRunSM = true;
-      // Serial.println("Reset step counters, and started state machine.");
     }
     else if (command.startsWith("STIM"))
     {
-      String data = command.substring(5);                 // Get everything after "STIM_R"
+      String data = command.substring(5);                 // Get everything after "STIM"
       for (int i = 0; i < data.length() && i < 1000; i++) // Ensure array bounds
       {
         shouldStim[i] = (data.charAt(i) == '1'); // Convert '0' or '1' to boolean
       }
-    }
-    else
-    {
-      // Serial.println("Unknown command received.");
     }
   }
 }
@@ -152,16 +147,16 @@ void updateGaitEventStateMachine()
       phase = 1;
       numStepsR++;        // increment right step count
       timeRTO = millis(); // store time of RTO event
-      // Serial.print("Right Step: ");
-      // Serial.println(numStepsR);
+      Serial.print("Right Step: ");
+      Serial.println(numStepsR);
     }
     else if (LTO) // if left toe off, enter right single stance
     {
       phase = 2;
       numStepsL++;        // increment left step count
       timeLTO = millis(); // store time of LTO event
-      // Serial.print("Left Step: ");
-      // Serial.println(numStepsL);
+      Serial.print("Left Step: ");
+      Serial.println(numStepsL);
     }
     break;
 
@@ -183,7 +178,7 @@ void updateGaitEventStateMachine()
       // estimate single stance duration using exponential updating factor
       estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
       timeTargetStimL = estSSL * percentSS2Stim;
-      canStim = true; // enable stimulation
+      canStimL = true; // enable stimulation
     }
     break;
 
@@ -205,7 +200,7 @@ void updateGaitEventStateMachine()
       // estimate single stance duration using exponential updating factor
       estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
       timeTargetStimR = estSSR * percentSS2Stim;
-      canStim = true; // enable stimulation
+      canStimR = true; // enable stimulation
     }
     break;
 
@@ -215,8 +210,8 @@ void updateGaitEventStateMachine()
       phase = 2;
       timeLTO = millis(); // update current LTO time
       numStepsL++;        // increment left step count
-      // Serial.print("Left Step: ");
-      // Serial.println(numStepsL);
+      Serial.print("Left Step: ");
+      Serial.println(numStepsL);
     }
     break;
 
@@ -226,8 +221,8 @@ void updateGaitEventStateMachine()
       phase = 1;
       timeRTO = millis(); // update current RTO time
       numStepsR++;        // increment right step count
-      // Serial.print("Right Step: ");
-      // Serial.println(numStepsR);
+      Serial.print("Right Step: ");
+      Serial.println(numStepsR);
     }
     break;
   }
@@ -240,46 +235,50 @@ void triggerStimulation()
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  if (phase == 2 && canStim && shouldStim[numStepsR] && timeSinceLTO >= timeTargetStimR && !isStimmingR)
+  if (phase == 2 && canStimR && shouldStim[numStepsR] && timeSinceLTO >= timeTargetStimR && !isStimmingR)
   {
-    // Serial.println("Right Stimulation Triggered");
+    Serial.println("Right Stimulation Triggered");
     digitalWrite(pinOutStimR, HIGH);
     digitalWrite(pinOutViconR, HIGH);
     isStimmingR = true;
     timeStimStartR = millis();
-    canStim = false;
-    shouldStimR = false; // reset trigger for next cycle
+    canStimR = false;
+    // shouldStimR = false; // reset trigger for next cycle
   }
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  if (phase == 1 && canStim && shouldStim[numStepsL] && timeSinceRTO >= timeTargetStimL && !isStimmingL)
+  if (phase == 1 && canStimL && shouldStim[numStepsL] && timeSinceRTO >= timeTargetStimL && !isStimmingL)
   {
     // Serial.println("Left Stimulation Triggered");
     digitalWrite(pinOutStimL, HIGH);
     digitalWrite(pinOutViconL, HIGH);
     isStimmingL = true;
     timeStimStartL = millis();
-    canStim = false;
-    shouldStimL = false; // reset trigger for next cycle
+    canStimL = false;
+    // shouldStimL = false; // reset trigger for next cycle
   }
 }
 
 void handleStimulationTimeout()
 {
-  if (isStimmingR && millis() - timeStimStartR >= durStimPulse)
+  unsigned long now = millis();
+
+  // right stimulation timeout
+  if (isStimmingR && (now - timeStimStartR) >= durStimPulse)
   {
     digitalWrite(pinOutStimR, LOW);
     digitalWrite(pinOutViconR, LOW);
     isStimmingR = false;
-    // Serial.println("Right Stimulation Ended");
+    Serial.println("Right Stimulation Ended");
   }
 
-  if (isStimmingL && millis() - timeStimStartL >= durStimPulse)
+  // left stimulation timeout
+  if (isStimmingL && (now - timeStimStartL) >= durStimPulse)
   {
     digitalWrite(pinOutStimL, LOW);
     digitalWrite(pinOutViconL, LOW);
     isStimmingL = false;
-    // Serial.println("Left Stimulation Ended");
+    Serial.println("Left Stimulation Ended");
   }
 }
