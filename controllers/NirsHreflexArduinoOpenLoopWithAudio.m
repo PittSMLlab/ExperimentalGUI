@@ -56,7 +56,7 @@ if hreflex_present
     try
         % Configure and open serial port communication with Arduino
         fprintf('Opening the Arduino serial communication port.\n');
-        portArduino = serialport('COM4',9600);
+        portArduino = serialport('COM4',115200);
         configureTerminator(portArduino,'LF');  % set serial com terminator
         fprintf('Done opening the Arduino serial communication port.\n');
     catch ME
@@ -80,12 +80,35 @@ if hreflex_present
     end
     %     else                    % otherwise, ...
     % set stimulation interval based on stimL and stimR inputs present
-    if exist('stimL','var') && exist('stimR','var')
-        % if 'stimL' and 'stimR' variables exist, ...
-        stimInterval = nan;     % override stimulation interval
-    else
-        stimInterval = 10;      % default: stimulate every 10 strides
+    if ~(exist('stimL','var') && exist('stimR','var'))
+        stimL = false(numel(velL),1);
+        stimR = false(numel(velR),1);
     end
+
+    % Validate input dimensions
+    assert(length(stimR) <= 1000, 'stimR must have at most 1000 elements.');
+    assert(length(stimL) <= 1000, 'stimL must have at most 1000 elements.');
+
+    % Ensure stimR and stimL are logical arrays
+    stimR = logical(stimR);
+    stimL = logical(stimL);
+    stim = false(size(stimR));
+    stim(1:numel(stimR)) = stimR;
+
+    % Create a command string
+    stimStr = char('0' + stim);    % Convert logical array to '0'/'1' string
+
+    % Create and send STIM_R command
+    command = sprintf('STIM|%s\n',stimStr);
+    try
+        fprintf('Sending should stim stride array...\n');
+        writeline(portArduino,command);
+        fprintf('stim array sent.\n');
+    catch ME
+        % handle any potential communication errors
+        warning(ME.identifier,'Failed to send stim array: %s',ME.message);
+    end
+
     %     end
     % initialize stimulation control variables
     canStim = false;    % default to no stimulation until conditions met
@@ -563,13 +586,13 @@ try % so that if something fails, communications are closed properly
                 if isCalibration    % play sound
                     play(CalibAudioR);
                 end
-                try         % send command to Arduino to stimulate right
-                    writeline(portArduino,"STIM_RIGHT");
-                catch ME
-                    % handle any potential communication errors
-                    warning(ME.identifier,['Failed to send right leg ' ...
-                        'stimulation command to Arduino: %s'],ME.message);
-                end
+                % try         % send command to Arduino to stimulate right
+                %     writeline(portArduino,"STIM_RIGHT");
+                % catch ME
+                %     % handle any potential communication errors
+                %     warning(ME.identifier,['Failed to send right leg ' ...
+                %         'stimulation command to Arduino: %s'],ME.message);
+                % end
                 canStim = false;
                 % TODO: update to read serial port data from the Arduino
                 % datlog.stim.R(end+1,:) = RstepCount;
@@ -582,13 +605,13 @@ try % so that if something fails, communications are closed properly
                 if isCalibration    % play sound
                     play(CalibAudioL);
                 end
-                try         % send command to Arduino to stimulate left
-                    writeline(portArduino,"STIM_LEFT");
-                catch ME
-                    % handle any potential communication errors
-                    warning(ME.identifier,['Failed to send left leg ' ...
-                        'stimulation command to Arduino: %s'],ME.message);
-                end
+                % try         % send command to Arduino to stimulate left
+                %     writeline(portArduino,"STIM_LEFT");
+                % catch ME
+                %     % handle any potential communication errors
+                %     warning(ME.identifier,['Failed to send left leg ' ...
+                %         'stimulation command to Arduino: %s'],ME.message);
+                % end
                 canStim = false;
                 % datlog.stim.L(end+1,:) = RstepCount;
             end
@@ -770,15 +793,15 @@ try % so that if something fails, communications are closed properly
         end
     end %While, when STOP button is pressed
 
-    try         % send command to Arduino to stop state machine
-        fprintf('Sending command to stop the state machine...\n');
-        writeline(portArduino,"STOP_SM");    % stop state machine
-        fprintf('Stop state machine command sent successfully.\n');
-    catch ME
-        % handle any potential communication errors
-        warning(ME.identifier,['Failed to send stop state machine ' ...
-            'commands to Arduino: %s'],ME.message);
-    end
+    % try         % send command to Arduino to stop state machine
+    %     fprintf('Sending command to stop the state machine...\n');
+    %     writeline(portArduino,"STOP_SM");    % stop state machine
+    %     fprintf('Stop state machine command sent successfully.\n');
+    % catch ME
+    %     % handle any potential communication errors
+    %     warning(ME.identifier,['Failed to send stop state machine ' ...
+    %         'commands to Arduino: %s'],ME.message);
+    % end
 
     if STOP
         %Shuqi: 02/07/2024, adjusted to log time with precision
