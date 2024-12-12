@@ -57,7 +57,7 @@ if hreflex_present
         % Configure and open serial port communication with Arduino
         fprintf('Opening the Arduino serial communication port.\n');
         portArduino = serialport('COM4',115200);
-        configureTerminator(portArduino,'LF');  % set serial com terminator
+        configureTerminator(portArduino,'LF');  % set serial COM terminator
         fprintf('Done opening the Arduino serial communication port.\n');
     catch ME
         warning(ME.identifier,'Failed to open Arduino serial port: %s', ...
@@ -85,21 +85,19 @@ if hreflex_present
         stimR = false(numel(velR),1);
     end
 
-    % Validate input dimensions
-    assert(length(stimR) <= 1000, 'stimR must have at most 1000 elements.');
-    assert(length(stimL) <= 1000, 'stimL must have at most 1000 elements.');
+    % validate input dimensions
+    assert(length(stimR) <= 1000,'stimR must have at most 1000 elements.');
+    assert(length(stimL) <= 1000,'stimL must have at most 1000 elements.');
 
-    % Ensure stimR and stimL are logical arrays
-    stimR = logical(stimR);
+    stimR = logical(stimR);         % convert to logical arrays
     stimL = logical(stimL);
-    stim = false(size(stimR));
-    stim(1:numel(stimR)) = stimR;
+    % NOTE: assuming 'stimR' and 'stimL' are always identical since Arduino
+    % has limited memory
+    stim = false(1000,1);           % initialize 'stim' array
+    stim(1:numel(stimR)) = stimR;   % set first elements to be 'stimR'
+    stimStr = char('0' + stim);     % convert logical to '0'/'1' char array
 
-    % Create a command string
-    stimStr = char('0' + stim);    % Convert logical array to '0'/'1' string
-
-    % Create and send STIM_R command
-    command = sprintf('STIM|%s\n',stimStr);
+    command = sprintf("STIM|%s\n",stimStr); % create 'STIM' command
     try
         fprintf('Sending should stim stride array...\n');
         writeline(portArduino,command);
@@ -111,7 +109,32 @@ if hreflex_present
 
     %     end
     % initialize stimulation control variables
-    canStim = false;    % default to no stimulation until conditions met
+    % canStim = false;    % default to no stimulation until conditions met
+end
+
+if hreflex_present
+    try         % send command to Arduino to start state machine
+        fprintf(['Sending command to reset right and left leg step ' ...
+            'counts and start the state machine...\n']);
+        writeline(portArduino,"START_SM");    % reset step counters & start
+        fprintf('Start state machine command sent successfully.\n');
+    catch ME
+        % handle any potential communication errors
+        warning(ME.identifier,['Failed to send start state machine ' ...
+            'commands to Arduino: %s'],ME.message);
+    end
+
+    datlog.messages(end+1,:) = {'Start to close Arduino Port ',now};
+    fprintf('Closing serial port communication with the Arduino...\n');
+    try
+        flush(portArduino); % flush remaining data in the buffer
+        clear(portArduino); % close and clear the serial port object
+        fprintf('Successfully closed the Arduino serial port.\n');
+    catch ME
+        % handle errors and log the exception message
+        warning(ME.identifier, ...
+            'Failed to properly close Arduino serial port: %s',ME.message);
+    end
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -388,17 +411,6 @@ try % so that if something fails, communications are closed properly
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
-    try         % send command to Arduino to start state machine
-        fprintf(['Sending command to reset right and left leg step ' ...
-            'counts and start the state machine...\n']);
-        writeline(portArduino,"START_SM");    % reset step counters & start
-        fprintf('Start state machine command sent successfully.\n');
-    catch ME
-        % handle any potential communication errors
-        warning(ME.identifier,['Failed to send start state machine ' ...
-            'commands to Arduino: %s'],ME.message);
-    end
-
     %% Main loop
 
     old_velR = libpointer('doublePtr',velR(1,1));
@@ -522,7 +534,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     drawnow;
-                    canStim = true;
+                    % canStim = true;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
@@ -541,7 +553,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     drawnow;
-                    canStim = true;
+                    % canStim = true;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
@@ -830,20 +842,6 @@ try
     delete(syncname);%added 5/10/2016 delete sync file in prep for next trial
 catch ME
     disp(ME);
-end
-
-if hreflex_present      % if hreflex, close communication with arduino.
-    datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
-    fprintf('Closing serial port communication with the Arduino...\n');
-    try
-        flush(portArduino); % flush remaining data in the buffer
-        clear(portArduino); % close and clear the serial port object
-        fprintf('Successfully close the Arduino serial port.\n');
-    catch ME
-        % handle errors and log the exception message
-        warning(ME.identifier, ...
-            'Failed to properly close Arduino serial port: %s',ME.message);
-    end
 end
 
 try %stopping the treadmill
