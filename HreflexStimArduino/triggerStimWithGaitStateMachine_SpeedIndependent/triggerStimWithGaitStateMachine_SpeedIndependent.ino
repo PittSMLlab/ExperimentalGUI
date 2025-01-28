@@ -13,6 +13,7 @@ bool isCurrStanceL = false;            // is current step left foot stance?
 bool isCurrStanceR = false;            // is current step right foot stance?
 bool isPrevStanceL = false;            // is previous step left foot stance?
 bool isPrevStanceR = false;            // is previous step right foot stance?
+int freqStim = 1;
 bool LHS = false;                      // is there a left heel strike event?
 bool RHS = false;                      // is there a right heel strike event?
 bool LTO = false;                      // is there a left toe off event?
@@ -29,8 +30,8 @@ float percentSS2Stim = 0.50;           // percentage of single stance phase
 float alpha = 0.7;                     // smoothing factor (0 < alpha <= 1)
 float estSSL = 0.0;                    // estimated single stance duration left
 float estSSR = 0.0;                    // estimated single stance duration right
-unsigned long durSSL = 0;              // two left single stance durations
-unsigned long durSSR = 0;              // two right single stance durations
+unsigned long durSSL = 0;              // left single stance duration
+unsigned long durSSR = 0;              // right single stance duration
 bool canStimL = false;                 // is stimulation allowed at this time?
 bool canStimR = false;                 // is stimulation allowed at this time?
 // bool shouldStimL = false;              // should stimulate left leg this stride?
@@ -40,13 +41,19 @@ bool isStimmingL = false;         // is the left stimulator currently on?
 bool isStimmingR = false;         // is the right stimulator currently on?
 unsigned long timeStimStartL = 0; // time when left stimulation started
 unsigned long timeStimStartR = 0; // time when right stimulation started
+unsigned long timeStanceChangeR = 0; //time when isCurrentStance changes 
+unsigned long timeStanceChangeL = 0; 
+unsigned long timeSinceStanceChangeL = 0;
+unsigned long timeSinceStanceChangeR = 0;
 
 // gait phase: 0 = initial double support, 1 = single L support, 2 = single R
 // support, 3 = double support from single L support, 4 = double support from
 // single R support
 int phase = 0;
+int phasePrev = 5;
 int numStepsL = 0; // left step counter
 int numStepsR = 0; // right step counter
+int loopNum = 0;
 
 // z-axis force threshold in DAQ bits (estimated by observing the z-axis
 // force plate voltages during walking and converting to bits based on 10-bit
@@ -56,7 +63,8 @@ int numStepsR = 0; // right step counter
 // TODO: it may be necessary to increase to account for left FP noise and
 // higher baud rate in Arduino than in MATLAB (more susceptible to false gait
 // event detection))
-const int threshFz = 114;    // force threshold bits to detect stance phase
+const int threshFzUp = 30;    // force threshold bits to detect stance phase
+const int threshFzDown = 2;
 const int durStimPulse = 20; // stimulation pulse duration [ms]
 
 // right and left stimulator pin configurations
@@ -70,6 +78,7 @@ const int pinOutViconL = 12;
 void setup()
 {
   Serial.begin(115200);
+  Serial.println("Start");
   pinMode(pinOutStimR, OUTPUT);
   pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
@@ -78,16 +87,16 @@ void setup()
 
 void loop()
 {
-  if (!shouldRunSM)
-  {
-    processSerialCommands();
-  }
-  else
-  {
+  // if (!shouldRunSM)
+  // {
+  //   processSerialCommands();
+  // }
+  // else
+  // {
     updateGaitEventStateMachine();
     triggerStimulation();
     handleStimulationTimeout();
-  }
+  // }
 }
 
 void processSerialCommands()
@@ -130,13 +139,47 @@ void updateGaitEventStateMachine()
   // read z-axis force plate sensor values to detect new stance phase
   float rightSensorVal = analogRead(pinInFzR);
   float leftSensorVal = analogRead(pinInFzL);
+
   // current step is stance if foot in contact with force plate
-  isCurrStanceL = leftSensorVal > threshFz;  // detect left stance
-  isCurrStanceR = rightSensorVal > threshFz; // detect right stance
-  LHS = isCurrStanceL && !isPrevStanceL;     // left heel strike detection
-  RHS = isCurrStanceR && !isPrevStanceR;     // right heel strike detection
-  LTO = !isCurrStanceL && isPrevStanceL;     // left toe off detection
-  RTO = !isCurrStanceR && isPrevStanceR;     // right toe off detection
+  if (isCurrStanceL)
+  {
+    isCurrStanceL = leftSensorVal > threshFzDown;
+  }
+  else
+  {
+    isCurrStanceL = leftSensorVal > threshFzUp;
+  }
+
+  if (isCurrStanceR)
+  {
+    isCurrStanceR = rightSensorVal > threshFzDown;
+  }
+  else
+  {
+    isCurrStanceR = rightSensorVal > threshFzUp;
+  }
+
+  timeSinceStanceChangeL = millis() - timeStanceChangeL;
+  timeSinceStanceChangeR = millis() - timeStanceChangeR;
+
+  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > 50 && timeSinceStanceChangeR > 50)
+  {
+    timeStanceChangeL = millis();
+    LHS = isCurrStanceL && !isPrevStanceL;     // left heel strike detection
+    LTO = !isCurrStanceL && isPrevStanceL;     // left toe off detection
+  }
+
+  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > 50 && timeSinceStanceChangeL > 50)
+  {
+    timeStanceChangeR = millis();
+    RHS = isCurrStanceR && !isPrevStanceR;     // right heel strike detection
+    RTO = !isCurrStanceR && isPrevStanceR;     // right toe off detection
+  }
+
+  // LHS = isCurrStanceL && !isPrevStanceL;     // left heel strike detection
+  // RHS = isCurrStanceR && !isPrevStanceR;     // right heel strike detection
+  // LTO = !isCurrStanceL && isPrevStanceL;     // left toe off detection
+  // RTO = !isCurrStanceR && isPrevStanceR;     // right toe off detection
 
   // gait event state machine to determine phase transitions
   switch (phase)
@@ -147,16 +190,16 @@ void updateGaitEventStateMachine()
       phase = 1;
       numStepsR++;        // increment right step count
       timeRTO = millis(); // store time of RTO event
-      Serial.print("Right Step: ");
-      Serial.println(numStepsR);
+      // Serial.print("Right Step: ");
+      // Serial.println(numStepsR);
     }
     else if (LTO) // if left toe off, enter right single stance
     {
       phase = 2;
       numStepsL++;        // increment left step count
       timeLTO = millis(); // store time of LTO event
-      Serial.print("Left Step: ");
-      Serial.println(numStepsL);
+      // Serial.print("Left Step: ");
+      // Serial.println(numStepsL);
     }
     break;
 
@@ -210,8 +253,8 @@ void updateGaitEventStateMachine()
       phase = 2;
       timeLTO = millis(); // update current LTO time
       numStepsL++;        // increment left step count
-      Serial.print("Left Step: ");
-      Serial.println(numStepsL);
+      // Serial.print("Left Step: ");
+      // Serial.println(numStepsL);
     }
     break;
 
@@ -221,11 +264,12 @@ void updateGaitEventStateMachine()
       phase = 1;
       timeRTO = millis(); // update current RTO time
       numStepsR++;        // increment right step count
-      Serial.print("Right Step: ");
-      Serial.println(numStepsR);
+      // Serial.print("Right Step: ");
+      // Serial.println(numStepsR);
     }
     break;
   }
+  loopNum++;
 }
 
 void triggerStimulation()
@@ -235,7 +279,7 @@ void triggerStimulation()
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  if (phase == 2 && canStimR && shouldStim[numStepsR] && timeSinceLTO >= timeTargetStimR && !isStimmingR)
+  if (phase == 2 && canStimR && numStepsR%freqStim == 0 && timeSinceLTO >= timeTargetStimR && !isStimmingR)
   {
     Serial.println("Right Stimulation Triggered");
     digitalWrite(pinOutStimR, HIGH);
@@ -248,9 +292,9 @@ void triggerStimulation()
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  if (phase == 1 && canStimL && shouldStim[numStepsL] && timeSinceRTO >= timeTargetStimL && !isStimmingL)
+  if (phase == 1 && canStimL && numStepsL%freqStim == 0 && timeSinceRTO >= timeTargetStimL && !isStimmingL)
   {
-    // Serial.println("Left Stimulation Triggered");
+    Serial.println("Left Stimulation Triggered");
     digitalWrite(pinOutStimL, HIGH);
     digitalWrite(pinOutViconL, HIGH);
     isStimmingL = true;
