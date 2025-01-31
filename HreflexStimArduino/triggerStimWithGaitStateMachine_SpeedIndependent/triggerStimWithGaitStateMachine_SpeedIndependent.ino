@@ -13,7 +13,7 @@ bool isCurrStanceL = false;            // is current step left foot stance?
 bool isCurrStanceR = false;            // is current step right foot stance?
 bool isPrevStanceL = false;            // is previous step left foot stance?
 bool isPrevStanceR = false;            // is previous step right foot stance?
-int freqStim = 1;
+int freqStim = 1;                      // temporary stride frequency of stimulation for development
 bool LHS = false;                      // is there a left heel strike event?
 bool RHS = false;                      // is there a right heel strike event?
 bool LTO = false;                      // is there a left toe off event?
@@ -24,25 +24,33 @@ unsigned long timeLTO = 0;             // time of most recent LTO events
 unsigned long timeRTO = 0;             // time of most recent RTO events
 const int maxStrides = 1000;           // maximum number of strides in single trial
 bool shouldStim[maxStrides] = {false}; // array of whether to stimulate for a stride
-unsigned long timeTargetStimL = 100;   // initialize RTO delay to 100 ms
-unsigned long timeTargetStimR = 100;   // initialize LTO delay to 100 ms
+unsigned long timeTargetStimL = 198;   // initialize RTO delay to 198 ms
+unsigned long timeTargetStimR = 198;   // initialize LTO delay to 198 ms
 float percentSS2Stim = 0.50;           // percentage of single stance phase
 float alpha = 0.7;                     // smoothing factor (0 < alpha <= 1)
-float estSSL = 0.0;                    // estimated single stance duration left
-float estSSR = 0.0;                    // estimated single stance duration right
-unsigned long durSSL = 0;              // left single stance duration
-unsigned long durSSR = 0;              // right single stance duration
+// NOTE: initial estimate set based on normative data from Liu et al. 2014
+// (Gait & Posture), which includes mean "normal" velocity of 1.17+/-0.14 m/s
+// (N=95, 34.9+/-11.8 years), mean gait cycle duration of 1062.02 ms, and
+// mean percentage of single stance of 37.34% (Table 4) giving 396.6 ms in
+// single stance, 426.0 ms (slow speed) or 362.9 ms (fast). These values are
+// comparable to those of Hebenstreit et al. 2015 (Human Movement Science).
+// Using a better initial estimate may improve the stimulation timing
+// precision of the first few strides within a trial.
+float estSSL = 396.6;                  // estimated single stance duration left (initially 396.6 ms)
+float estSSR = 396.6;                  // estimated single stance duration right (initially 396.6 ms)
+unsigned long durSSL = 397;            // left single stance duration
+unsigned long durSSR = 397;            // right single stance duration
 bool canStimL = false;                 // is stimulation allowed at this time?
 bool canStimR = false;                 // is stimulation allowed at this time?
 // bool shouldStimL = false;              // should stimulate left leg this stride?
 // bool shouldStimR = false;              // should stimulate right leg this stride?
-bool shouldRunSM = false;         // should run gait event state machine?
-bool isStimmingL = false;         // is the left stimulator currently on?
-bool isStimmingR = false;         // is the right stimulator currently on?
-unsigned long timeStimStartL = 0; // time when left stimulation started
-unsigned long timeStimStartR = 0; // time when right stimulation started
-unsigned long timeStanceChangeR = 0; //time when isCurrentStance changes 
-unsigned long timeStanceChangeL = 0; 
+bool shouldRunSM = false;            // should run gait event state machine?
+bool isStimmingL = false;            // is the left stimulator currently on?
+bool isStimmingR = false;            // is the right stimulator currently on?
+unsigned long timeStimStartL = 0;    // time when left stimulation started
+unsigned long timeStimStartR = 0;    // time when right stimulation started
+unsigned long timeStanceChangeR = 0; // time when isCurrentStance changes
+unsigned long timeStanceChangeL = 0;
 unsigned long timeSinceStanceChangeL = 0;
 unsigned long timeSinceStanceChangeR = 0;
 
@@ -63,7 +71,7 @@ int loopNum = 0;
 // TODO: it may be necessary to increase to account for left FP noise and
 // higher baud rate in Arduino than in MATLAB (more susceptible to false gait
 // event detection))
-const int threshFzUp = 30;    // force threshold bits to detect stance phase
+const int threshFzUp = 30; // force threshold bits to detect stance phase
 const int threshFzDown = 2;
 const int durStimPulse = 20; // stimulation pulse duration [ms]
 
@@ -78,7 +86,6 @@ const int pinOutViconL = 12;
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("Start");
   pinMode(pinOutStimR, OUTPUT);
   pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
@@ -93,9 +100,9 @@ void loop()
   // }
   // else
   // {
-    updateGaitEventStateMachine();
-    triggerStimulation();
-    handleStimulationTimeout();
+  updateGaitEventStateMachine();
+  triggerStimulation();
+  handleStimulationTimeout();
   // }
 }
 
@@ -162,24 +169,20 @@ void updateGaitEventStateMachine()
   timeSinceStanceChangeL = millis() - timeStanceChangeL;
   timeSinceStanceChangeR = millis() - timeStanceChangeR;
 
+  // TODO: create variable for 50 ms de-bouncing constant
   if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > 50 && timeSinceStanceChangeR > 50)
   {
     timeStanceChangeL = millis();
-    LHS = isCurrStanceL && !isPrevStanceL;     // left heel strike detection
-    LTO = !isCurrStanceL && isPrevStanceL;     // left toe off detection
+    LHS = isCurrStanceL && !isPrevStanceL; // left heel strike detection
+    LTO = !isCurrStanceL && isPrevStanceL; // left toe off detection
   }
 
   if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > 50 && timeSinceStanceChangeL > 50)
   {
     timeStanceChangeR = millis();
-    RHS = isCurrStanceR && !isPrevStanceR;     // right heel strike detection
-    RTO = !isCurrStanceR && isPrevStanceR;     // right toe off detection
+    RHS = isCurrStanceR && !isPrevStanceR; // right heel strike detection
+    RTO = !isCurrStanceR && isPrevStanceR; // right toe off detection
   }
-
-  // LHS = isCurrStanceL && !isPrevStanceL;     // left heel strike detection
-  // RHS = isCurrStanceR && !isPrevStanceR;     // right heel strike detection
-  // LTO = !isCurrStanceL && isPrevStanceL;     // left toe off detection
-  // RTO = !isCurrStanceR && isPrevStanceR;     // right toe off detection
 
   // gait event state machine to determine phase transitions
   switch (phase)
@@ -190,16 +193,12 @@ void updateGaitEventStateMachine()
       phase = 1;
       numStepsR++;        // increment right step count
       timeRTO = millis(); // store time of RTO event
-      // Serial.print("Right Step: ");
-      // Serial.println(numStepsR);
     }
     else if (LTO) // if left toe off, enter right single stance
     {
       phase = 2;
       numStepsL++;        // increment left step count
       timeLTO = millis(); // store time of LTO event
-      // Serial.print("Left Step: ");
-      // Serial.println(numStepsL);
     }
     break;
 
@@ -253,8 +252,6 @@ void updateGaitEventStateMachine()
       phase = 2;
       timeLTO = millis(); // update current LTO time
       numStepsL++;        // increment left step count
-      // Serial.print("Left Step: ");
-      // Serial.println(numStepsL);
     }
     break;
 
@@ -264,8 +261,6 @@ void updateGaitEventStateMachine()
       phase = 1;
       timeRTO = millis(); // update current RTO time
       numStepsR++;        // increment right step count
-      // Serial.print("Right Step: ");
-      // Serial.println(numStepsR);
     }
     break;
   }
@@ -279,9 +274,8 @@ void triggerStimulation()
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  if (phase == 2 && canStimR && numStepsR%freqStim == 0 && timeSinceLTO >= timeTargetStimR && !isStimmingR)
+  if (phase == 2 && canStimR && numStepsR % freqStim == 0 && timeSinceLTO >= timeTargetStimR && !isStimmingR)
   {
-    Serial.println("Right Stimulation Triggered");
     digitalWrite(pinOutStimR, HIGH);
     digitalWrite(pinOutViconR, HIGH);
     isStimmingR = true;
@@ -292,9 +286,8 @@ void triggerStimulation()
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  if (phase == 1 && canStimL && numStepsL%freqStim == 0 && timeSinceRTO >= timeTargetStimL && !isStimmingL)
+  if (phase == 1 && canStimL && numStepsL % freqStim == 0 && timeSinceRTO >= timeTargetStimL && !isStimmingL)
   {
-    Serial.println("Left Stimulation Triggered");
     digitalWrite(pinOutStimL, HIGH);
     digitalWrite(pinOutViconL, HIGH);
     isStimmingL = true;
@@ -314,7 +307,6 @@ void handleStimulationTimeout()
     digitalWrite(pinOutStimR, LOW);
     digitalWrite(pinOutViconR, LOW);
     isStimmingR = false;
-    Serial.println("Right Stimulation Ended");
   }
 
   // left stimulation timeout
@@ -323,6 +315,5 @@ void handleStimulationTimeout()
     digitalWrite(pinOutStimL, LOW);
     digitalWrite(pinOutViconL, LOW);
     isStimmingL = false;
-    Serial.println("Left Stimulation Ended");
   }
 }
