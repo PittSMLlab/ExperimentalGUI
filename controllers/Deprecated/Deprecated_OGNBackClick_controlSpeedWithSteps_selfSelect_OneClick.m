@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_selfSelect_OneClick(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Deprecated_OGNBackClick_controlSpeedWithSteps_selfSelect_OneClick(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt

@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGNBackTask(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc, block)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Deprecated_OGNBackTaskBackupCopy(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc, block)
 %% TODO: familarization of each condition (incremental order) maybe 30s window, avg 2.5s/letter, 12 letters.
 % each trial time will vary depends on the randomization (vary in a 9.6s
 % window), make sure first and last have no hit?, always take the middle 28
