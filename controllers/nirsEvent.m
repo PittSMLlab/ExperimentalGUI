@@ -18,8 +18,13 @@ function datlog = nirsEvent(eventAudioKey, eventIdNirs, eventDisplayString, inst
     % nirsPresent: boolean indicating if testing with the instrument
     % Oxysoft present and connected or nos
     %
-    disp(eventDisplayString)
-    clock
+    
+    %Display the current event name and time. Useful if participant is
+    %using headphones so we can tell where we are at, but commenting out to
+    %limit print statement and speed up runtime
+%     disp(eventDisplayString)
+%     clock
+    
     %         fopen(ss);fclose(ss);
     %if the event doesn't need audio instruction, will skip playing and
     %simply send the event to NIRS.
