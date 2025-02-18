@@ -12,7 +12,7 @@ close all; clc
 rng(2025)
 %also use names for conditions to improve readability of the code later on,
 %even though string comparison is probably slower than integer comparison.
-conditions = {'w','s0','s1','s2','w0','w1','w2'};
+conditions = {'walk','stand0','stand1','stand2','walk0','walk1','walk2'};
 trials = 6; totalCond = length(conditions);
 pseudoRandomCondOrder = cell(trials,totalCond);
 for i = 1:6
@@ -27,7 +27,7 @@ condOrder = pseudoRandomCondOrder
 save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-FullPseudoRandom.mat'],'condOrder')
 
 %% Option2. generate one that has first trial easy-hard, then next trial hard to easy, repeat x3
-condOrder = {'w','s0','w0','s1','w1','s2','w2'};
+condOrder = {'walk','stand0','walk0','stand1','walk1','stand2','walk2'};
 condOrder(2,:) = condOrder(end:-1:1);
 condOrder = repmat(condOrder,3,1)
 save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-orderedInTrial.mat'],'condOrder')
@@ -38,14 +38,14 @@ ns = [0:2,2:-1:0]; %easy to hard, then hard to easy
 for j = 1: 6
     n = ns(j);
     if mod(j,2) %odd number, start with w
-        order = {'w'};
+        order = {'walk'};
     else
         order = {};
     end
     if j <=3 %1st half, do standing/ST than walking/DT
-        order(end+1:end+2) = {['s' num2str(n)],['w' num2str(n)]};
+        order(end+1:end+2) = {['stand' num2str(n)],['walk' num2str(n)]};
     else
-        order(end+1:end+2) = {['w' num2str(n)],['s' num2str(n)]};
+        order(end+1:end+2) = {['walk' num2str(n)],['stand' num2str(n)]};
     end
 
     for i = 1:2 %repeat two more times
@@ -53,7 +53,7 @@ for j = 1: 6
     end
 
     if ~mod(j,2) %even number, do w in the end
-        order{end+1} = 'w';
+        order{end+1} = 'walk';
     end
     condOrder(j,:) = order;
 end
