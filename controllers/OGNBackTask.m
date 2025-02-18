@@ -38,28 +38,27 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 %Option1. run pseudorandom sequence, this order and the loading below go
 %togehter
 condOrderToRun = [4 5 3 6 1 2]; %permutations of 1:6, which pre-generated trial to run first
-
 condOrder = load('n-back-condOrder-FullPseudoRandom.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
-condOrderToRun = condOrder(condOrderToRun,:);
+condOrder = condOrder(condOrderToRun,:);
 
-%Option2. run orderedInTrial sequence (trial1 will be easy to hard, trial2
-%will be hard to easy, then repeat)
-condOrder = load('n-back-condOrder-orderedInTrial.mat'); %this loads condOrder
-condOrder = condOrder.condOrder;
-condOrderToRun = [1:6]; %always do in order for this one
+% %Option2. run orderedInTrial sequence (trial1 will be easy to hard, trial2
+% %will be hard to easy, then repeat)
+% condOrder = load('n-back-condOrder-orderedInTrial.mat'); %this loads condOrder
+% condOrder = condOrder.condOrder; %use default order
 
-%Option3. run same difficulty n-back in a given trial, order the trials so
-%that the trials will be easy to hard then back to easy. I.e., trial1 is 0-back stand and walk/DT; 
-%trial2 is 1-back, trial3 is 2-back, then trial4 is 2-back, then 1-back, and 0-back
-condOrder = load('n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'); 
-condOrder = condOrder.condOrder;
-condOrderToRun = [1:6]; %always do in order for this one
-
+% %Option3. run same difficulty n-back in a given trial, order the trials so
+% %that the trials will be easy to hard then back to easy. I.e., trial1 is 0-back stand and walk/DT; 
+% %trial2 is 1-back, trial3 is 2-back, then trial4 is 2-back, then 1-back, and 0-back
+% condOrder = load('n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'); 
+% condOrder = condOrder.condOrder; %use default order
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
-oxysoft_present = false; 
+oxysoft_present = true; 
 restDuration = 5; %default 20s rest, could change for debugging
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
+timeEpsilon = 0.015; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+instructionAudioBufferSec = 1; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
+%Need at least a few ms, other wise the first number will be played as the instruction is finishing
 
 %% Set up task sequence, recordings and main loop
 
@@ -77,11 +76,12 @@ if contains(trialType,'Standing Familarization') %standing familiarization
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif contains(trialType,'Full Familarization') %full trial familarization
     nOrders = {'w','s0','s1','s2','w0','w1','w2'};
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 else %normal trial
     %the naming convention from the previous step's choice is always 'Trial
     %1', etc. so get last digit
     nbackSeqRowIdx = str2double(trialType(end));
-    nOrders = condOrderToRun(nbackSeqRowIdx,:); %find out in this trial, what order to run the conditions
+    nOrders = condOrder(nbackSeqRowIdx,:); %find out in this trial, what order to run the conditions
     nbackSeqRowIdx = nbackSeqRowIdx + 1; %index that will be used to find n-back sequences to play, row1 is familarization, so each trial is offset by 1.
 end
 
@@ -109,10 +109,10 @@ for i = 2:7
     %indexing later.
     seq.fullSequence = seq.fullSequence(nbackSeqRowIdx,:);
     seq.fullTargetLocs = seq.fullTargetLocs(nbackSeqRowIdx,:);
-    seq.interStimIntervals = seq.interStimIntervals(nbackSeqRowIdx,:);
+    seq.interStimIntervals = seq.fullInterStimIntervals(nbackSeqRowIdx,:);
     seq.audioIdKey = audioids{i};
     seq.nirsEventCode = eventCodeCharacter{i};
-    n_back_sequences(i{1}([1 end])) = seq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
+    n_back_sequences(audioids{i}([1 end])) = seq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
 end
 
 if recordData
@@ -278,8 +278,8 @@ datlog.audioCues.start = [];
 datlog.audioCues.audio_instruction_message = {};
 datlog.audioCues.recording={};
 % datlog.response.header = {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime','RelativeTime'};
-datlog.response.header = {'Time','Index','Stimulus','ResponseTime'} ;
-datlog.response.data = [];
+datlog.response.header = {'Time', 'Condition', 'ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime'}
+datlog.response.data = {};
 
 histL=nan(1,50);
 histR=nan(1,50);
@@ -398,7 +398,6 @@ try %So that if something fails, communications are closed properly
     LHSTime(N) = now;
     commSendTime=zeros(2*N-1,6);
     commSendFrame=zeros(2*N-1,1);
-    disp('nirs range')
     y_max = 4250;%0 treadmill, max = 4.25meter ~= 13.94 ft = 6-7 tiles
     y_min = -2300;%0 treadmill, min = 2.3meter ~=7.55 ft = 3-4 tiles 
     
@@ -429,13 +428,13 @@ try %So that if something fails, communications are closed properly
         %get the value from the map of the current condition key
         %nOrders{currentIndex} are str format of task to run, e.g., 's0','w0' etc.
         currSequence = n_back_sequences(nOrders{currentIndex}).fullSequence;
-        ISIs = n_back_sequences(nOrders{currentIndex}).interStimIntervals;
+        ISIs = (n_back_sequences(nOrders{currentIndex}).interStimIntervals)./1000; %convert into seconds bc that's 
         totalNums = size(currSequence,2);
         enableMemory = false; %doesn't allow clicking when giving n-back instructions for what n to do.
         datlog = nirsEvent(n_back_sequences(nOrders{currentIndex}).audioIdKey,n_back_sequences(nOrders{currentIndex}).nirsEventCode,n_back_sequences(nOrders{currentIndex}).audioIdKey,...
             instructions, datlog, Oxysoft, oxysoft_present);
         %pause for instruction to finish before reading the numbers
-        pause(instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).TotalSamples/instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).SampleRate)
+        pause(instructionAudioBufferSec+instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).TotalSamples/instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).SampleRate)
         sequenceComplete = false; %reset variables
         numIndex = 1;
         currNumInStr = num2str(currSequence(numIndex));
@@ -443,7 +442,6 @@ try %So that if something fails, communications are closed properly
         datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
         tStart=clock; %start the clock right after saying the number
         enableMemory = true; %allow clicking now, first number started.
-        numIndex = numIndex + 1;
     end
     
     %Send first speed command & store
@@ -486,14 +484,15 @@ try %So that if something fails, communications are closed properly
             RFBClicker =0; %reset the value
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
-            %             {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime'}
+            %{'Time','Block','n','Correctness','Index','Stimulus','ResponseTime'}
             %index is offset by 1 bc this response is to the previous number played
             %simplified this, save correctness checking for later, we can
             %do that with the response data offline.
-            %Just ave {'Time','Index','Stimulus','ResponseTime'} 
+            
+            %Just ave {'Time', 'Condition', 'ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime'}
             %with index we can calculate correctness, later on basically all the index participant responseded should = targetLoc
 %             datlog.response.data(end+1,:) = [now, nbackSeqRowIdx,nOrders(currentIndex)-2,ismember(numIndex-1, fullTargetLocs(nbackSeqRowIdx+1,:)),numIndex - 1,currSequence(numIndex-1),responseT];
-            datlog.response.data(end+1,:) = [now, numIndex - 1,currSequence(numIndex-1),responseT];
+            datlog.response.data(end+1,:) = {now, nOrders{currentIndex}, currentIndex, numIndex, currSequence(numIndex),responseT};
             fprintf('Clicked.')
         end
         
@@ -637,23 +636,27 @@ try %So that if something fails, communications are closed properly
             
             tEnd = clock;
             t_diff = tEnd - tStart;
-            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
+            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %this is in seconds
             
             %time to play next number: if it's not a walk trial, and the required ISI for this number has passed.
             %If it's the response window after the last number, mark trial as complete.
-            if nOrders(currentIndex) ~=1 && (t_diff >= ISIs(numIndex)-0.001 && t_diff <= ISIs(numIndex) + 0.001) 
-                if numIndex <= totalNums
+%             if (~strcmp(nOrders{currentIndex},'w'))&& (t_diff >= ISIs(numIndex)-timeEpsilon && t_diff <= ISIs(numIndex) + timeEpsilon) 
+            if (~strcmp(nOrders{currentIndex},'w'))&& (t_diff >= ISIs(numIndex)-timeEpsilon) %once pass ISI lower threshold continue, to avoid slow loop rate to cause up to be stuck 
+                if numIndex < totalNums %last possible options is totalNum-1 bc will increment1 right away
+                    %now go to next number
+                    numIndex = numIndex + 1;
                     currNumInStr = num2str(currSequence(numIndex));
 %                     enableMemory = true; %trial started, allow clicking (perhaps not needed)
                     datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
                     tStart = clock;
-                    numIndex = numIndex + 1;
                 else %waited 1.5s after the last number, now can play stop and rest.
                     sequenceComplete = true;
                 end
             end
             
-            if ((~strcmp(nOrders{currentIndex},'w')) && sequenceComplete) || (strcmp(nOrders{currentIndex},'w') && (t_diff >= restDuration-0.001 && t_diff <= restDuration +0.001))
+            %check for passing minDuration only, don't check for upper
+            %bound
+            if ((~strcmp(nOrders{currentIndex},'w')) && sequenceComplete) || (strcmp(nOrders{currentIndex},'w') && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
                 %if walk+DT, stop after full sequence is played. 
                 %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
                 %stop from 19.999 ~ 20.001 seconds
@@ -688,11 +691,11 @@ try %So that if something fails, communications are closed properly
                         enableMemory = false; %doesn't allow clicking for walk only trials.
                         sequenceComplete = false; %reset variables
                         numIndex = 1;
-                    else
-                                %get the value from the map of the current condition key
+                    else %next block is n-back
+                        %get the value from the map of the current condition key
                         %nOrders{currentIndex} are str format of task to run, e.g., 's0','w0' etc.
                         currSequence = n_back_sequences(nOrders{currentIndex}).fullSequence;
-                        ISIs = n_back_sequences(nOrders{currentIndex}).interStimIntervals;
+                        ISIs = (n_back_sequences(nOrders{currentIndex}).interStimIntervals)./1000; %convert to in seconds
                         totalNums = size(currSequence,2);
                         enableMemory = false; %doesn't allow clicking when giving n-back instructions
                         datlog = nirsEvent(n_back_sequences(nOrders{currentIndex}).audioIdKey,n_back_sequences(nOrders{currentIndex}).nirsEventCode,n_back_sequences(nOrders{currentIndex}).audioIdKey,...
@@ -701,13 +704,12 @@ try %So that if something fails, communications are closed properly
                         %saying first number. Pause for the exact length
                         %the audio file is to avoid delaying/messing up
                         %with the total trial duration too much.
-                        pause(instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).TotalSamples/instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).SampleRate)
+                        pause(instructionAudioBufferSec + instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).TotalSamples/instructions(n_back_sequences(nOrders{currentIndex}).audioIdKey).SampleRate)
                         numIndex = 1;
                         sequenceComplete = false; %reset variables
                         currNumInStr = num2str(currSequence(numIndex));
                         datlog = nirsEvent(currNumInStr, numberCodeCharacter{currSequence(numIndex)+1}, currNumInStr,instructions, datlog, Oxysoft, oxysoft_present);
                         tStart = clock; %start the clock right after reading the next number
-                        numIndex = numIndex + 1;
                         enableMemory = true; %n-back trial starts, allow clicking.
                     end
                 end
@@ -761,7 +763,19 @@ catch ME
     disp(ME);
 end
 
+%convert keypress? %TODO/Improvement: is this needed? Shuqi added 8/16/2022, copied from marcela's code
+global addLog
+try
+    aux = cellfun(@(x) (x-datlog.framenumbers.data(1,2))*86400,addLog.keypress(:,2),'UniformOutput',false);
+    addLog.keypress(:,2)=aux;
+    addLog.keypress=addLog.keypress(cellfun(@(x) ~isempty(x),addLog.keypress(:,1)),:); %Eliminating empty entries
+    datlog.addLog=addLog;
+catch ME
+    ME
+end
+
 disp('converting time in datlog...');
+try
 %convert time data into clock format then re-save
 datlog.buildtime = datestr(datlog.buildtime);
 
@@ -799,17 +813,6 @@ for z = 1:temp-1
     datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 
-%convert keypress? %TODO/Improvement: is this needed? Shuqi added 8/16/2022, copied from marcela's code
-global addLog
-try
-    aux = cellfun(@(x) (x-datlog.framenumbers.data(1,2))*86400,addLog.keypress(:,2),'UniformOutput',false);
-    addLog.keypress(:,2)=aux;
-    addLog.keypress=addLog.keypress(cellfun(@(x) ~isempty(x),addLog.keypress(:,1)),:); %Eliminating empty entries
-    datlog.addLog=addLog;
-catch ME
-    ME
-end
-
 %convert audio times
 datlog.audioCues.start = datlog.audioCues.start';
 datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
@@ -822,15 +825,15 @@ datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom
 
 %convert response time to relative time to vicon frame 1 and add date time format.
 %  {'Time','Index','Stimulus','ResponseTime'} 
-datlog.response.header(end+1) = 'RelativeTimeToTaskStart';
+datlog.response.header{end+1} = 'RelativeTimeToTaskStart';
 %don't eliminate data incase some nan rows exist (shouldn't happen)
 % temp = isnan(datlog.response.data(:,1)); %time is nan
 % datlog.response.data = datlog.response.data(~temp,:);
 %add last column as relative time (i don't think we will use this)
 %TODO/Improvement: is it needed? we care more about response time since stimulus
 %onset
-datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time
-datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+datlog.response.data(:,end+1) = num2cell((cell2mat(datlog.response.data(:,1))- datlog.framenumbers.data(1,2))*86400); %relative time, bc it's in array format first convert to mat for numerical operations, then convert back to mat for storage
+datlog.response.inDateTime = datetime(cell2mat(datlog.response.data(:,1)), 'ConvertFrom','datenum');
 
 if recordData
     stop(recObj);
@@ -856,6 +859,14 @@ for M=[20,50]
     i2=max([1 NL-M]);
     disp(['Average params for last ' num2str(M) ' strides: '])
     disp(['R=' num2str(nanmean(datlog.stepdata.paramRHS(i1:end))) ', L=' num2str(nanmean(datlog.stepdata.paramLHS(i2:end)))])
+end
+
+catch ME
+    datlog.errormsgs{end+1} = 'Error when converting time. Most likely because there was an error earlier in the main control loop.';
+    datlog.errormsgs{end+1} = ME;
+    fprintf('\nError when converting time. Most likely because there was an error earlier in the main control loop.\nScroll up to see the error printed in black text, or load the most recent datlog to track call stack.\n')
+%     ME.getReport
+%     disp('Error ocurred during the control loop, see datlog for details...');
 end
 
 disp('saving datlog...');

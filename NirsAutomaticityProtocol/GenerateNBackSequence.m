@@ -9,11 +9,11 @@
 %set up audio players
 %Set up save path
 scriptDir = fileparts(matlab.desktop.editor.getActiveFilename);
-savePath = [scriptDir filesep 'BrainGait-n-back-stimulus' filesep];
+saveDir = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\NirsAutomaticityProtocol' filesep 'BrainGait-n-back-stimulus' filesep];
 
 %Optional, add audio to path
-audioPath = [scriptDir filesep 'AudioInstructionsMP3' filesep];
-addpath(audioPath)
+% audioPath = [scriptDir filesep 'AudioInstructionsMP3' filesep];
+% addpath(audioPath)
 audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
     'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
 instructions = containers.Map();
@@ -33,8 +33,12 @@ numTargets = 3;
 trials = 8; %5 trials, each with 2 (ST, and DT), and familiarizations (3? trials x 2)
 taskTypes = {'walk','stand'};
 totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instruction times
-ISIMin = 1450; %ms %2350-3150 won'twork, on average we need to be at 1879.4ms
-ISIMax= 2300; %max
+%ms %2350-3150 from literature won'twork. If we count time played per number, a good range is 1450-2300
+%if we ignore the time needed to finish playing a number, the average per number across all conditions is
+%2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
+ISIMin = 1880; 
+ISIMax= 2680; %max
+instructionAudioBufferSec = 1; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
 
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate
@@ -126,10 +130,12 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
             %instructions to avoid saying the 1st number before instruction
             %finishes.
             condAudioKey
-            totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate;
-            for i = sequenceToPlay
-                totalAudioTime = totalAudioTime+instructions(num2str(i)).TotalSamples/instructions(num2str(i)).SampleRate;
-            end
+            totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
+%             for i = sequenceToPlay %assume no time spent on this, allow
+%             participant to answer right away before the audio file is
+%             done
+%                 totalAudioTime = totalAudioTime+instructions(num2str(i)).TotalSamples/instructions(num2str(i)).SampleRate;
+%             end
             %TODO: the 4s offset to wait for instruciton to finish is too
             %long, maybe try to pause for the exact amount of time...
             %longest is 2.4s
@@ -142,17 +148,17 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
         fullTargetLocs  
         fullInterStimIntervals
         
-        save([savePath condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals')
+        save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals')
     end
 end
 
 %% 3. Test the generated sequences,, make sure all sequence will be 30s and make sure the n-back is designed as planned.
-clearvars -except instructions taskTypes totalCondTimeMs
+clearvars -except instructions taskTypes totalCondTimeMs saveDir instructionAudioBufferSec
 dataTimingInfo = []; %taskxn x trial x 3 info: totalAudio, minISI, maxISI
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate
         condAudioKey = [taskTypes{taskTp}, num2str(n)];
-        load([savePath condAudioKey '-backSequences.mat'])
+        load([saveDir condAudioKey '-backSequences.mat'])
         [trials,stims]=size(fullSequence);
         for t=1:trials
             targets = [];
@@ -177,10 +183,10 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
             end
 
             %now check if the timing is good.
-            totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate;
-            for i = fullSequence(t,:)
-                totalAudioTime = totalAudioTime+instructions(num2str(i)).TotalSamples/instructions(num2str(i)).SampleRate;
-            end
+            totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
+%             for i = fullSequence(t,:)
+%                 totalAudioTime = totalAudioTime+instructions(num2str(i)).TotalSamples/instructions(num2str(i)).SampleRate;
+%             end
             totalAudioTime = totalAudioTime * 1000;
             if totalAudioTime + sum(fullInterStimIntervals(t,:)) ~= totalCondTimeMs
                 error('Invalid trial time found %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime*1000 + sum(fullInterStimIntervals(t,:)))
@@ -191,9 +197,13 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
 end
 
 %% Get timing summary
+fprintf('\nMin response time across task x n')
 min(squeeze(dataTimingInfo(:,:,:,2)),[],3) %the resulting format is task x n, min response time
-max(squeeze(dataTimingInfo(:,:,:,3)),[],3)
+fprintf('\nMax response time across task x n')
+max(squeeze(dataTimingInfo(:,:,:,3)),[],3) %max response time across task x n
+fprintf('\nAverage response time across task x n')
 mean(squeeze(dataTimingInfo(:,:,:,4)),3) %average response time across task x n
+fprintf('\nAverage instruction time (with a short buffer after) across task x n')
 mean(squeeze(dataTimingInfo(:,:,:,1)),3) %average instruction time across task x n
 
 %% OLD - Brute force, try untill I satisfy req
