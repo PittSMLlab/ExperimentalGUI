@@ -190,8 +190,9 @@ mm0.plotPartialDependence('pertSize');
 % 
 
 %% Calculate the overall accuracy
+accData=trialData(trialData.pertSize~=0,:);
 
-overallAcc =  sum(trialData.correctResponses)/length(trialData.correctResponses)*100;
+overallAcc =  sum(accData.correctResponses)/length(accData.correctResponses)*100;
 
 if mm0.Coefficients.pValue(end)>=0.05 %| overallAcc < 65 
     warning('STOP EXPERIMENT! Perturbation sign is not a significant predictor');
