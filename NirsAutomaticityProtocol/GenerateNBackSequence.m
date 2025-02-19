@@ -38,7 +38,7 @@ totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instr
 %2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
 ISIMin = 1880; 
 ISIMax= 2680; %max
-instructionAudioBufferSec = 1; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
+instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
 
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate

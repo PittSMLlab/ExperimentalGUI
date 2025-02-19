@@ -19,19 +19,19 @@ function nirsRestEventString = generateNbackRestEventString(eventorder, currentI
     disp(currentIndex)
     if (currentIndex > length (eventorder)) 
         nirsRestEventString = 'LastRest';
-    elseif strcmp(eventorder{currentIndex},'w') %next is walk
+    elseif strcmp(eventorder{currentIndex},'walk') %next is walk
         nirsRestEventString = 'Rest_Before_Walk';
-    elseif strcmp(eventorder{currentIndex},'w0') %next is walk0
+    elseif strcmp(eventorder{currentIndex},'walk0') %next is walk0
         nirsRestEventString = 'Rest_Before_Walk_0';
-    elseif strcmp(eventorder{currentIndex},'w1') %next is walk1
+    elseif strcmp(eventorder{currentIndex},'walk1') %next is walk1
         nirsRestEventString = 'Rest_Before_Walk_1';
-    elseif strcmp(eventorder{currentIndex},'w2') %next is walk2
+    elseif strcmp(eventorder{currentIndex},'walk2') %next is walk2
         nirsRestEventString = 'Rest_Before_Walk_2';
-    elseif strcmp(eventorder{currentIndex},'s0') %next is stand0
+    elseif strcmp(eventorder{currentIndex},'stand0') %next is stand0
         nirsRestEventString = 'Rest_Before_Stand_0';
-    elseif strcmp(eventorder{currentIndex},'s1') %next is stand0
+    elseif strcmp(eventorder{currentIndex},'stand1') %next is stand0
         nirsRestEventString = 'Rest_Before_Stand_1';
-    elseif strcmp(eventorder{currentIndex},'s2') %next is stand0
+    elseif strcmp(eventorder{currentIndex},'stand2') %next is stand0
         nirsRestEventString = 'Rest_Before_Stand_2';
 %     elseif (eventorder{currentIndex} == 9) 
 %         nirsRestEventString = 'Rest_Before_Walk_And_Alphabet_3B';

@@ -58,8 +58,8 @@ condOrder = condOrder(condOrderToRun,:);
 oxysoft_present = true; 
 restDuration = 5; %default 20s rest, could change for debugging
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
-timeEpsilon = 0.015; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
-instructionAudioBufferSec = 1; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
+timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
 %Need at least a few ms, other wise the first number will be played as the instruction is finishing
 
 %% Set up task sequence, recordings and main loop
@@ -293,6 +293,15 @@ datlog.audioCues.recording={};
 datlog.response.dataheader = {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime'};
 datlog.response.data = [];
 datlog.response.conditionName = {};
+%log the current sequence's correct locations (this is being extra
+%cautious in case we couldn't figure out what order the conditions
+%were done later no, but those orders are pregenerated so we should
+%know)
+datlog.stimulus.conditionName = {};
+datlog.stimulus.conditionIndex = [];
+datlog.stimulus.targetLocs = [];
+datlog.stimulus.sequence = [];
+datlog.stimulus.isi = [];
 
 %Consider delete
 % histL=nan(1,50);
@@ -344,7 +353,7 @@ end
 
 %Check that velL and velR are of equal length
 %Consider delete
-% N=length(velL)+1;
+N=length(velL)+1;
 if length(velL)~=length(velR)
     disp('WARNING, velocity vectors of different length!');
     datlog.messages{end+1} = 'Velocity vectors of different length selected';
@@ -353,6 +362,14 @@ end
 %speeds should never get used in reality:
 velL(end+1)=0;
 velR(end+1)=0;
+
+%Initiate variables, this is needed to return them out to the caller fcn
+RTOTime(N) = now;
+LTOTime(N) = now;
+RHSTime(N) = now;
+LHSTime(N) = now;
+commSendTime=zeros(2*N-1,6);
+commSendFrame=zeros(2*N-1,1);
 
 %Initialize nexus & treadmill communications
 try
@@ -411,14 +428,6 @@ try %So that if something fails, communications are closed properly
     datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
     
     %Consider delete -- not used
-%     %Initiate variables
-%     RTOTime(N) = now;
-%     LTOTime(N) = now;
-%     RHSTime(N) = now;
-%     LHSTime(N) = now;
-%     commSendTime=zeros(2*N-1,6);
-%     commSendFrame=zeros(2*N-1,1);
-
     %     y_max = 4250;%0 treadmill, max = 4.25meter ~= 13.94 ft = 6-7 tiles
 %     y_min = -2300;%0 treadmill, min = 2.3meter ~=7.55 ft = 3-4 tiles 
 %     
@@ -441,7 +450,7 @@ try %So that if something fails, communications are closed properly
     datlog = nirsEvent('rest', 'R', nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
     pause(restDuration);
     
-    if strcmp(nOrders{currentIndex},'w') %first task is walk
+    if strcmp(nOrders{currentIndex},'walk') %first task is walk
         datlog = nirsEvent('walk','W','walk', instructions, datlog, Oxysoft, oxysoft_present); %walk always use event code W
         tStart=clock; %start the clock right after saying walk
         enableMemory = false;
@@ -451,6 +460,17 @@ try %So that if something fails, communications are closed properly
         currSequence = n_back_sequences(nOrders{currentIndex}).fullSequence;
         ISIs = (n_back_sequences(nOrders{currentIndex}).interStimIntervals)./1000; %convert into seconds bc that's 
         totalNums = size(currSequence,2);
+        
+        %log the current sequence's correct locations (this is being extra
+        %cautious in case we couldn't figure out what order the conditions
+        %were done later no, but those orders are pregenerated so we should
+        %know)
+        datlog.stimulus.conditionName{end+1} = nOrders{currentIndex};
+        datlog.stimulus.conditionIndex(end+1) = currentIndex;
+        datlog.stimulus.targetLocs(end+1,:) = n_back_sequences(nOrders{currentIndex}).fullTargetLocs;
+        datlog.stimulus.sequence(end+1,:) = currSequence;
+        datlog.stimulus.isi(end+1,:) = ISIs;
+        
         enableMemory = false; %doesn't allow clicking when giving n-back instructions for what n to do.
         datlog = nirsEvent(n_back_sequences(nOrders{currentIndex}).audioIdKey,n_back_sequences(nOrders{currentIndex}).nirsEventCode,n_back_sequences(nOrders{currentIndex}).audioIdKey,...
             instructions, datlog, Oxysoft, oxysoft_present);
@@ -668,7 +688,7 @@ try %So that if something fails, communications are closed properly
             %time to play next number: if it's not a walk trial, and the required ISI for this number has passed.
             %If it's the response window after the last number, mark trial as complete.
 %             if (~strcmp(nOrders{currentIndex},'w'))&& (t_diff >= ISIs(numIndex)-timeEpsilon && t_diff <= ISIs(numIndex) + timeEpsilon) 
-            if (~strcmp(nOrders{currentIndex},'w'))&& (t_diff >= ISIs(numIndex)-timeEpsilon) %once pass ISI lower threshold continue, to avoid slow loop rate to cause up to be stuck 
+            if (~strcmp(nOrders{currentIndex},'walk'))&& (t_diff >= ISIs(numIndex)-timeEpsilon) %once pass ISI lower threshold continue, to avoid slow loop rate to cause up to be stuck 
                 if numIndex < totalNums %last possible options is totalNum-1 bc will increment1 right away
                     %now go to next number
                     numIndex = numIndex + 1;
@@ -683,11 +703,11 @@ try %So that if something fails, communications are closed properly
             
             %check for passing minDuration only, don't check for upper
             %bound
-            if ((~strcmp(nOrders{currentIndex},'w')) && sequenceComplete) || (strcmp(nOrders{currentIndex},'w') && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
+            if ((~strcmp(nOrders{currentIndex},'walk')) && sequenceComplete) || (strcmp(nOrders{currentIndex},'walk') && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
                 %if walk+DT, stop after full sequence is played. 
                 %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
                 %stop from 19.999 ~ 20.001 seconds
-                fprintf('time diff: %f',t_diff)
+                fprintf('time diff: %f\n',t_diff)
                 
                 %finished 1 task, increment the task index
                 currentIndex = currentIndex + 1; %started one of the walking task, increment currentIndex.
@@ -712,7 +732,7 @@ try %So that if something fails, communications are closed properly
                 end
                 
                 if STOP ~=1 %experiment not over yet, load the next condition
-                    if strcmp(nOrders{currentIndex},'w') %next block is walk only
+                    if strcmp(nOrders{currentIndex},'walk') %next block is walk only
                         datlog = nirsEvent('walk','W','walk', instructions, datlog, Oxysoft, oxysoft_present); %walk always use event code W
                         tStart=clock; %start the clock right after saying Walk
                         enableMemory = false; %doesn't allow clicking for walk only trials.
@@ -724,6 +744,17 @@ try %So that if something fails, communications are closed properly
                         currSequence = n_back_sequences(nOrders{currentIndex}).fullSequence;
                         ISIs = (n_back_sequences(nOrders{currentIndex}).interStimIntervals)./1000; %convert to in seconds
                         totalNums = size(currSequence,2);
+                        
+                        %log the current sequence's correct locations (this is being extra
+                        %cautious in case we couldn't figure out what order the conditions
+                        %were done later no. Those orders are pregenerated so we should
+                        %know, but in case of experimenter error we didn't run in order as planned etc., and make the datlog self-contained)
+                        datlog.stimulus.conditionName{end+1} = nOrders{currentIndex};
+                        datlog.stimulus.conditionIndex(end+1) = currentIndex;
+                        datlog.stimulus.targetLocs(end+1,:) = n_back_sequences(nOrders{currentIndex}).fullTargetLocs;
+                        datlog.stimulus.sequence(end+1,:) = currSequence;
+                        datlog.stimulus.isi(end+1,:) = ISIs;
+                        
                         enableMemory = false; %doesn't allow clicking when giving n-back instructions
                         datlog = nirsEvent(n_back_sequences(nOrders{currentIndex}).audioIdKey,n_back_sequences(nOrders{currentIndex}).nirsEventCode,n_back_sequences(nOrders{currentIndex}).audioIdKey,...
                             instructions, datlog, Oxysoft, oxysoft_present);
