@@ -40,7 +40,7 @@ ISIMin = 1880;
 ISIMax= 2680; %max
 instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
 
-for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
+for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
     for n = 0:2 %parameter of the N to generate
         condAudioKey = [taskTypes{taskTp}, num2str(n)];
         fullSequence = nan(trials, numStimulus);
@@ -189,7 +189,7 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
 %             end
             totalAudioTime = totalAudioTime * 1000;
             if totalAudioTime + sum(fullInterStimIntervals(t,:)) ~= totalCondTimeMs
-                error('Invalid trial time found %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime*1000 + sum(fullInterStimIntervals(t,:)))
+                error('Invalid trial time found %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime + sum(fullInterStimIntervals(t,:)))
             end
             dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
         end
