@@ -47,7 +47,6 @@ classdef NBackHelper
             end
         end
 
-
         % Helper funciton to set up inter stimulus intervals (ISI) such that they are between [ISIMin, and ISIMax], but also add up to the total left remaining
         function responseTime = generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax)
             %Generate inter stimulus intervals, aka time for paticipant to respond, randomized such that the interval
@@ -55,10 +54,13 @@ classdef NBackHelper
             %pseudorandom procedure, using a heureustic that we first allocate min
             %time for all intervals, then randomly add time between [0, max-min],
             %the last location by default takes totalRemainin - totalUsed. If that
-            %makes the last location <min, then take a random previous location
-            %that is bigger than (max-min)/2 to give some time to last location; if
-            %that's still not enough take another one. Vice versa for if last
-            %location > max.
+            %makes the last location <min, then start from location1 and
+            %give the minimum required for the last location to > min while keep location1 > min
+            %if that's not possible, then make location1 = 0, give it all to last location and continue with location 2
+            %Vice versa for if last location > max.
+            %Notice that this will likely make the first few and last
+            %location very close to minISI and the middle ones will be
+            %bigger. Which is true confirmed by plotting the ISI generated.
             % 
             % [OUTPUTARGS]
             %   - ISIs: array of integer representing inter stimulus interval in
