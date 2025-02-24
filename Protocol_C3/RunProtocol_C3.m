@@ -339,6 +339,8 @@ while currTrial < maxTrials % while more trials left to collect, ...
 end
 
 %% Transfer the Data After the Experiment Has Finished
+% pause for one minute to allow Vicon Nexus to stop and save last trial
+pause(60);
 tic;
 transferData_PC1_C3(participantID,isSession1,threshTime);
 toc;
@@ -347,6 +349,7 @@ toc;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE THE
 % NEXT EXPERIMENTER NEEDS THE LAB SPACE
+% Duration: ~46 minutes for 17 trials (entire session)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 tic;
 sess = 'Session1';
@@ -354,7 +357,6 @@ if ~isSession1          % if current session is second walking session, ...
     sess = 'Session2';
 end
 dirSrvrData = fullfile('W:\Nathan\C3\Data',participantID,sess,'PC1');
-dataMotion.processAndFillSmallMarkerGapsSession(dirSrvrData);
-% dataMotion.reconstructAndLabelSession(dirSrvrData);
+dataMotion.processAndFillMarkerGapsSession(dirSrvrData);
 toc;
 
