@@ -504,9 +504,13 @@ switch(selection)
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         playClickerSound = false;
-        trialOptions = {'Standing Familarization (can only run this up to 3 times)','Full Familarization (run through all conditions once)','Trial 1',...
-            'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
-        [currTrial,~] = listdlg('PromptString','What trial is this:','ListString',trialOptions,'SelectionMode','single','ListSize',[400,150]);
+%         trialOptions = {'Standing Familarization (can only run this up to 3 times)','Full Familarization (run through all conditions once)','Trial 1',...
+%             'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
+        trialOptions = {'Standing Familarization 0 (up to 3 times)','Standing Familarization 1 (up to 3 times)',...
+            'Standing Familarization 2 (up to 3 times)','Full Familarization 0 (only 1 repeat)',...
+            'Full Familarization 1 (only 1 repeat)','Full Familarization 2 (only 1 repeat)',...
+            'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
+        [currTrial,~] = listdlg('PromptString','What trial is this:','ListString',trialOptions,'SelectionMode','single','ListSize',[400,300]);
         if isempty(currTrial)
             error('Invalid selection. Try again.')
         else

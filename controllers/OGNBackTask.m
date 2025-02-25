@@ -56,7 +56,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
-condOrderToRun = [2,5,1,4,3,6]; %permutations of 1:6, which pre-generated trial to run first
+condOrderToRun = [5 3 1 2 4 6]; %always do hard - easy, then easy - hard (2-1-0-0-1-2)
 condOrder = load('n-back-condOrder-sameInTrialEachRep2.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
 condOrder = condOrder(condOrderToRun,:);
@@ -73,8 +73,20 @@ instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st
 
 %The trialtype is from a list dialog selection in AdaptationGUI, Assume always in order {'Standing Familarization (can only run this up to 3 times)','Full Familarization (run through all conditions once)','Trial 1',...
 %             'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'}
-if contains(trialType,'Standing Familarization') %standing familiarization
-    nOrders = {'stand0','stand1','stand2'};
+% if contains(trialType,'Standing Familarization') %standing familiarization
+%     nOrders = {'stand0','stand1','stand2'};
+%     % Pop up window to confirm parameter setup, do this only once at the
+%     % very first familarization trial.
+%     button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30');  
+%     if ~strcmp(button,'Yes')
+%        return; %Abort starting the trial
+%     end
+%     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+% elseif contains(trialType,'Full Familarization') %full trial familarization
+%     nOrders = {'walk','stand0','stand1','stand2','walk0','walk1','walk2'};
+%     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+if startsWith(trialType,'Standing Familarization 0') 
+    nOrders = {'stand0'}
     % Pop up window to confirm parameter setup, do this only once at the
     % very first familarization trial.
     button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30');  
@@ -82,14 +94,27 @@ if contains(trialType,'Standing Familarization') %standing familiarization
        return; %Abort starting the trial
     end
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif contains(trialType,'Full Familarization') %full trial familarization
-    nOrders = {'walk','stand0','stand1','stand2','walk0','walk1','walk2'};
+elseif startsWith(trialType,'Standing Familarization 1') %full trial familarization
+    nOrders = {'stand1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Standing Familarization 2') %full trial familarization
+    nOrders = {'stand2'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Full Familarization 0') 
+    nOrders = {'stand0','walk0'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Full Familarization 1') %full trial familarization
+    nOrders = {'stand1','walk1'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Full Familarization 2') %full trial familarization
+    nOrders = {'stand2','walk2'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+
 else %normal trial
     %the naming convention from the previous step's choice is always 'Trial
     %1', etc. so get last digit
     nbackSeqRowIdx = str2double(trialType(end));
-    nOrders = condOrder(nbackSeqRowIdx,:); %find out in this trial, what order to run the conditions
+    nOrders = condOrder(nbackSeqRowIdx,:) %find out in this trial, what order to run the conditions
     nbackSeqRowIdx = nbackSeqRowIdx + 1; %index that will be used to find n-back sequences to play, row1 is familarization, so each trial is offset by 1.
 end
 %TODO/Improvement: using nOrders as strings are probably more readable but
@@ -718,12 +743,16 @@ try %So that if something fails, communications are closed properly
                 %finished 1 task, increment the task index
                 currentIndex = currentIndex + 1; %started one of the walking task, increment currentIndex.
                 
-                %log the rest before the next condition (e.g., if next is
-                %walk, will log Rest_before_walk)
-                nirsRestEventString = generateNbackRestEventString(nOrders, currentIndex);
-                datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
-                enableMemory = false; %doesn't allow click during stop and rest
-                pause(restDuration);
+                %if it's familarization and it's the last rest, don't say
+                %anything
+                if ~contains(trialType,'Familarization') || currentIndex <= length (nOrders)
+                    %log the rest before the next condition (e.g., if next is
+                    %walk, will log Rest_before_walk)
+                    nirsRestEventString = generateNbackRestEventString(nOrders, currentIndex);
+                    datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
+                    enableMemory = false; %doesn't allow click during stop and rest
+                    pause(restDuration);
+                end
 
                 if currentIndex > length (nOrders) %next trial is the end of the block
 %                     currentIndex = 1; %reset the current index
@@ -732,6 +761,7 @@ try %So that if something fails, communications are closed properly
                         STOP = 1;
                         datlog = nirsEvent('relax','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
                         enableMemory = false; %not allow click after trial end.
+                        pause(1.5) %give it 1 sec to say the relax
 %                     else  %Restart a trial, currently should never be here
 %                         warning('Check your code. Should not be in this code block.');
 %                     end
