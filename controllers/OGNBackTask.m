@@ -146,7 +146,7 @@ end
 % Load pre-generated task order, load the n-back sequences to use later, save them in key-value maps.
 n_back_sequences = containers.Map();
 for i = 2:7 %walk0-2, stand0-2
-    seq = load([audioids{i} '-backSequences.mat']);
+    fullSeq = load([audioids{i} '-backSequences.mat']);
     %optimize storage to save only the relevant rows and save effort for
     %indexing later.
     if condOption >= 3 %special case there is repeated conditions 
@@ -154,26 +154,26 @@ for i = 2:7 %walk0-2, stand0-2
         % and load the corresponding rows of sequences. (still require
         % histories of knowing when to start the index)
         if str2double(trialType(end)) <= 3 %first 3 repts
-            startingIdx = 0;
+            startingIdx = 1; %use row 2-4 since row1 is familiarization
         else
-            startingIdx = 3;
+            startingIdx = 4; %use row 5-7
         end
-        for j = 1:3 %max 3 reps, load 3 sequnces.
-            seq.fullSequence = seq.fullSequence(startingIdx+j,:);
-            seq.fullTargetLocs = seq.fullTargetLocs(startingIdx+j,:);
-            seq.interStimIntervals = seq.fullInterStimIntervals(startingIdx+j,:);
+        for j = 1:3 %max 3 reps, load 3 sequnces. Here avoid using same variables bc indexing will be done multiple times
+            seq.fullSequence = fullSeq.fullSequence(startingIdx+j,:);
+            seq.fullTargetLocs = fullSeq.fullTargetLocs(startingIdx+j,:);
+            seq.interStimIntervals = fullSeq.fullInterStimIntervals(startingIdx+j,:);
             seq.audioIdKey = audioids{i};
             seq.nirsEventCode = eventCodeCharacter{i};
             n_back_sequences([audioids{i} '-rep' num2str(j)]) = seq; 
             %save with the key matching the cond name convention ({'stand0-rep1','stand0-rep2',..'walk0-rep1',...,'walk-rep3'})
         end
-    else
-        seq.fullSequence = seq.fullSequence(nbackSeqRowIdx,:);
-        seq.fullTargetLocs = seq.fullTargetLocs(nbackSeqRowIdx,:);
-        seq.interStimIntervals = seq.fullInterStimIntervals(nbackSeqRowIdx,:);
-        seq.audioIdKey = audioids{i};
-        seq.nirsEventCode = eventCodeCharacter{i};
-        n_back_sequences(audioids{i}) = seq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
+    else %here can use same variable bc indexing only once
+        fullSeq.fullSequence = fullSeq.fullSequence(nbackSeqRowIdx,:);
+        fullSeq.fullTargetLocs = fullSeq.fullTargetLocs(nbackSeqRowIdx,:);
+        fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals(nbackSeqRowIdx,:);
+        fullSeq.audioIdKey = audioids{i};
+        fullSeq.nirsEventCode = eventCodeCharacter{i};
+        n_back_sequences(audioids{i}) = fullSeq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
     end
 end
 
@@ -760,7 +760,7 @@ try %So that if something fails, communications are closed properly
             
             %check for passing minDuration only, don't check for upper
             %bound
-            if ((~strcmp(nOrders{currentIndex},'walk')) && sequenceComplete) || (strcmp(nOrders{currentIndex},'walk') && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
+            if ((~strcmp(nOrders{currentIndex},'walk')) && sequenceComplete) || ((strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
                 %if walk+DT, stop after full sequence is played. 
                 %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
                 %stop from 19.999 ~ 20.001 seconds
