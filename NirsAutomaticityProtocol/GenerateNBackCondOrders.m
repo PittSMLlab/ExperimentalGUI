@@ -8,7 +8,8 @@
 
 %% Option1. Generate order for the one with pseudorandom order where within each trial all conditions will be done once (w, s0, ..., w2) in a random orer
 close all; clc 
-%set seeds for repeatability
+%set seeds for repeatability for Option1. Option2-3 have no random
+%component
 rng(2025)
 %also use names for conditions to improve readability of the code later on,
 %even though string comparison is probably slower than integer comparison.
@@ -60,3 +61,27 @@ end
 condOrder
 
 save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'],'condOrder')
+
+%% Option4. After discussion with Co-Is. Generate same within trial, but 3 reps of walk, walkn, standn each. Then 2 trials of each n.
+rng(2024); %set seeds for repeatability
+conds = {'walk','stand'};
+condOrder = {};
+for n = 0:2
+    conds = {'walk',['walk' num2str(n)],['stand' num2str(n)]};
+    conds = repmat(conds,1,3);
+    for rep = 1:2 %each n repeat twice to get 6 rep per task total
+        condOrder(end+1,:) = conds(randperm(9)); %randomize the orders
+    end
+end
+save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameInTrialEachRep2.mat'],'condOrder')
+
+%Now generate the randomization orders per participant to do n-backs.
+sampleSize= 200;
+participantTrialOrder = nan(sampleSize, 6);
+for i = 1:sampleSize
+    participantTrialOrder(i,:) = randperm(6);
+end
+save(['BrainGait-n-back-stimulus' filesep 'n-back-subjectOrder-sameInTrialEachRep2.mat'],'condOrder')
+
+
+
