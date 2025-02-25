@@ -56,7 +56,24 @@ for j = 1: 6
     if ~mod(j,2) %even number, do w in the end
         order{end+1} = 'walk';
     end
+    
     condOrder(j,:) = order;
+    
+    %after permutation, also add in suffix of -rep1, rep2 to separate
+    %them
+    walkRep = 1; walkNRep = 1; standNRep = 1;
+    for i = 1:size(condOrder,2)
+        if strcmp(condOrder{j,i},'walk')
+            condOrder{j,i} = [condOrder{j,i} '-rep' num2str(walkRep)];
+            walkRep = walkRep + 1;
+        elseif strcmp(condOrder{j,i},['walk' num2str(n)])
+            condOrder{j,i} = [condOrder{j,i} '-rep' num2str(walkNRep)];
+            walkNRep = walkNRep + 1;
+        elseif strcmp(condOrder{j,i},['stand' num2str(n)])
+            condOrder{j,i} = [condOrder{j,i} '-rep' num2str(standNRep)];
+            standNRep = standNRep + 1;
+        end
+    end
 end
 condOrder
 
@@ -71,11 +88,27 @@ for n = 0:2
     conds = repmat(conds,1,3);
     for rep = 1:2 %each n repeat twice to get 6 rep per task total
         condOrder(end+1,:) = conds(randperm(9)); %randomize the orders
+        %after permutation, also add in suffix of -rep1, rep2 to separate
+        %them
+        walkRep = 1; walkNRep = 1; standNRep = 1;
+        for i = 1:9
+            if strcmp(condOrder{end,i},'walk')
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(walkRep)];
+                walkRep = walkRep + 1;
+            elseif strcmp(condOrder{end,i},['walk' num2str(n)])
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(walkNRep)];
+                walkNRep = walkNRep + 1;
+            elseif strcmp(condOrder{end,i},['stand' num2str(n)])
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(standNRep)];
+                standNRep = standNRep + 1;
+            end
+        end
+           
     end
 end
 save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameInTrialEachRep2.mat'],'condOrder')
 
-%Now generate the randomization orders per participant to do n-backs.
+%% Option4.2. Now generate the randomization orders per participant to do n-backs.
 sampleSize= 200;
 participantTrialOrder = nan(sampleSize, 6);
 for i = 1:sampleSize
