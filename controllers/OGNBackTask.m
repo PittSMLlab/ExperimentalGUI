@@ -38,13 +38,13 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 %% CHANGE this for every person. Parameter for randonization order 
 %Option1. run pseudorandom sequence, this order and the loading below go
 %togehter
-condOrderToRun = [4 5 3 6 1 2]; %permutations of 1:6, which pre-generated trial to run first
-condOrder = load('n-back-condOrder-FullPseudoRandom.mat'); %this loads condOrder
-condOrder = condOrder.condOrder;
-condOrder = condOrder(condOrderToRun,:);
+% condOrderToRun = [1:6]; %permutations of 1:6, which pre-generated trial to run first
+% condOrder = load('n-back-condOrder-FullPseudoRandom.mat'); %this loads condOrder
+% condOrder = condOrder.condOrder;
+% condOrder = condOrder(condOrderToRun,:);
 
-% %Option2. run orderedInTrial sequence (trial1 will be easy to hard, trial2
-% %will be hard to easy, then repeat)
+% % %Option2. run orderedInTrial sequence (trial1 will be easy to hard, trial2
+% % %will be hard to easy, then repeat)
 % condOrder = load('n-back-condOrder-orderedInTrial.mat'); %this loads condOrder
 % condOrder = condOrder.condOrder; %use default order
 
@@ -54,8 +54,15 @@ condOrder = condOrder(condOrderToRun,:);
 % condOrder = load('n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'); 
 % condOrder = condOrder.condOrder; %use default order
 
+% Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
+% is repeated twice for total 6 reps per condition (walk will have way more).
+condOrderToRun = [2,5,1,4,3,6]; %permutations of 1:6, which pre-generated trial to run first
+condOrder = load('n-back-condOrder-sameInTrialEachRep2.mat'); %this loads condOrder
+condOrder = condOrder.condOrder;
+condOrder = condOrder(condOrderToRun,:);
+
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
-oxysoft_present = true; 
+oxysoft_present = false; 
 restDuration = 5; %default 20s rest, could change for debugging
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
 timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
@@ -68,7 +75,6 @@ instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st
 %             'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'}
 if contains(trialType,'Standing Familarization') %standing familiarization
     nOrders = {'stand0','stand1','stand2'};
-%     restDuration = 20;
     % Pop up window to confirm parameter setup, do this only once at the
     % very first familarization trial.
     button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30');  
@@ -538,7 +544,7 @@ try %So that if something fails, communications are closed properly
             %Separating the string entry and the other numerical entry may be helpful for performance: https://stackoverflow.com/questions/16243523/matlab-data-structure-for-mixed-type-whats-time-space-efficient
             %keep numerical elements together for easier numerical manipulation and perhaps performance
             
-            fprintf('Clicked.')
+            fprintf('Clicked on stimulus: %d.\n', currSequence(numIndex))
         end
         
         if framenum.Value~= datlog.framenumbers.data(frameind.Value,1) %Frame num value changed, reading data
@@ -892,8 +898,12 @@ datlog.response.dataheader{end+1} = 'RelativeTimeToTaskStart';
 %add last column as relative time (i don't think we will use this)
 %TODO/Improvement: is it needed? we care more about response time since stimulus
 %onset
-datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time, bc it's in array format first convert to mat for numerical operations, then convert back to mat for storage
-datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+if isempty(datlog.response.data)
+    warning('Participant did not press any button in this trial.')
+else
+    datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time, bc it's in array format first convert to mat for numerical operations, then convert back to mat for storage
+    datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+end
 
 if recordData
     stop(recObj);
@@ -926,7 +936,7 @@ catch ME
     datlog.errormsgs{end+1} = 'Error when converting time. Most likely because there was an error earlier in the main control loop.';
     datlog.errormsgs{end+1} = ME;
     fprintf('\nError when converting time. Most likely because there was an error earlier in the main control loop.\nScroll up to see the error printed in black text, or load the most recent datlog to track call stack.\n')
-%     ME.getReport
+    ME.getReport
 %     disp('Error ocurred during the control loop, see datlog for details...');
 end
 
