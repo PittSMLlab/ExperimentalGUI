@@ -38,6 +38,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 %% CHANGE this for every person. Parameter for randonization order 
 %Option1. run pseudorandom sequence, this order and the loading below go
 %togehter
+% condOption = 1;
 % condOrderToRun = [1:6]; %permutations of 1:6, which pre-generated trial to run first
 % condOrder = load('n-back-condOrder-FullPseudoRandom.mat'); %this loads condOrder
 % condOrder = condOrder.condOrder;
@@ -45,17 +46,20 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 
 % % %Option2. run orderedInTrial sequence (trial1 will be easy to hard, trial2
 % % %will be hard to easy, then repeat)
+% condOption = 2;
 % condOrder = load('n-back-condOrder-orderedInTrial.mat'); %this loads condOrder
 % condOrder = condOrder.condOrder; %use default order
 
 % %Option3. run same difficulty n-back in a given trial, order the trials so
 % %that the trials will be easy to hard then back to easy. I.e., trial1 is 0-back stand and walk/DT; 
 % %trial2 is 1-back, trial3 is 2-back, then trial4 is 2-back, then 1-back, and 0-back
+% condOption = 3;
 % condOrder = load('n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'); 
 % condOrder = condOrder.condOrder; %use default order
 
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
+condOption = 4;
 condOrderToRun = [5 3 1 2 4 6]; %always do hard - easy, then easy - hard (2-1-0-0-1-2)
 condOrder = load('n-back-condOrder-sameInTrialEachRep2.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
@@ -116,7 +120,9 @@ else %normal trial
     nbackSeqRowIdx = str2double(trialType(end));
     nOrders = condOrder(nbackSeqRowIdx,:) %find out in this trial, what order to run the conditions
     nbackSeqRowIdx = nbackSeqRowIdx + 1; %index that will be used to find n-back sequences to play, row1 is familarization, so each trial is offset by 1.
+    %if there are repeats of the same task, needs to index multiple rows.
 end
+
 %TODO/Improvement: using nOrders as strings are probably more readable but
 %i think it's slower. Can map it to integer for easier comparisons, and to
 %access the ISIs, sequence they can be in a 3D array (task x 2 (seq, ISI) x numbers)
@@ -143,12 +149,32 @@ for i = 2:7 %walk0-2, stand0-2
     seq = load([audioids{i} '-backSequences.mat']);
     %optimize storage to save only the relevant rows and save effort for
     %indexing later.
-    seq.fullSequence = seq.fullSequence(nbackSeqRowIdx,:);
-    seq.fullTargetLocs = seq.fullTargetLocs(nbackSeqRowIdx,:);
-    seq.interStimIntervals = seq.fullInterStimIntervals(nbackSeqRowIdx,:);
-    seq.audioIdKey = audioids{i};
-    seq.nirsEventCode = eventCodeCharacter{i};
-    n_back_sequences(audioids{i}) = seq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
+    if condOption >= 3 %special case there is repeated conditions 
+        %TODO: this is hard-coded for now, in theory the code can be smart to figure out how many reps there are in the nOrdersKey
+        % and load the corresponding rows of sequences. (still require
+        % histories of knowing when to start the index)
+        if str2double(trialType(end)) <= 3 %first 3 repts
+            startingIdx = 0;
+        else
+            startingIdx = 3;
+        end
+        for j = 1:3 %max 3 reps, load 3 sequnces.
+            seq.fullSequence = seq.fullSequence(startingIdx+j,:);
+            seq.fullTargetLocs = seq.fullTargetLocs(startingIdx+j,:);
+            seq.interStimIntervals = seq.fullInterStimIntervals(startingIdx+j,:);
+            seq.audioIdKey = audioids{i};
+            seq.nirsEventCode = eventCodeCharacter{i};
+            n_back_sequences([audioids{i} '-rep' num2str(j)]) = seq; 
+            %save with the key matching the cond name convention ({'stand0-rep1','stand0-rep2',..'walk0-rep1',...,'walk-rep3'})
+        end
+    else
+        seq.fullSequence = seq.fullSequence(nbackSeqRowIdx,:);
+        seq.fullTargetLocs = seq.fullTargetLocs(nbackSeqRowIdx,:);
+        seq.interStimIntervals = seq.fullInterStimIntervals(nbackSeqRowIdx,:);
+        seq.audioIdKey = audioids{i};
+        seq.nirsEventCode = eventCodeCharacter{i};
+        n_back_sequences(audioids{i}) = seq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
+    end
 end
 
 if recordData
@@ -471,7 +497,7 @@ try %So that if something fails, communications are closed properly
     
     %Connect to Oxysoft
     % Write event I with description 'Instructions' to Oxysoft
-    datlog = nirsEvent('', 'I', ['Connected',num2str(nbackSeqRowIdx),' ', trialType], instructions, datlog, Oxysoft, oxysoft_present);
+    datlog = nirsEvent('', 'I', ['Connected ',trialType], instructions, datlog, Oxysoft, oxysoft_present);
     enableMemory = false; %setting up trials, doesn't allow clicking.
 
     %start with a rest block
@@ -481,7 +507,7 @@ try %So that if something fails, communications are closed properly
     datlog = nirsEvent('rest', 'R', nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
     pause(restDuration);
     
-    if strcmp(nOrders{currentIndex},'walk') %first task is walk
+    if strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep') %first task is walk
         datlog = nirsEvent('walk','W','walk', instructions, datlog, Oxysoft, oxysoft_present); %walk always use event code W
         tStart=clock; %start the clock right after saying walk
         enableMemory = false;
@@ -719,7 +745,7 @@ try %So that if something fails, communications are closed properly
             %time to play next number: if it's not a walk trial, and the required ISI for this number has passed.
             %If it's the response window after the last number, mark trial as complete.
 %             if (~strcmp(nOrders{currentIndex},'w'))&& (t_diff >= ISIs(numIndex)-timeEpsilon && t_diff <= ISIs(numIndex) + timeEpsilon) 
-            if (~strcmp(nOrders{currentIndex},'walk'))&& (t_diff >= ISIs(numIndex)-timeEpsilon) %once pass ISI lower threshold continue, to avoid slow loop rate to cause up to be stuck 
+            if (~strcmp(nOrders{currentIndex},'walk')) && (~startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= ISIs(numIndex)-timeEpsilon) %once pass ISI lower threshold continue, to avoid slow loop rate to cause up to be stuck 
                 if numIndex < totalNums %last possible options is totalNum-1 bc will increment1 right away
                     %now go to next number
                     numIndex = numIndex + 1;
@@ -768,7 +794,7 @@ try %So that if something fails, communications are closed properly
                 end
                 
                 if STOP ~=1 %experiment not over yet, load the next condition
-                    if strcmp(nOrders{currentIndex},'walk') %next block is walk only
+                    if strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep') %next block is walk only
                         datlog = nirsEvent('walk','W','walk', instructions, datlog, Oxysoft, oxysoft_present); %walk always use event code W
                         tStart=clock; %start the clock right after saying Walk
                         enableMemory = false; %doesn't allow clicking for walk only trials.
