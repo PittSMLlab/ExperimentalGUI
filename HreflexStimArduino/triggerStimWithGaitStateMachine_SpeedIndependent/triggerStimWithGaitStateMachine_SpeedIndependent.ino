@@ -14,16 +14,16 @@ bool isCurrStanceR = false; // is current step right foot stance?
 bool isPrevStanceL = false; // is previous step left foot stance?
 bool isPrevStanceR = false; // is previous step right foot stance?
 // int freqStim = 1;                      // temporary stride frequency of stimulation for development
-bool LHS = false;          // is there a left heel strike event?
-bool RHS = false;          // is there a right heel strike event?
-bool LTO = false;          // is there a left toe off event?
-bool RTO = false;          // is there a right toe off event?
-unsigned long timeLHS = 0; // time of most recent LHS events
-unsigned long timeRHS = 0; // time of most recent RHS events
-unsigned long timeLTO = 0; // time of most recent LTO events
-unsigned long timeRTO = 0; // time of most recent RTO events
-// const int maxStrides = 1000;           // maximum number of strides in single trial
-// bool shouldStim[maxStrides] = {false}; // array of whether to stimulate for a stride
+bool LHS = false;                    // is there a left heel strike event?
+bool RHS = false;                    // is there a right heel strike event?
+bool LTO = false;                    // is there a left toe off event?
+bool RTO = false;                    // is there a right toe off event?
+unsigned long timeLHS = 0;           // time of most recent LHS events
+unsigned long timeRHS = 0;           // time of most recent RHS events
+unsigned long timeLTO = 0;           // time of most recent LTO events
+unsigned long timeRTO = 0;           // time of most recent RTO events
+unsigned long timeSinceRTO = 0;      // time since RTO event
+unsigned long timeSinceLTO = 0;      // time since LTO event
 unsigned long timeTargetStimL = 198; // initialize RTO delay to 198 ms
 unsigned long timeTargetStimR = 198; // initialize LTO delay to 198 ms
 float percentSS2Stim = 0.50;         // percentage of single stance phase
@@ -217,7 +217,6 @@ void updateGaitEventStateMachine()
       durSSL = timeRHS - timeRTO;
       // estimate single stance duration using exponential updating factor
       estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
-      timeTargetStimL = estSSL * percentSS2Stim;
       canStimL = true; // enable stimulation
     }
     break;
@@ -239,7 +238,6 @@ void updateGaitEventStateMachine()
       durSSR = timeLHS - timeLTO;
       // estimate single stance duration using exponential updating factor
       estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
-      timeTargetStimR = estSSR * percentSS2Stim;
       canStimR = true; // enable stimulation
     }
     break;
@@ -266,33 +264,46 @@ void updateGaitEventStateMachine()
 
 void triggerStimulation()
 {
-  unsigned long timeSinceLTO = millis() - timeLTO;
-  unsigned long timeSinceRTO = millis() - timeRTO;
+  // TODO: move definition up to top
+  unsigned long now = millis();
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
   // Use following condition if troubleshooting: numStepsR % freqStim == 0
-  if (phase == 2 && canStimR && shouldStimR && timeSinceLTO >= timeTargetStimR && !isStimmingR)
+  // TODO: remove 'canStim' booleans once 'shouldStim' serial communication working fine
+  if (phase == 2 && canStimR && shouldStimR)
   {
-    digitalWrite(pinOutStimR, HIGH);
-    digitalWrite(pinOutViconR, HIGH);
-    isStimmingR = true;
-    timeStimStartR = millis();
-    canStimR = false;
-    shouldStimR = false; // reset trigger for next cycle
+    timeTargetStimR = percentSS2Stim * estSSR;
+    timeSinceLTO = now - timeLTO;
+
+    if (timeSinceLTO >= timeTargetStimR && !isStimmingR)
+    {
+      digitalWrite(pinOutStimR, HIGH);
+      digitalWrite(pinOutViconR, HIGH);
+      timeStimStartR = millis();
+      isStimmingR = true;
+      canStimR = false;
+      shouldStimR = false; // reset trigger for next cycle
+    }
   }
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
   // Use following condition if troubleshooting: numStepsL % freqStim == 0
-  if (phase == 1 && canStimL && shouldStimL && timeSinceRTO >= timeTargetStimL && !isStimmingL)
+  if (phase == 1 && canStimL && shouldStimL)
   {
-    digitalWrite(pinOutStimL, HIGH);
-    digitalWrite(pinOutViconL, HIGH);
-    isStimmingL = true;
-    timeStimStartL = millis();
-    canStimL = false;
-    shouldStimL = false; // reset trigger for next cycle
+    timeTargetStimL = percentSS2Stim * estSSL;
+    timeSinceRTO = now - timeRTO;
+
+    if (timeSinceRTO >= timeTargetStimL && !isStimmingL)
+    {
+      digitalWrite(pinOutStimL, HIGH);
+      digitalWrite(pinOutViconL, HIGH);
+      timeStimStartL = millis();
+      isStimmingL = true;
+      canStimL = false;
+      shouldStimL = false; // reset trigger for next cycle
+    }
   }
 }
 
