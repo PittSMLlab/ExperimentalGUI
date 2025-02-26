@@ -92,47 +92,54 @@ void setup()
 
 void loop()
 {
-  // if (!shouldRunSM)
-  // {
-  //   processSerialCommands();
-  // }
-  // else
-  // {
-  updateGaitEventStateMachine();
-  triggerStimulation();
+  processSerialCommands();
+  if (shouldRunSM)
+  {
+    updateGaitEventStateMachine();
+    triggerStimulation();
+  }
   handleStimulationTimeout();
-  // }
 }
 
 void processSerialCommands()
 {
   // check for input from MATLAB
-  if (Serial.available() > 0)
+  if (Serial.available())
   {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
+    char command = Serial.read();
 
-    if (command == "START_SM")
+    switch (command)
     {
+    case 'S': // start gait event state machine
       // reset gait event state machine variables at start of trial
-      isCurrStanceL = false;
-      isCurrStanceR = false;
-      isPrevStanceL = false;
-      isPrevStanceR = false;
-      phase = 0;
-      numStepsL = 0;
-      numStepsR = 0;
-      shouldRunSM = true;
-    }
-    else if (command.startsWith("STIM"))
-    {
-      String data = command.substring(5);                 // Get everything after "STIM"
-      for (int i = 0; i < data.length() && i < 1000; i++) // Ensure array bounds
-      {
-        shouldStim[i] = (data.charAt(i) == '1'); // Convert '0' or '1' to boolean
-      }
+      resetStateMachine();
+      break;
+
+    case 'E': // stop gait event state machine
+      shouldRunSM = false;
+      break;
+
+    case 'R': // stimulate right leg
+      shouldStimR = true;
+      break;
+
+    case 'L': // stimulate left leg
+      shouldStimL = true;
+      break;
     }
   }
+}
+
+void resetStateMachine()
+{
+  isCurrStanceL = false;
+  isCurrStanceR = false;
+  isPrevStanceL = false;
+  isPrevStanceR = false;
+  phase = 0;
+  numStepsL = 0;
+  numStepsR = 0;
+  shouldRunSM = true;
 }
 
 void updateGaitEventStateMachine()
