@@ -57,7 +57,7 @@ if hreflex_present
         % Configure and open serial port communication with Arduino
         fprintf('Opening the Arduino serial communication port.\n');
         portArduino = serialport('COM4',115200);
-        configureTerminator(portArduino,'LF');  % set serial COM terminator
+        % configureTerminator(portArduino,'LF');  % set serial COM terminator
         fprintf('Done opening the Arduino serial communication port.\n');
     catch ME
         warning(ME.identifier,'Failed to open Arduino serial port: %s', ...
@@ -86,26 +86,26 @@ if hreflex_present
     end
 
     % validate input dimensions
-    assert(length(stimR) <= 1000,'stimR must have at most 1000 elements.');
-    assert(length(stimL) <= 1000,'stimL must have at most 1000 elements.');
+    % assert(length(stimR) <= 1000,'stimR must have at most 1000 elements.');
+    % assert(length(stimL) <= 1000,'stimL must have at most 1000 elements.');
 
-    stimR = logical(stimR);         % convert to logical arrays
-    stimL = logical(stimL);
+    % stimR = logical(stimR);         % convert to logical arrays
+    % stimL = logical(stimL);
     % NOTE: assuming 'stimR' and 'stimL' are always identical since Arduino
     % has limited memory
-    stim = false(1000,1);           % initialize 'stim' array
-    stim(1:numel(stimR)) = stimR;   % set first elements to be 'stimR'
-    stimStr = char('0' + stim);     % convert logical to '0'/'1' char array
+    % stim = false(1000,1);           % initialize 'stim' array
+    % stim(1:numel(stimR)) = stimR;   % set first elements to be 'stimR'
+    % stimStr = char('0' + stim);     % convert logical to '0'/'1' char array
 
-    command = sprintf("STIM|%s\n",stimStr); % create 'STIM' command
-    try
-        fprintf('Sending should stim stride array...\n');
-        writeline(portArduino,command);
-        fprintf('stim array sent.\n');
-    catch ME
-        % handle any potential communication errors
-        warning(ME.identifier,'Failed to send stim array: %s',ME.message);
-    end
+    % command = sprintf("STIM|%s\n",stimStr); % create 'STIM' command
+    % try
+    %     fprintf('Sending should stim stride array...\n');
+    %     writeline(portArduino,command);
+    %     fprintf('stim array sent.\n');
+    % catch ME
+    %     % handle any potential communication errors
+    %     warning(ME.identifier,'Failed to send stim array: %s',ME.message);
+    % end
 
     %     end
     % initialize stimulation control variables
@@ -116,7 +116,7 @@ if hreflex_present
     try         % send command to Arduino to start state machine
         fprintf(['Sending command to reset right and left leg step ' ...
             'counts and start the state machine...\n']);
-        writeline(portArduino,"START_SM");    % reset step counters & start
+        writeline(portArduino,"S");    % reset step counters & start
         fprintf('Start state machine command sent successfully.\n');
     catch ME
         % handle any potential communication errors
@@ -124,17 +124,17 @@ if hreflex_present
             'commands to Arduino: %s'],ME.message);
     end
 
-    datlog.messages(end+1,:) = {'Start to close Arduino Port ',now};
-    fprintf('Closing serial port communication with the Arduino...\n');
-    try
-        flush(portArduino); % flush remaining data in the buffer
-        clear(portArduino); % close and clear the serial port object
-        fprintf('Successfully closed the Arduino serial port.\n');
-    catch ME
-        % handle errors and log the exception message
-        warning(ME.identifier, ...
-            'Failed to properly close Arduino serial port: %s',ME.message);
-    end
+    % datlog.messages(end+1,:) = {'Start to close Arduino Port ',now};
+    % fprintf('Closing serial port communication with the Arduino...\n');
+    % try
+    %     flush(portArduino); % flush remaining data in the buffer
+    %     clear(portArduino); % close and clear the serial port object
+    %     fprintf('Successfully closed the Arduino serial port.\n');
+    % catch ME
+    %     % handle errors and log the exception message
+    %     warning(ME.identifier, ...
+    %         'Failed to properly close Arduino serial port: %s',ME.message);
+    % end
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -411,6 +411,17 @@ try % so that if something fails, communications are closed properly
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
+    % try         % send command to Arduino to start state machine
+    %     fprintf(['Sending command to reset right and left leg step ' ...
+    %         'counts and start the state machine...\n']);
+    %     writeline(portArduino,"START_SM");    % reset step counters & start
+    %     fprintf('Start state machine command sent successfully.\n');
+    % catch ME
+    %     % handle any potential communication errors
+    %     warning(ME.identifier,['Failed to send start state machine ' ...
+    %         'commands to Arduino: %s'],ME.message);
+    % end
+
     %% Main loop
 
     old_velR = libpointer('doublePtr',velR(1,1));
@@ -534,7 +545,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     drawnow;
-                    % canStim = true;
+                    canStim = true;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase=2;
@@ -553,7 +564,7 @@ try % so that if something fails, communications are closed properly
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     drawnow;
-                    % canStim = true;
+                    canStim = true;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase=1;
@@ -582,52 +593,52 @@ try % so that if something fails, communications are closed properly
         end
 
         % TODO: move this code up into the state machine
-%         if hreflex_present      % only do this if has the stimulator
-%             if isnan(stimInterval)
-%                 shouldStimR = logical(stimR(RstepCount));
-%                 shouldStimL = logical(stimL(LstepCount));
-%             else
-%                 shouldStimR = mod(RstepCount,stimInterval) == 4;
-%                 shouldStimL = mod(LstepCount,stimInterval) == 4;
-%             end
-% 
-%             if (shouldStimR && phase == 2 && canStim)
-%                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-%                     continue;
-%                 end
-%                 if isCalibration    % play sound
-%                     play(CalibAudioR);
-%                 end
-%                 % try         % send command to Arduino to stimulate right
-%                 %     writeline(portArduino,"STIM_RIGHT");
-%                 % catch ME
-%                 %     % handle any potential communication errors
-%                 %     warning(ME.identifier,['Failed to send right leg ' ...
-%                 %         'stimulation command to Arduino: %s'],ME.message);
-%                 % end
-%                 canStim = false;
-%                 % TODO: update to read serial port data from the Arduino
-%                 % datlog.stim.R(end+1,:) = RstepCount;
-%             end
-% 
-%             if (shouldStimL && phase == 1 && canStim)
-%                 if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-%                     continue;
-%                 end
-%                 if isCalibration    % play sound
-%                     play(CalibAudioL);
-%                 end
-%                 % try         % send command to Arduino to stimulate left
-%                 %     writeline(portArduino,"STIM_LEFT");
-%                 % catch ME
-%                 %     % handle any potential communication errors
-%                 %     warning(ME.identifier,['Failed to send left leg ' ...
-%                 %         'stimulation command to Arduino: %s'],ME.message);
-%                 % end
-%                 canStim = false;
-%                 % datlog.stim.L(end+1,:) = RstepCount;
-%             end
-%         end
+        if hreflex_present      % only do this if has the stimulator
+            if isnan(stimInterval)
+                shouldStimR = logical(stimR(RstepCount));
+                shouldStimL = logical(stimL(LstepCount));
+            else
+                shouldStimR = mod(RstepCount,stimInterval) == 4;
+                shouldStimL = mod(LstepCount,stimInterval) == 4;
+            end
+
+            if (shouldStimR && phase == 2 && canStim)
+                if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                    continue;
+                end
+                if isCalibration    % play sound
+                    play(CalibAudioR);
+                end
+                try         % send command to Arduino to stimulate right
+                    writeline(portArduino,"R");
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send right leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
+                end
+                canStim = false;
+                % TODO: update to read serial port data from the Arduino
+                % datlog.stim.R(end+1,:) = RstepCount;
+            end
+
+            if (shouldStimL && phase == 1 && canStim)
+                if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                    continue;
+                end
+                if isCalibration    % play sound
+                    play(CalibAudioL);
+                end
+                try         % send command to Arduino to stimulate left
+                    writeline(portArduino,"L");
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send left leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
+                end
+                canStim = false;
+                % datlog.stim.L(end+1,:) = RstepCount;
+            end
+        end
 
         %check if should log NIRS events
         if nextNirsEventIdx <= length(nirsEventSteps)
@@ -805,15 +816,15 @@ try % so that if something fails, communications are closed properly
         end
     end %While, when STOP button is pressed
 
-    % try         % send command to Arduino to stop state machine
-    %     fprintf('Sending command to stop the state machine...\n');
-    %     writeline(portArduino,"STOP_SM");    % stop state machine
-    %     fprintf('Stop state machine command sent successfully.\n');
-    % catch ME
-    %     % handle any potential communication errors
-    %     warning(ME.identifier,['Failed to send stop state machine ' ...
-    %         'commands to Arduino: %s'],ME.message);
-    % end
+    try         % send command to Arduino to stop state machine
+        fprintf('Sending command to stop the state machine...\n');
+        writeline(portArduino,"E");    % stop state machine
+        fprintf('Stop state machine command sent successfully.\n');
+    catch ME
+        % handle any potential communication errors
+        warning(ME.identifier,['Failed to send stop state machine ' ...
+            'commands to Arduino: %s'],ME.message);
+    end
 
     if STOP
         %Shuqi: 02/07/2024, adjusted to log time with precision
@@ -842,6 +853,20 @@ try
     delete(syncname);%added 5/10/2016 delete sync file in prep for next trial
 catch ME
     disp(ME);
+end
+
+if hreflex_present      % if hreflex, close communication with arduino.
+    datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
+    fprintf('Closing serial port communication with the Arduino...\n');
+    try
+        flush(portArduino); % flush remaining data in the buffer
+        clear(portArduino); % close and clear the serial port object
+        fprintf('Successfully close the Arduino serial port.\n');
+    catch ME
+        % handle errors and log the exception message
+        warning(ME.identifier, ...
+            'Failed to properly close Arduino serial port: %s',ME.message);
+    end
 end
 
 try %stopping the treadmill
