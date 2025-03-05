@@ -81,6 +81,9 @@ const int pinInFzR = A1;
 const int pinOutStimR = 8;
 const int pinOutViconR = 11;
 
+// TODO: consider using uint8 type for serial communication speed
+int command = 0; // serial communication integer
+
 void setup()
 {
   Serial.begin(115200);
@@ -107,25 +110,24 @@ void processSerialCommands()
   // check for input from MATLAB
   if (Serial.available())
   {
-    char command = Serial.read();
-
+    command = Serial.read();
     switch (command)
     {
-    case 'S': // start gait event state machine
+    case 0: // start gait event state machine
       // reset gait event state machine variables at start of trial
       resetStateMachine();
       break;
 
-    case 'E': // stop gait event state machine
-      shouldRunSM = false;
+    case 1: // stimulate the left leg
+      shouldStimL = true;
       break;
 
-    case 'R': // stimulate right leg
+    case 2: // stimulate the right leg
       shouldStimR = true;
       break;
 
-    case 'L': // stimulate left leg
-      shouldStimL = true;
+    case 3: // stop gait event state machine
+      shouldRunSM = false;
       break;
     }
   }
@@ -150,8 +152,8 @@ void updateGaitEventStateMachine()
   isPrevStanceR = isCurrStanceR;
 
   // read z-axis force plate sensor values to detect new stance phase
-  float rightSensorVal = analogRead(pinInFzR);
   float leftSensorVal = analogRead(pinInFzL);
+  float rightSensorVal = analogRead(pinInFzR);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
@@ -175,7 +177,6 @@ void updateGaitEventStateMachine()
   timeSinceStanceChangeL = millis() - timeStanceChangeL;
   timeSinceStanceChangeR = millis() - timeStanceChangeR;
 
-  // TODO: create variable for 50 ms de-bouncing constant
   if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce && timeSinceStanceChangeR > timeDebounce)
   {
     timeStanceChangeL = millis();

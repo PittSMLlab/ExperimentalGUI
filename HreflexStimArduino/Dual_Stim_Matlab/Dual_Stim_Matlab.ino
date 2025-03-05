@@ -7,10 +7,10 @@
 const int durStimPulse = 20;
 
 // right and left stimulator pin configurations
-const int pinOutStimR = 8;
-const int pinOutViconR = 11;
 const int pinOutStimL = 9;
 const int pinOutViconL = 12;
+const int pinOutStimR = 8;
+const int pinOutViconR = 11;
 
 // TODO: consider using uint8 type for serial communication speed
 int command = 0; // serial communication integer
@@ -19,10 +19,10 @@ void setup()
 {
   Serial.begin(115200);
   // ensure pins are properly set for output
-  pinMode(pinOutStimR, OUTPUT);
-  pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
   pinMode(pinOutViconL, OUTPUT);
+  pinMode(pinOutStimR, OUTPUT);
+  pinMode(pinOutViconR, OUTPUT);
 }
 
 void loop()
