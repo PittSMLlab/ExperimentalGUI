@@ -13,7 +13,7 @@ bool isCurrStanceL = false; // is current step left foot stance?
 bool isCurrStanceR = false; // is current step right foot stance?
 bool isPrevStanceL = false; // is previous step left foot stance?
 bool isPrevStanceR = false; // is previous step right foot stance?
-// int freqStim = 1;                      // temporary stride frequency of stimulation for development
+// int freqStim = 1;                    // temporary stride frequency of stimulation for development
 bool LHS = false;                    // is there a left heel strike event?
 bool RHS = false;                    // is there a right heel strike event?
 bool LTO = false;                    // is there a left toe off event?
@@ -22,8 +22,8 @@ unsigned long timeLHS = 0;           // time of most recent LHS events
 unsigned long timeRHS = 0;           // time of most recent RHS events
 unsigned long timeLTO = 0;           // time of most recent LTO events
 unsigned long timeRTO = 0;           // time of most recent RTO events
-unsigned long timeSinceRTO = 0;      // time since RTO event
 unsigned long timeSinceLTO = 0;      // time since LTO event
+unsigned long timeSinceRTO = 0;      // time since RTO event
 unsigned long timeTargetStimL = 198; // initialize RTO delay to 198 ms
 unsigned long timeTargetStimR = 198; // initialize LTO delay to 198 ms
 float percentSS2Stim = 0.50;         // percentage of single stance phase
@@ -36,21 +36,21 @@ float alpha = 0.7;                   // smoothing factor (0 < alpha <= 1)
 // comparable to those of Hebenstreit et al. 2015 (Human Movement Science).
 // Using a better initial estimate may improve the stimulation timing
 // precision of the first few strides within a trial.
-float estSSL = 396.6;                // estimated single stance duration left (initially 396.6 ms)
-float estSSR = 396.6;                // estimated single stance duration right (initially 396.6 ms)
-unsigned long durSSL = 397;          // left single stance duration
-unsigned long durSSR = 397;          // right single stance duration
-bool canStimL = false;               // is stimulation allowed at this time?
-bool canStimR = false;               // is stimulation allowed at this time?
-bool shouldStimL = false;            // should stimulate left leg this stride?
-bool shouldStimR = false;            // should stimulate right leg this stride?
-bool shouldRunSM = false;            // should run gait event state machine?
-bool isStimmingL = false;            // is the left stimulator currently on?
-bool isStimmingR = false;            // is the right stimulator currently on?
-unsigned long timeStimStartL = 0;    // time when left stimulation started
-unsigned long timeStimStartR = 0;    // time when right stimulation started
-unsigned long timeStanceChangeR = 0; // time when isCurrentStance changes
+float estSSL = 396.6;             // estimated single stance duration left (initially 396.6 ms)
+float estSSR = 396.6;             // estimated single stance duration right (initially 396.6 ms)
+unsigned long durSSL = 397;       // left single stance duration
+unsigned long durSSR = 397;       // right single stance duration
+bool canStimL = false;            // is stimulation allowed at this time?
+bool canStimR = false;            // is stimulation allowed at this time?
+bool shouldStimL = false;         // should stimulate left leg this stride?
+bool shouldStimR = false;         // should stimulate right leg this stride?
+bool shouldRunSM = false;         // should run gait event state machine?
+bool isStimmingL = false;         // is the left stimulator currently on?
+bool isStimmingR = false;         // is the right stimulator currently on?
+unsigned long timeStimStartL = 0; // time when left stimulation started
+unsigned long timeStimStartR = 0; // time when right stimulation started
 unsigned long timeStanceChangeL = 0;
+unsigned long timeStanceChangeR = 0;      // time when isCurrentStance changes
 unsigned long timeSinceStanceChangeL = 0; // time elapsed since isCurrentStance changed
 unsigned long timeSinceStanceChangeR = 0;
 
@@ -74,27 +74,27 @@ const int durStimPulse = 20;           // stimulation pulse duration (ms)
 const unsigned long timeDebounce = 50; // de-bouncing time constant
 
 // right and left stimulator pin configurations
-const int pinInFzR = A1;
-const int pinOutStimR = 8;
-const int pinOutViconR = 11;
 const int pinInFzL = A0;
 const int pinOutStimL = 9;
 const int pinOutViconL = 12;
+const int pinInFzR = A1;
+const int pinOutStimR = 8;
+const int pinOutViconR = 11;
 
 void setup()
 {
   Serial.begin(115200);
   // ensure pins are properly set for output
-  pinMode(pinOutStimR, OUTPUT);
-  pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
   pinMode(pinOutViconL, OUTPUT);
+  pinMode(pinOutStimR, OUTPUT);
+  pinMode(pinOutViconR, OUTPUT);
 }
 
 void loop()
 {
   processSerialCommands();
-  if (shouldRunSM)
+  if (shouldRunSM) // if should run the gait event state machine, ...
   {
     updateGaitEventStateMachine();
     triggerStimulation();
