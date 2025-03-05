@@ -116,7 +116,7 @@ if hreflex_present
     try         % send command to Arduino to start state machine
         fprintf(['Sending command to reset right and left leg step ' ...
             'counts and start the state machine...\n']);
-        writeline(portArduino,"S");    % reset step counters & start
+        write(portArduino,0,'int16');    % reset step counters & start
         fprintf('Start state machine command sent successfully.\n');
     catch ME
         % handle any potential communication errors
@@ -610,7 +610,7 @@ try % so that if something fails, communications are closed properly
                     play(CalibAudioR);
                 end
                 try         % send command to Arduino to stimulate right
-                    writeline(portArduino,"R");
+                    write(portArduino,2,'int16');
                 catch ME
                     % handle any potential communication errors
                     warning(ME.identifier,['Failed to send right leg ' ...
@@ -629,7 +629,7 @@ try % so that if something fails, communications are closed properly
                     play(CalibAudioL);
                 end
                 try         % send command to Arduino to stimulate left
-                    writeline(portArduino,"L");
+                    write(portArduino,1,'int16');
                 catch ME
                     % handle any potential communication errors
                     warning(ME.identifier,['Failed to send left leg ' ...
@@ -818,7 +818,7 @@ try % so that if something fails, communications are closed properly
 
     try         % send command to Arduino to stop state machine
         fprintf('Sending command to stop the state machine...\n');
-        writeline(portArduino,"E");    % stop state machine
+        write(portArduino,3,'int16');    % stop state machine
         fprintf('Stop state machine command sent successfully.\n');
     catch ME
         % handle any potential communication errors

@@ -17,9 +17,9 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %The first value for velL and velR is the initial desired speed, and new
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
-% numAudioCountDown: how many count downs to perform, default [-1], means 
+% numAudioCountDown: how many count downs to perform, default [-1], means
 % do count down at the end, use -1 as the reserved value. Will play
-% audio "Treadmill will start in 3 - 2 - 1 - now" at the beginning, and 
+% audio "Treadmill will start in 3 - 2 - 1 - now" at the beginning, and
 % "Treadmill will stop in 3 - 2 - 1 - now" in the end.
 % For trials with a change of speed in between, the numAudioCountDown would be an
 % array of what stride the speed will change, appended with -1, for example
@@ -28,7 +28,7 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 % -1 is required in the array.
 %Feature Improvement TODO: at this point, the arguments: isCalibration, oxysoft_present, hreflex_present are not really accesible when going
 %through the UI flow of using AdaptationGUI, it's only setible via code and
-%setting params to be global. 
+%setting params to be global.
 
 %% Set up parameters to communication with NIRS and Arduino (for H-reflex)
 %These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
@@ -53,13 +53,13 @@ if hreflex_present
     % if this doesn't work bc port is busy, check that all Arduino softwares are closed.
     portArduino = serialport('COM4',115200);
     fprintf('Done Opening ArduinoPort');
-    
+
     if isCalibration
         oxysoft_present = false; %calibrating Hreflex, don't try to connect to NIRS
-%         stimInterval = 5; %stimulate every 5 strides in calibration to get more data points.
-%         initStep2SkipForCalib = 5; %how many initial step to skip without delivering simulation, this helps to give some time for participants to settle in
+        %         stimInterval = 5; %stimulate every 5 strides in calibration to get more data points.
+        %         initStep2SkipForCalib = 5; %how many initial step to skip without delivering simulation, this helps to give some time for participants to settle in
         totalCalibStims = 22; %default [8:2:28] stim current levels x 2 stim at each level
-        
+
         %load 2 sound to play to tell experimener L and R stim happened,
         %the L/R assignment is rather arbitrary
         [audio_data,audio_fs]=audioread('L.mp3');
@@ -83,12 +83,12 @@ if hreflex_present
     % estSSR = 0;             % estimated single stance duration right
     stimDelayL = now; %in units of now
     stimDelayR = now;
-    
-%     %Hreflex Alt Sol. find time from HS to midstance based on interpolation function from Omar
-%     %in young healthy participant. If it's older adutls or clinical
-%     %populations, this need to be changed. 
-%     stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
-%     stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000;%in sec
+
+    %     %Hreflex Alt Sol. find time from HS to midstance based on interpolation function from Omar
+    %     %in young healthy participant. If it's older adutls or clinical
+    %     %populations, this need to be changed.
+    %     stimDelayL = ((-73.8 * velL/1000) + 384.4)/1000;%output should be in in sec, velL/R is in mm/s, fcn needs m/s
+    %     stimDelayR = ((-73.8 * velR/1000) + 384.4)/1000;%in sec
 end
 
 %% load GUI handle, audio mp3 files for countdown.
@@ -117,13 +117,13 @@ end
 
 ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be updated
 
-%% Set up nirs communication. 
+%% Set up nirs communication.
 % Pop up window to confirm parameter setup, this is helpful in case
 % debugging happened btw experiment session to avoid mistakenly forget to
 % log fNIRS.
-button=questdlg('Confirm that NIRS is recording, oxysoft_present is 1, rest duration is 20.');  
+button=questdlg('Confirm that NIRS is recording, oxysoft_present is 1, rest duration is 20.');
 if ~strcmp(button,'Yes')
-   return; %Abort starting the tri
+    return; %Abort starting the tri
 end
 
 Oxysoft = nan; %initialize to nan, unless present.
@@ -138,9 +138,9 @@ disp('Initial Setup')
 %M-Mid, P-PostTied, D-DccRamp2Split
 %set up audio players
 audioids = {'relax','rest','stopAndRest','TMStartNow'};
-instructions = containers.Map(); 
+instructions = containers.Map();
 for i = 1 : length(audioids)
-%         disp(strcat(audioids{i},'.mp3'))
+    %         disp(strcat(audioids{i},'.mp3'))
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
     instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
 end
@@ -205,7 +205,7 @@ temp(b) = '_';
 c = regexp(temp,' ');
 temp(c) = '_';
 [d,n,e]=fileparts(which(mfilename));...
-savename = [[d '\..\datlogs\'] temp '_' profilename];
+    savename = [[d '\..\datlogs\'] temp '_' profilename];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
 datlog.session_name = savename;
 datlog.errormsgs = {};
@@ -240,10 +240,10 @@ end
 
 %Default threshold
 if nargin<3
-    % TODO: Left force plate is getting very noisy. 30N is not enough to be robust. 
+    % TODO: Left force plate is getting very noisy. 30N is not enough to be robust.
     FzThreshold=100; %Newtons (30 is minimum for noise not to be an issue)
 elseif FzThreshold<30
-%     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
+    %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
 end
@@ -261,26 +261,26 @@ end
 
 %Initialize nexus & treadmill communications
 try
-% [MyClient] = openNexusIface();
-%this was previously on 
-%     Client.LoadViconDataStreamSDK();
-%     MyClient = Client();
-%     Hostname = 'localhost:801'; %'localhost:801'
-%     out = MyClient.Connect(Hostname);
-%     out = MyClient.EnableMarkerData();
-%     out = MyClient.EnableDeviceData();
-%     MyClient.SetStreamMode(StreamMode.ServerPush);
+    % [MyClient] = openNexusIface();
+    %this was previously on
+    %     Client.LoadViconDataStreamSDK();
+    %     MyClient = Client();
+    %     Hostname = 'localhost:801'; %'localhost:801'
+    %     out = MyClient.Connect(Hostname);
+    %     out = MyClient.EnableMarkerData();
+    %     out = MyClient.EnableDeviceData();
+    %     MyClient.SetStreamMode(StreamMode.ServerPush);
     %MyClient.SetStreamMode(StreamMode.ClientPull);
-    
-    %New code DMMO  
+
+    %New code DMMO
     HostName = 'localhost:801';
-%     fprintf( 'Loading SDK...' );
+    %     fprintf( 'Loading SDK...' );
     addpath( '..\dotNET' );
     dssdkAssembly = which('ViconDataStreamSDK_DotNET.dll');
     if dssdkAssembly == ""
         [ file, path ] = uigetfile( '*.dll' );
         dssdkAssembly = fullfile( path, file );
-      
+
     end
 
     NET.addAssembly(dssdkAssembly);
@@ -291,9 +291,9 @@ try
     out =MyClient.EnableMarkerData();
     out=MyClient.EnableUnlabeledMarkerData();
     out=MyClient.EnableDeviceData();
-    
+
     MyClient.SetStreamMode( ViconDataStreamSDK.DotNET.StreamMode.ClientPull  );
-    
+
 catch ME
     disp('Error in creating Nexus Client Object/communications see datlog for details');
     datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
@@ -301,556 +301,556 @@ catch ME
     disp(ME);
 end
 try
-    
-fprintf(['Open TM Comm. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-t = openTreadmillComm();
-fprintf(['Done Opening. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+
+    fprintf(['Open TM Comm. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+    t = openTreadmillComm();
+    fprintf(['Done Opening. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
 
 catch ME
     disp('Error in creating TCP connection to Treadmill, see datlog for details...');
     datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
     datlog.errormsgs{end+1} = ME;
     disp(ME);
-%     log=['Error ocurred when opening communications with Nexus & Treadmill'];
-%     listbox{end+1}=log;
-%     disp(log);
+    %     log=['Error ocurred when opening communications with Nexus & Treadmill'];
+    %     listbox{end+1}=log;
+    %     disp(log);
 end
 
 try %So that if something fails, communications are closed properly
-    
-% [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
-MyClient.GetFrame();
-% listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
-datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
-% set(ghandle.listbox1,'String',listbox);
 
-%Initiate variables
-new_stanceL=false;
-new_stanceR=false;
-phase=0; %0= Double Support, 1 = single L support, 2= single R support
-LstepCount=1;
-RstepCount=1;
-% RTOTime(N)=TimeStamp;
-% LTOTime(N)=TimeStamp;
-% RHSTime(N)=TimeStamp;
-% LHSTime(N)=TimeStamp;
-RTOTime(N) = now;
-LTOTime(N) = now;
-RHSTime(N) = now;
-LHSTime(N) = now;
-commSendTime=zeros(2*N-1,6);
-commSendFrame=zeros(2*N-1,1);
-% stepFlag=0;
-
-[RBS,LBS,cur_incl] = readTreadmillPacket(t); %Read treadmill incline angle
-lastRead=now;
-datlog.inclineang = cur_incl;
-read_theta = cur_incl;
-
-%Added 5/10/2016 for Nimbus start sync, create file on hard drive, then
-%delete later after the task is done.
-time1 = now;
-syncname = fullfile(tempdir,'SYNCH.dat');
-[f,~]=fopen(syncname,'wb');
-fclose(f);
-time2 = now;
-disp(etime(datevec(time2),datevec(time1)));
-
-disp('File creation time');
-
-%if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
-if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
-    fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-    play(AudioTMStart3);
-    pause(2.5);
-    play(AudioCount2);
-    pause(1);
-    play(AudioCount1);
-    pause(1);
-    play(AudioNow)
-    %log it without saying "TM will start now" again.
-    datlog = nirsEvent('Mid_noaudio', 'M', ['Mid' num2str(nextRestIdx-1)], instructions, datlog, Oxysoft, oxysoft_present);
-end
-
-%Send first speed command & store
-acc=1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
-% acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
-[payload] = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
-sendTreadmillPacket(payload,t);
-datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
-commSendTime(1,:)=clock;
-datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command   
-datlog.messages(end+1,:) = {'First speed command sent', now};
-datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
-%% Main loop
-
-old_velR = libpointer('doublePtr',velR(1,1));
-old_velL = libpointer('doublePtr',velL(1,1));
-frameind = libpointer('doublePtr',1);
-framenum = libpointer('doublePtr',0);
-
-if numAudioCountDown %Adapted from open loop audio countdown
-    countDownPlayed = repmat(false, 1, 5*length(numAudioCountDown)); 
-    %if there are speed changes in between, will have 4 counts for
-    %each: 3-2-1-now & 1 for complete, moving on to next.
-    %the last 4 index will be used for 3-2-1-now(stop) and will be reused
-    %for each rest stop in between.
-    countDownIdx = 1;
-    countDownIdxOffset = 0;
-    if length(numAudioCountDown) > 1 % there is speed change in between
-        speedChangeStride = numAudioCountDown(1); %set to first target
-    end
-    prevChangeTime = datetime('now');
-end
-tic;
-
-while ~STOP %only runs if stop button is not pressed
-    while PAUSE %only runs if pause button is pressed
-        pause(.2);
-        datlog.messages(end+1,:) = {'Loop paused at ', now};
-        disp(['Paused at ' num2str(clock)]);
-        %bring treadmill to a stop and keep it there!...
-        [payload] = getPayload(0,0,500,500,cur_incl);
-        %cur_incl
-        sendTreadmillPacket(payload,t);
-        %do a quick save
-        try
-            save(savename,'datlog');
-        catch ME
-            disp(ME);
-        end
-        old_velR.Value = 1;%change the old values so that the treadmill knows to resume when the pause button is resumed
-        old_velL.Value = 1;
-    end
-    %newSpeed
-    drawnow;
-%     lastFrameTime=curTime;
-%     curTime=clock;
-%     elapsedFrameTime=etime(curTime,lastFrameTime);
-    old_stanceL=new_stanceL;
-    old_stanceR=new_stanceR;
-    
-    %Read frame, update necessary structures
-    
+    % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
     MyClient.GetFrame();
-    framenum.Value = MyClient.GetFrameNumber().FrameNumber;
-    datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
+    % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
+    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
+    % set(ghandle.listbox1,'String',listbox);
 
-    %Read treadmill, if enough time has elapsed since last read
-    aux=(datevec(now)-datevec(lastRead));
-    if aux(6)>.1 || any(aux(1:5)>0)  %Only read if enough time has elapsed
-        [RBS, LBS,read_theta] = readTreadmillPacket(t);%also read what the treadmill is doing
-        lastRead=now;
+    %Initiate variables
+    new_stanceL=false;
+    new_stanceR=false;
+    phase=0; %0= Double Support, 1 = single L support, 2= single R support
+    LstepCount=1;
+    RstepCount=1;
+    % RTOTime(N)=TimeStamp;
+    % LTOTime(N)=TimeStamp;
+    % RHSTime(N)=TimeStamp;
+    % LHSTime(N)=TimeStamp;
+    RTOTime(N) = now;
+    LTOTime(N) = now;
+    RHSTime(N) = now;
+    LHSTime(N) = now;
+    commSendTime=zeros(2*N-1,6);
+    commSendFrame=zeros(2*N-1,1);
+    % stepFlag=0;
+
+    [RBS,LBS,cur_incl] = readTreadmillPacket(t); %Read treadmill incline angle
+    lastRead=now;
+    datlog.inclineang = cur_incl;
+    read_theta = cur_incl;
+
+    %Added 5/10/2016 for Nimbus start sync, create file on hard drive, then
+    %delete later after the task is done.
+    time1 = now;
+    syncname = fullfile(tempdir,'SYNCH.dat');
+    [f,~]=fopen(syncname,'wb');
+    fclose(f);
+    time2 = now;
+    disp(etime(datevec(time2),datevec(time1)));
+
+    disp('File creation time');
+
+    %if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
+    if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
+        fprintf(['Ready to count down. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+        play(AudioTMStart3);
+        pause(2.5);
+        play(AudioCount2);
+        pause(1);
+        play(AudioCount1);
+        pause(1);
+        play(AudioNow)
+        %log it without saying "TM will start now" again.
+        datlog = nirsEvent('Mid_noaudio', 'M', ['Mid' num2str(nextRestIdx-1)], instructions, datlog, Oxysoft, oxysoft_present);
     end
-    
-    datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now];%record the read
-    set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
-    set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-    
-    frameind.Value = frameind.Value+1;
-        
-    %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
-    Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
-    Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
-    datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
-    Hx = MyClient.GetDeviceOutputValue( 'Handrail', 'Fx' );
-    Hy = MyClient.GetDeviceOutputValue( 'Handrail', 'Fy' );
-    Hz = MyClient.GetDeviceOutputValue( 'Handrail', 'Fz' );
-    Hm = sqrt(Hx.Value^2+Hy.Value^2+Hz.Value^2);
-%     keyboard
-    %if handrail force is too high, notify the experimentor
-    if (Hm > 25)
-        set(ghandle.figure1,'Color',[238/255,5/255,5/255]);
-    else
-        set(ghandle.figure1,'Color',[1,1,1]);
+
+    %Send first speed command & store
+    acc=1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
+    % acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
+    [payload] = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
+    sendTreadmillPacket(payload,t);
+    datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
+    commSendTime(1,:)=clock;
+    datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now];%record the command
+    datlog.messages(end+1,:) = {'First speed command sent', now};
+    datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
+    %% Main loop
+
+    old_velR = libpointer('doublePtr',velR(1,1));
+    old_velL = libpointer('doublePtr',velL(1,1));
+    frameind = libpointer('doublePtr',1);
+    framenum = libpointer('doublePtr',0);
+
+    if numAudioCountDown %Adapted from open loop audio countdown
+        countDownPlayed = repmat(false, 1, 5*length(numAudioCountDown));
+        %if there are speed changes in between, will have 4 counts for
+        %each: 3-2-1-now & 1 for complete, moving on to next.
+        %the last 4 index will be used for 3-2-1-now(stop) and will be reused
+        %for each rest stop in between.
+        countDownIdx = 1;
+        countDownIdxOffset = 0;
+        if length(numAudioCountDown) > 1 % there is speed change in between
+            speedChangeStride = numAudioCountDown(1); %set to first target
+        end
+        prevChangeTime = datetime('now');
     end
-    
-    %% This section was on
-%     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
-if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
-    Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
-    Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
-    %         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
-    if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
-        STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
-        disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
-        datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
-    end
-end
-%%
-    %read from treadmill
-%     [RBS,LBS,theta] = getCurrentData(t);
-%     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-%     set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
-    
-    new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
-    new_stanceR=Fz_R.Value<-FzThreshold;
-    
-    LHS=new_stanceL && ~old_stanceL;
-    RHS=new_stanceR && ~old_stanceR;
-    LTO=~new_stanceL && old_stanceL;
-    RTO=~new_stanceR && old_stanceR;
-    
-    %Maquina de estados: 0 = initial, 1 = single L, 2= single R, 3 = DS from
-    %single L, 4= DS from single R
-    switch phase
-        case 0 %DS, only initial phase
-            if RTO
-                phase=1; %Go to single L
-                RstepCount=RstepCount+1;
-%                 RTOTime(RstepCount) = TimeStamp;
-                RTOTime(RstepCount) = now;
-                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-            elseif LTO %Go to single R
-                phase=2;
-                LstepCount=LstepCount+1;
-%                 LTOTime(LstepCount) = TimeStamp;
-                LTOTime(LstepCount) = now;
-                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+    tic;
+
+    while ~STOP %only runs if stop button is not pressed
+        while PAUSE %only runs if pause button is pressed
+            pause(.2);
+            datlog.messages(end+1,:) = {'Loop paused at ', now};
+            disp(['Paused at ' num2str(clock)]);
+            %bring treadmill to a stop and keep it there!...
+            [payload] = getPayload(0,0,500,500,cur_incl);
+            %cur_incl
+            sendTreadmillPacket(payload,t);
+            %do a quick save
+            try
+                save(savename,'datlog');
+            catch ME
+                disp(ME);
             end
-        case 1 %single L
-            if RHS
-                phase=3;
-                datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-%                 RHSTime(RstepCount) = TimeStamp;
-                RHSTime(RstepCount) = now;
-                % RHS marks the end of single stance L
-                durSSL(1) = durSSL(2);  % overwrite previous SSL duration
-                durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
-                % delay of left leg stimulation from RTO is mean of single
-                % stance duration divided by two (since targeting mid-point
-                % of single stance for stimulus pulse)
+            old_velR.Value = 1;%change the old values so that the treadmill knows to resume when the pause button is resumed
+            old_velL.Value = 1;
+        end
+        %newSpeed
+        drawnow;
+        %     lastFrameTime=curTime;
+        %     curTime=clock;
+        %     elapsedFrameTime=etime(curTime,lastFrameTime);
+        old_stanceL=new_stanceL;
+        old_stanceR=new_stanceR;
 
-                % Weighting most recent SSL duration more
-                % heavily (e.g., 67% since likely more predictive)
-                stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
-                % estimate single stance duration using exponential updating factor
-                % estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
-                % stimDelayL = estSSL * percentSS2Stim;
-                set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
-                %plot cursor
-                plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
-                % drawnow;
-                
-                %for Hreflex, stim is allowed after HS, and time when did HS happen
-                canStim = true;
-                tic;
-                
-                if LTO %In case DS is too short and a full cycle misses the phase switch
+        %Read frame, update necessary structures
+
+        MyClient.GetFrame();
+        framenum.Value = MyClient.GetFrameNumber().FrameNumber;
+        datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
+
+        %Read treadmill, if enough time has elapsed since last read
+        aux=(datevec(now)-datevec(lastRead));
+        if aux(6)>.1 || any(aux(1:5)>0)  %Only read if enough time has elapsed
+            [RBS, LBS,read_theta] = readTreadmillPacket(t);%also read what the treadmill is doing
+            lastRead=now;
+        end
+
+        datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now];%record the read
+        set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
+        set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
+
+        frameind.Value = frameind.Value+1;
+
+        %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
+        Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
+        Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
+        datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
+        Hx = MyClient.GetDeviceOutputValue( 'Handrail', 'Fx' );
+        Hy = MyClient.GetDeviceOutputValue( 'Handrail', 'Fy' );
+        Hz = MyClient.GetDeviceOutputValue( 'Handrail', 'Fz' );
+        Hm = sqrt(Hx.Value^2+Hy.Value^2+Hz.Value^2);
+        %     keyboard
+        %if handrail force is too high, notify the experimentor
+        if (Hm > 25)
+            set(ghandle.figure1,'Color',[238/255,5/255,5/255]);
+        else
+            set(ghandle.figure1,'Color',[1,1,1]);
+        end
+
+        %% This section was on
+        %     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
+        if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
+            Fz_R = MyClient.GetDeviceOutputValue( 'Right', 'Fz' );
+            Fz_L = MyClient.GetDeviceOutputValue( 'Left', 'Fz' );
+            %         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
+            if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
+                STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
+                disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
+                datlog.errormsgs{end+1} = 'Adaptation GUI unable to read forceplate data, check device names and function';
+            end
+        end
+        %%
+        %read from treadmill
+        %     [RBS,LBS,theta] = getCurrentData(t);
+        %     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
+        %     set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
+
+        new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
+        new_stanceR=Fz_R.Value<-FzThreshold;
+
+        LHS=new_stanceL && ~old_stanceL;
+        RHS=new_stanceR && ~old_stanceR;
+        LTO=~new_stanceL && old_stanceL;
+        RTO=~new_stanceR && old_stanceR;
+
+        %Maquina de estados: 0 = initial, 1 = single L, 2= single R, 3 = DS from
+        %single L, 4= DS from single R
+        switch phase
+            case 0 %DS, only initial phase
+                if RTO
+                    phase=1; %Go to single L
+                    RstepCount=RstepCount+1;
+                    %                 RTOTime(RstepCount) = TimeStamp;
+                    RTOTime(RstepCount) = now;
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                    % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+                elseif LTO %Go to single R
                     phase=2;
                     LstepCount=LstepCount+1;
-%                   LTOTime(LstepCount) = TimeStamp;
+                    %                 LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
-            end
-        case 2 %single R
-            if LHS
-                phase=4;
-                datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-%                 LHSTime(LstepCount) = TimeStamp;
-                LHSTime(LstepCount) = now;
-                % LHS marks the end of single stance R
-                durSSR(1) = durSSR(2);  % overwrite previous SSR duration
-                durSSR(2) = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
-                % delay of right leg stimulation from LTO is mean of single
-                % stance duration divided by two (since targeting mid-point
-                % of single stance for stimulus pulse)
-                stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
-                % estimate single stance duration using exponential updating factor
-                % estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
-                % stimDelayR = estSSR * percentSS2Stim;
-                set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
-                %plot cursor
-                plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
-                % drawnow;
-                
-                %for Hreflex, stim is allowed after HS, and time when did HS happen
-                canStim = true;
-                tic;
-                
-                if RTO %In case DS is too short and a full cycle misses the phase switch
-                    phase=1;
+            case 1 %single L
+                if RHS
+                    phase=3;
+                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                    %                 RHSTime(RstepCount) = TimeStamp;
+                    RHSTime(RstepCount) = now;
+                    % RHS marks the end of single stance L
+                    durSSL(1) = durSSL(2);  % overwrite previous SSL duration
+                    durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
+                    % delay of left leg stimulation from RTO is mean of single
+                    % stance duration divided by two (since targeting mid-point
+                    % of single stance for stimulus pulse)
+
+                    % Weighting most recent SSL duration more
+                    % heavily (e.g., 67% since likely more predictive)
+                    stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
+                    % estimate single stance duration using exponential updating factor
+                    % estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
+                    % stimDelayL = estSSL * percentSS2Stim;
+                    set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
+                    %plot cursor
+                    plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
+                    % drawnow;
+
+                    %for Hreflex, stim is allowed after HS, and time when did HS happen
+                    canStim = true;
+                    tic;
+
+                    if LTO %In case DS is too short and a full cycle misses the phase switch
+                        phase=2;
+                        LstepCount=LstepCount+1;
+                        %                   LTOTime(LstepCount) = TimeStamp;
+                        LTOTime(LstepCount) = now;
+                        datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                        % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+                    end
+                end
+            case 2 %single R
+                if LHS
+                    phase=4;
+                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                    %                 LHSTime(LstepCount) = TimeStamp;
+                    LHSTime(LstepCount) = now;
+                    % LHS marks the end of single stance R
+                    durSSR(1) = durSSR(2);  % overwrite previous SSR duration
+                    durSSR(2) = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
+                    % delay of right leg stimulation from LTO is mean of single
+                    % stance duration divided by two (since targeting mid-point
+                    % of single stance for stimulus pulse)
+                    stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
+                    % estimate single stance duration using exponential updating factor
+                    % estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
+                    % stimDelayR = estSSR * percentSS2Stim;
+                    set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
+                    %plot cursor
+                    plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
+                    % drawnow;
+
+                    %for Hreflex, stim is allowed after HS, and time when did HS happen
+                    canStim = true;
+                    tic;
+
+                    if RTO %In case DS is too short and a full cycle misses the phase switch
+                        phase=1;
+                        RstepCount=RstepCount+1;
+                        %                 RTOTime(RstepCount) = TimeStamp;
+                        RTOTime(RstepCount) = now;
+                        datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                        % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+                    end
+                end
+            case 3 %DS, coming from single L
+                if LTO
+                    phase = 2; %To single R
+                    LstepCount=LstepCount+1;
+                    %                 LTOTime(LstepCount) = TimeStamp;
+                    LTOTime(LstepCount) = now;
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                    %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+                end
+            case 4 %DS, coming from single R
+                if RTO
+                    phase =1; %To single L
                     RstepCount=RstepCount+1;
-%                 RTOTime(RstepCount) = TimeStamp;
+                    %                 RTOTime(RstepCount) = TimeStamp;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+                    %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+                end
+        end
+
+        if hreflex_present %only do this if has the stimulator
+            % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
+            timeSinceLTO = now - LTOTime(LstepCount);
+            %         timeSinceHS = toc; %Hreflex Alt Sol.
+            if isnan(stimInterval)
+                shouldStimR = logical(stimR(RstepCount));
+                shouldStimL = logical(stimL(LstepCount));
+            else
+                shouldStimR = mod(RstepCount,stimInterval) == 4;
+                shouldStimL = mod(LstepCount,stimInterval) == 4;
+            end
+
+            if (shouldStimR && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
+                %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
+                %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
+                if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                    continue
+                end
+                write(portArduino,1,'int16'); % 1 is always stim right, hard-coded here and in Arduino. Don't change this.
+                if isCalibration %play sound
+                    play(CalibAudioR);
+                end
+                canStim = false; %don't stim again untill LHS.
+                datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
+
+                %             fprintf('\nR Stim:')
+                %             disp(timeSinceHS);
+            end
+
+            % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
+            timeSinceRTO = now - RTOTime(RstepCount);
+            % Changed to using ONLY RstepCount to force stimulation order
+            % of left and right within one stride
+            if (shouldStimL && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
+                %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol.
+                if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
+                    continue
+                end
+                write(portArduino,2,'int16'); % stim left
+                if isCalibration %play sound
+                    play(CalibAudioL);
+                end
+                canStim = false; %don't stim right away.
+                datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
+
+                %             fprintf('\nL Stim:')
+                %             disp(timeSinceHS);
+            end
+        end
+
+        %check if should log NIRS events
+        if nextNirsEventIdx <= length(nirsEventSteps)
+            if (LstepCount == nirsEventSteps(nextNirsEventIdx) || RstepCount == nirsEventSteps(nextNirsEventIdx)) && need2LogEvent
+                %log it, move on to the next target and avoid coming here multiple
+                %times.
+                nirsEventString = nirsEventNames{nextNirsEventIdx};
+                datlog = nirsEvent(nirsEventString, nirsEventString(1), [nirsEventString num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                % wait till 2 steps later to log event again to avoid same
+                % event logged multiple times.
+                need2LogEvent = false;
+                if strcmp(nirsEventString,tmStartEventName) %starting TM again, give an audio cue.
+                    pause(2); %give some time for the instruction to play.
+                end
+            elseif LstepCount >= nirsEventSteps(nextNirsEventIdx)+1 && RstepCount >= nirsEventSteps(nextNirsEventIdx)+1
+                %now have past the most recent change by at least 1 steps both side, reset the flag
+                need2LogEvent = true;
+                nextNirsEventIdx = nextNirsEventIdx + 1;
+            end
+        end
+
+        if numAudioCountDown %Adapted from open loop audio countdown
+            if length(numAudioCountDown) > 1 && speedChangeStride ~= -1 %there is speed change in the middle and there is more change incoming (if -1 means next is TM end)
+                if (LstepCount == speedChangeStride-3 || RstepCount == speedChangeStride-3) && ~countDownPlayed(1+countDownIdxOffset)
+                    fprintf(['Change at ', num2str(speedChangeStride),'-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                    fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
+
+                    %log in NIRS that audio count down is happening. FIXME
+                    datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+
+                    play(AudioTMChange3);
+                    countDownPlayed(countDownIdx) = true; %This should only be run once
+                    countDownIdx = countDownIdx + 1;
+                elseif (LstepCount == speedChangeStride-1 || RstepCount == speedChangeStride-1) && ~countDownPlayed(2+countDownIdxOffset)
+                    fprintf(['Change-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                    fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
+                    play(AudioCount2);
+                    countDownPlayed(countDownIdx) = true; %This should only be run once
+                    countDownIdx = countDownIdx + 1;
+                elseif (LstepCount == speedChangeStride || RstepCount == speedChangeStride) && ~countDownPlayed(3+countDownIdxOffset)
+                    fprintf(['Change at ', num2str(speedChangeStride),' Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                    fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
+                    disp(countDownPlayed)
+                    play(AudioCount1)
+                    countDownPlayed(countDownIdx) = true; %This should only be run once
+                    countDownIdx = countDownIdx + 1;
+                elseif (LstepCount == speedChangeStride+1 || RstepCount == speedChangeStride+1) && ~countDownPlayed(4+countDownIdxOffset)
+                    fprintf(['Change Stride +1. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                    play(AudioNow)
+                    countDownPlayed(countDownIdx) = true; %This should only be run once
+                    countDownIdx = countDownIdx + 1;
+                elseif (LstepCount >= speedChangeStride+2 && RstepCount >= speedChangeStride+2) && ~countDownPlayed(5+countDownIdxOffset) && seconds(datetime('now') - prevChangeTime) > 3 %don't try this again untill 3s has passed
+                    %both legs are above speedChangeStride+1, finished the
+                    %change, move on to next target
+                    countDownIdxOffset = countDownIdxOffset + 5; %finished one change, don't do this again
+                    speedChangeStride = numAudioCountDown(countDownIdxOffset/5+1); %move on to the next change target
+                    fprintf('Done change. Next target: %d\n', speedChangeStride)
+                    fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
+                    countDownPlayed(countDownIdx) = true; %This should only be run once
+                    countDownIdx = countDownIdx + 1;
+                    prevChangeTime = datetime('now');
+                end
+            end %end conditional block for when there is step change in the middle
+
+            if ~countDownPlayed(end-3) && ( ...
+                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-4 || RstepCount == restSteps(nextRestIdx)-4)))
+                fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                %log in NIRS that audio count down is happening.
+                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                play(AudioTMStop3); %takes 2 seconds to say "treadmill will stop in"
+                countDownPlayed(end-3) = true; %This should only be run once
+            elseif ~countDownPlayed(end-2) && (...
+                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-2 || RstepCount == restSteps(nextRestIdx)-2)))
+                fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                play(AudioCount2);
+                countDownPlayed(end-2) = true; %This should only be run once
+            elseif ~countDownPlayed(end-1) && (...
+                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-1 || RstepCount == restSteps(nextRestIdx)-1)))
+                fprintf(['-1 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                play(AudioCount1);
+                countDownPlayed(end-1) = true; %This should only be run once
+            end
+
+            %Trial will end soon.
+            if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
+                fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                %log in NIRS that audio count down is happening.
+                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                play(AudioTMStop3);
+                countDownPlayed(end-3) = true; %This should only be run once
+            elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
+                fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                play(AudioCount2);
+                countDownPlayed(end-2) = true; %This should only be run once
+            end
+        end
+
+        if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
+            if numAudioCountDown %adapted from open loop audiocoudntdown
+                fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
+                play(AudioCount1);
+            end
+            break
+            %only send a command if it is different from the previous one. Don't
+            %overload the treadmill controller with commands
+        elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
+            payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
+            sendTreadmillPacket(payload,t);
+            datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now]; %record the command
+            disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
+            % if (velR(RstepCount,1) ~= old_velR.Value)
+            %  set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
+            % else %(velL(LstepCount) ~= old_velL.Value)
+            %  set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
+            % end
+        else
+            %simply record what the treadmill should be doing
+            %datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command
+            %Pablo commented out on 26/2/2018 because it is unnecessary and takes time to save later.
+        end
+
+        old_velR.Value = velR(RstepCount,1);
+        old_velL.Value = velL(LstepCount,1);
+
+        if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
+            need2LogEvent = false;
+            %for all rest except for the 1st (starting with a rest TM is not
+            %moving)
+            if countDownPlayed(end-1) %just counted down from 3-2-1, probably should say TM now.
+                play(AudioNow);
+                countDownPlayed(end-3:end) = false; %reset countdown flag
+            end
+
+            %make sure TM is at zero and hold it there.
+            [payload] = getPayload(0,0,acc,acc,cur_incl);
+            sendTreadmillPacket(payload,t);
+            pause(1.5); %give some time for the previous instruction to finish.
+            %this function plays the audio, sends event to NIRS, and logs it in datlog
+            datlog = nirsEvent('rest', 'R', ['Rest' num2str(nextRestIdx+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+            %hold the code here untill break is over.
+            %         pause(restDuration);
+            %instead of a full 20s pause, run a WHILE loop here so that the program wouldn't hang and would
+            % respond to STOP in the rest break.
+            restStarted = clock;
+            restDone = false;
+            restDuration = restDurations(nextRestIdx);
+            while ~restDone && ~STOP
+                t_diff=clock-restStarted; %aux 1x6 array in year, month, day, hour, min, sec
+                t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %compute difference in seconds
+                %             t_diff = etime(clock, lastRead); %this sometimes would error
+                %             out.
+                if t_diff >= restDuration-0.5%aux(6)>=restDuration || any(aux(1:5)>0) %enough time to rest has passed. moving on, should never be in the second or loop situation
+                    restDone = true;
+                    t_diff
+                else
+                    pause(0.8); %pause for a bit so we are not doing the while loop nonstop.
+                    [~,~,~] = readTreadmillPacket(t); %this is to maintain communication with the treamdill to avoid lag after the break.
                 end
             end
-        case 3 %DS, coming from single L
-            if LTO
-                phase = 2; %To single R
-                LstepCount=LstepCount+1;
-%                 LTOTime(LstepCount) = TimeStamp;
-                LTOTime(LstepCount) = now;
-                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+            if STOP %anytime if STOP is pressed, quit the while loop
+                break; %break the while loop
             end
-        case 4 %DS, coming from single R
-            if RTO
-                phase =1; %To single L
-                RstepCount=RstepCount+1;
-                %                 RTOTime(RstepCount) = TimeStamp;
-                RTOTime(RstepCount) = now;
-                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+            %done, advance step count to the next walking event.(notice that
+            %assumes there is always an event immediately after the rest,
+            %(e.g., rest is at step 200, there will be an event at step 250,
+            %and rest duration is coded as 50 steps).
+            if nextNirsEventIdx <= length(nirsEventSteps) %assign stepCont to next event, only if there is still more event coming.
+                LstepCount = nirsEventSteps(nextNirsEventIdx);
+                RstepCount = nirsEventSteps(nextNirsEventIdx); %it appears that we always take coded stride - 1 steps (but that's how it is in open loop controller too bc stepcount started at 1 intead of 0)
+            else %otherwise assume rest is the last thing the script will do.
+                STOP = true; %manually set stop to the experiments. Otherwise
             end
-    end
-    
-    if hreflex_present %only do this if has the stimulator
-        % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-        timeSinceLTO = now - LTOTime(LstepCount);
-        %         timeSinceHS = toc; %Hreflex Alt Sol.
-        if isnan(stimInterval)
-            shouldStimR = logical(stimR(RstepCount));
-            shouldStimL = logical(stimL(LstepCount));
-        else
-            shouldStimR = mod(RstepCount,stimInterval) == 4;
-            shouldStimL = mod(LstepCount,stimInterval) == 4;
-        end
-        
-        if (shouldStimR && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
-            %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
-            %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
-            if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                continue
-            end
-            write(portArduino,1,'int16'); % 1 is always stim right, hard-coded here and in Arduino. Don't change this.
-            if isCalibration %play sound
-                play(CalibAudioR);
-            end
-            canStim = false; %don't stim again untill LHS.
-            datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
-            
-            %             fprintf('\nR Stim:')
-            %             disp(timeSinceHS);
-        end
-        
-        % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-        timeSinceRTO = now - RTOTime(RstepCount);
-        % Changed to using ONLY RstepCount to force stimulation order
-        % of left and right within one stride
-        if (shouldStimL && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
-%         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol. 
-            if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                continue
-            end
-            write(portArduino,2,'int16'); % stim left
-            if isCalibration %play sound
-                play(CalibAudioL);
-            end
-            canStim = false; %don't stim right away.
-            datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
-
-%             fprintf('\nL Stim:')
-%             disp(timeSinceHS);
-        end
-    end
-    
-    %check if should log NIRS events
-    if nextNirsEventIdx <= length(nirsEventSteps)
-        if (LstepCount == nirsEventSteps(nextNirsEventIdx) || RstepCount == nirsEventSteps(nextNirsEventIdx)) && need2LogEvent
-            %log it, move on to the next target and avoid coming here multiple
-            %times.
-            nirsEventString = nirsEventNames{nextNirsEventIdx};
-            datlog = nirsEvent(nirsEventString, nirsEventString(1), [nirsEventString num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-            % wait till 2 steps later to log event again to avoid same
-            % event logged multiple times.
-            need2LogEvent = false;
-            if strcmp(nirsEventString,tmStartEventName) %starting TM again, give an audio cue.
-                pause(2); %give some time for the instruction to play.
-            end
-        elseif LstepCount >= nirsEventSteps(nextNirsEventIdx)+1 && RstepCount >= nirsEventSteps(nextNirsEventIdx)+1
-            %now have past the most recent change by at least 1 steps both side, reset the flag
             need2LogEvent = true;
-            nextNirsEventIdx = nextNirsEventIdx + 1;
+            nextRestIdx = nextRestIdx + 1;
         end
-    end
-    
-    if numAudioCountDown %Adapted from open loop audio countdown
-        if length(numAudioCountDown) > 1 && speedChangeStride ~= -1 %there is speed change in the middle and there is more change incoming (if -1 means next is TM end)
-            if (LstepCount == speedChangeStride-3 || RstepCount == speedChangeStride-3) && ~countDownPlayed(1+countDownIdxOffset)
-                fprintf(['Change at ', num2str(speedChangeStride),'-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                
-                %log in NIRS that audio count down is happening. FIXME
-                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-            
-                play(AudioTMChange3);
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride-1 || RstepCount == speedChangeStride-1) && ~countDownPlayed(2+countDownIdxOffset)
-                fprintf(['Change-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                play(AudioCount2);
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride || RstepCount == speedChangeStride) && ~countDownPlayed(3+countDownIdxOffset)
-                fprintf(['Change at ', num2str(speedChangeStride),' Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                disp(countDownPlayed)
-                play(AudioCount1)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount == speedChangeStride+1 || RstepCount == speedChangeStride+1) && ~countDownPlayed(4+countDownIdxOffset)
-                fprintf(['Change Stride +1. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-                play(AudioNow)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-            elseif (LstepCount >= speedChangeStride+2 && RstepCount >= speedChangeStride+2) && ~countDownPlayed(5+countDownIdxOffset) && seconds(datetime('now') - prevChangeTime) > 3 %don't try this again untill 3s has passed
-                %both legs are above speedChangeStride+1, finished the
-                %change, move on to next target
-                countDownIdxOffset = countDownIdxOffset + 5; %finished one change, don't do this again
-                speedChangeStride = numAudioCountDown(countDownIdxOffset/5+1); %move on to the next change target
-                fprintf('Done change. Next target: %d\n', speedChangeStride)
-                fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
-                countDownPlayed(countDownIdx) = true; %This should only be run once
-                countDownIdx = countDownIdx + 1;
-                prevChangeTime = datetime('now');
-            end
-        end %end conditional block for when there is step change in the middle
-        
-        if ~countDownPlayed(end-3) && ( ...
-                (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-4 || RstepCount == restSteps(nextRestIdx)-4)))
-            fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            %log in NIRS that audio count down is happening.
-            datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-            play(AudioTMStop3); %takes 2 seconds to say "treadmill will stop in"
-            countDownPlayed(end-3) = true; %This should only be run once
-        elseif ~countDownPlayed(end-2) && (...
-                (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-2 || RstepCount == restSteps(nextRestIdx)-2)))
-            fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount2);
-            countDownPlayed(end-2) = true; %This should only be run once
-         elseif ~countDownPlayed(end-1) && (...
-                 (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-1 || RstepCount == restSteps(nextRestIdx)-1)))
-            fprintf(['-1 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount1);
-            countDownPlayed(end-1) = true; %This should only be run once
-        end
-        
-        %Trial will end soon.
-        if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
-            fprintf(['-3 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            %log in NIRS that audio count down is happening.
-            datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-            play(AudioTMStop3);
-            countDownPlayed(end-3) = true; %This should only be run once
-        elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
-            fprintf(['-2 Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount2);
-            countDownPlayed(end-2) = true; %This should only be run once
-        end
-    end 
-    
-    if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
-        if numAudioCountDown %adapted from open loop audiocoudntdown
-            fprintf(['Last Stride . Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-            play(AudioCount1);
-        end
-        break
-    %only send a command if it is different from the previous one. Don't
-    %overload the treadmill controller with commands
-    elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
-        payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
-        sendTreadmillPacket(payload,t);
-        datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1),velL(LstepCount,1),cur_incl,now]; %record the command
-        disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
-        % if (velR(RstepCount,1) ~= old_velR.Value)
-        %  set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-        % else %(velL(LstepCount) ~= old_velL.Value)
-        %  set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
-        % end
+    end %While, when STOP button is pressed
+
+    if STOP
+        %     datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+        %     log=['Stop button pressed, stopping... ' num2str(clock)];
+        %     listbox{end+1}=log;
+        %Shuqi: 02/07/2024, adjusted to log time with precision
+        datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
+        disp(['Stop button pressed, stopping... ' num2str(clock)]);
+        set(ghandle.Status_textbox,'String','Stopping...');
+        set(ghandle.Status_textbox,'BackgroundColor','red');
     else
-        %simply record what the treadmill should be doing
-        %datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command
-        %Pablo commented out on 26/2/2018 because it is unnecessary and takes time to save later.
     end
-    
-    old_velR.Value = velR(RstepCount,1);
-    old_velL.Value = velL(LstepCount,1);
 
-    if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
-        need2LogEvent = false;
-        %for all rest except for the 1st (starting with a rest TM is not
-        %moving)
-        if countDownPlayed(end-1) %just counted down from 3-2-1, probably should say TM now.
-            play(AudioNow);
-            countDownPlayed(end-3:end) = false; %reset countdown flag
-        end
-        
-        %make sure TM is at zero and hold it there.
-        [payload] = getPayload(0,0,acc,acc,cur_incl);
-        sendTreadmillPacket(payload,t);
-        pause(1.5); %give some time for the previous instruction to finish.
-        %this function plays the audio, sends event to NIRS, and logs it in datlog
-        datlog = nirsEvent('rest', 'R', ['Rest' num2str(nextRestIdx+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-        %hold the code here untill break is over.
-%         pause(restDuration);
-        %instead of a full 20s pause, run a WHILE loop here so that the program wouldn't hang and would
-        % respond to STOP in the rest break.
-        restStarted = clock;
-        restDone = false;
-        restDuration = restDurations(nextRestIdx);
-        while ~restDone && ~STOP
-            t_diff=clock-restStarted; %aux 1x6 array in year, month, day, hour, min, sec
-            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %compute difference in seconds
-%             t_diff = etime(clock, lastRead); %this sometimes would error
-%             out.
-            if t_diff >= restDuration-0.5%aux(6)>=restDuration || any(aux(1:5)>0) %enough time to rest has passed. moving on, should never be in the second or loop situation
-                restDone = true;
-                t_diff
-            else
-                pause(0.8); %pause for a bit so we are not doing the while loop nonstop.
-                [~,~,~] = readTreadmillPacket(t); %this is to maintain communication with the treamdill to avoid lag after the break.
-            end
-        end
-        if STOP %anytime if STOP is pressed, quit the while loop 
-            break; %break the while loop
-        end
-        %done, advance step count to the next walking event.(notice that
-        %assumes there is always an event immediately after the rest, 
-        %(e.g., rest is at step 200, there will be an event at step 250,
-        %and rest duration is coded as 50 steps).
-        if nextNirsEventIdx <= length(nirsEventSteps) %assign stepCont to next event, only if there is still more event coming.
-            LstepCount = nirsEventSteps(nextNirsEventIdx);
-            RstepCount = nirsEventSteps(nextNirsEventIdx); %it appears that we always take coded stride - 1 steps (but that's how it is in open loop controller too bc stepcount started at 1 intead of 0)  
-        else %otherwise assume rest is the last thing the script will do.
-            STOP = true; %manually set stop to the experiments. Otherwise 
-        end
-        need2LogEvent = true;
-        nextRestIdx = nextRestIdx + 1;
-    end
-end %While, when STOP button is pressed
-
-if STOP
-%     datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
-%     log=['Stop button pressed, stopping... ' num2str(clock)];
-%     listbox{end+1}=log;
-    %Shuqi: 02/07/2024, adjusted to log time with precision
-    datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
-    disp(['Stop button pressed, stopping... ' num2str(clock)]);
-    set(ghandle.Status_textbox,'String','Stopping...');
-    set(ghandle.Status_textbox,'BackgroundColor','red');
-else
-end
-
-% log the final event marking trial end, without audio telling participant
-% to relax. This log could happen 1-2 seconds before TM fully stops which
-% is ok bc stopping usually could be perturbing and this probably marks a
-% better steady state ending. 
-% audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below). 
-datlog = nirsEvent('relax_noaudio','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
+    % log the final event marking trial end, without audio telling participant
+    % to relax. This log could happen 1-2 seconds before TM fully stops which
+    % is ok bc stopping usually could be perturbing and this probably marks a
+    % better steady state ending.
+    % audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below).
+    datlog = nirsEvent('relax_noaudio','O','Trial_End', instructions, datlog, Oxysoft, oxysoft_present);
 
 catch ME
     datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
     datlog.errormsgs{end+1} = ME;
-%     log=['Error ocurred during the control loop'];%End try
-%     listbox{end+1}=log;
+    %     log=['Error ocurred during the control loop'];%End try
+    %     listbox{end+1}=log;
     disp('Error ocurred during the control loop, see datlog for details...');
 end
 %% Closing routine
@@ -870,7 +870,7 @@ if hreflex_present %if hreflex, close communication with arduino.
     fprintf('Done Closing Arduino Port\n');
 end
 try %stopping the treadmill
-%see if the treadmill is supposed to stop at the end of the profile
+    %see if the treadmill is supposed to stop at the end of the profile
     if get(ghandle.StoptreadmillEND_checkbox,'Value')==1 && STOP ~=1
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
@@ -881,7 +881,7 @@ try %stopping the treadmill
         if numAudioCountDown %no need to say now again, changed the logic to say it earlier at stepN
             play(AudioNow)
         end
-    %see if the treadmill should be stopped when the STOP button is pressed
+        %see if the treadmill should be stopped when the STOP button is pressed
     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value')==1 && STOP == 1
         set(ghandle.Status_textbox,'String','Stopping');
         set(ghandle.Status_textbox,'BackgroundColor','red');
@@ -894,18 +894,18 @@ try %stopping the treadmill
     %Alt Option: this could be a good time to say "Relax" and the time
     %point would be exactly when TM stopped, but logging timing is better right after the last stride without audio and before the closing routine above.
     %the activity during the closing routine shouldn't really be analyzed.
-%     datlog = nirsEvent('relax','O','Trial_End_TMStop', instructions, datlog, Oxysoft, false);
+    %     datlog = nirsEvent('relax','O','Trial_End_TMStop', instructions, datlog, Oxysoft, false);
 
     %Check if treadmill stopped, if not, try again:
     pause(1)
-    fprintf(['Trying to close TM3. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])        
+    fprintf(['Trying to close TM3. Date Time: ',datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
     stopped = cur_speedR==0 && cur_speedL==0;
     counter=0;
     while ~stopped && counter<5 %Try 5 times to stop the treadmill smoothly
         disp('Treadmill did not stop when requested. Trying again.')
         %smoothStop(t)
-        fprintf(['Trying to close TM4. Date Time: ',num2str(counter),datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])        
+        fprintf(['Trying to close TM4. Date Time: ',num2str(counter),datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
         pause(1) %Give time to smoothStop to execute everything
         [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t)
         stopped = cur_speedR==0 && cur_speedL==0;
@@ -922,15 +922,15 @@ end
 % pause(1)
 disp('closing comms');
 try
-    closeNexusIface(MyClient); %This was on before 
-%      MyClient.Disconnect();
+    closeNexusIface(MyClient); %This was on before
+    %      MyClient.Disconnect();
     closeTreadmillComm(t);
-%     keyboard
+    %     keyboard
 catch ME
     datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
     datlog.errormsgs{end+1} = ME;
-%     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
-%     listbox{end+1}=log;
+    %     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
+    %     listbox{end+1}=log;
     disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
     disp(ME);
 end
@@ -960,25 +960,25 @@ end
 datlog.stepdata.RHSdata(temp:end,:) = [];
 temp = size(datlog.stepdata.RHSdata,1)+1;
 for z = 1:temp-1
-   datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert LHS times
 % temp = find(datlog.stepdata.LHSdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
 % datlog.stepdata.LHSdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert RTO times
 % temp = find(datlog.stepdata.RTOdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
 % datlog.stepdata.RTOdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 %convert LTO times
 % temp = find(datlog.stepdata.LTOdata(:,1) == 0,1,'first');% remove the clean up routine, bc 0 now means break.
 % datlog.stepdata.LTOdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 
 %convert command times
@@ -994,7 +994,7 @@ try
     lastTMTime = datlog.TreadmillCommands.read(end,4);
     fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
     fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n'])
-catch 
+catch
     fprintf('Unable to get TM packets start and end time')
 end
 
@@ -1002,7 +1002,7 @@ end
 datlog.audioCues.start = datlog.audioCues.start';
 datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
 temp = isnan(datlog.audioCues.start);
-disp('\nConverting datalog, current starts \n'); 
+disp('\nConverting datalog, current starts \n');
 disp(datlog.audioCues.start);
 datlog.audioCues.start=datlog.audioCues.start(~temp);
 datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
