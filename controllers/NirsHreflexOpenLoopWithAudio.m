@@ -9,7 +9,8 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %When to do NIRS event is determined by parsing the velL and velR (0 speeds
 %are treated as rest, parse will also find tied, ramp, split, and post)
 %
-%--- Doc from the OPEN loop controller (controlSpeedWithSteps_edit1 with audio countdown) ----
+%--- Doc from the OPEN loop controller (controlSpeedWithSteps_edit1 with
+% audio countdown) ----
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -66,8 +67,8 @@ if hreflex_present
 
     if isCalibration        % if H-reflex calibration trial, ...
         oxysoft_present = false;    % disable fNIRS in H-reflex calibration
-        %         stimInterval = 5;             % stimulate every 5 strides
-        %         initStep2SkipForCalib = 5;    % skip first strides for settling in
+        % stimInterval = 5;         % stimulate every 5 strides
+        % initStep2SkipForCalib = 5;% skip first strides for settling in
         totalCalibStims = 22; %default [8:2:28] stim current levels x 2 stim at each level
 
         % load calibration audio for left and right stimulation events
@@ -449,11 +450,9 @@ try     % so that if something fails, communications are closed properly
         end
 
         %% This section was on
-        %     if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2) %failed to find the devices, try the alternate name convention
         if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success') %DMMO
             Fz_R = MyClient.GetDeviceOutputValue('Right','Fz');
             Fz_L = MyClient.GetDeviceOutputValue('Left','Fz');
-            %         if (Fz_R.Result.Value ~= 2) || (Fz_L.Result.Value ~= 2)
             if ~strcmp(Fz_R.Result,'Success') || ~strcmp(Fz_L.Result,'Success')
                 STOP = 1;  %stopUnloadVicon, the GUI can't find the forceplate values
                 disp('ERROR! Adaptation GUI unable to read forceplate data, check device names and function');
@@ -461,43 +460,42 @@ try     % so that if something fails, communications are closed properly
             end
         end
         %%
-        %read from treadmill
-        %     [RBS,LBS,theta] = getCurrentData(t);
-        %     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-        %     set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
+        % read from treadmill
+        % [RBS,LBS,theta] = getCurrentData(t);
+        % set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
+        % set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
 
-        new_stanceL=Fz_L.Value<-FzThreshold; %20N Threshold
-        new_stanceR=Fz_R.Value<-FzThreshold;
+        new_stanceL = Fz_L.Value < -FzThreshold;
+        new_stanceR = Fz_R.Value < -FzThreshold;
+        LHS = new_stanceL && ~old_stanceL;
+        RHS = new_stanceR && ~old_stanceR;
+        LTO = ~new_stanceL && old_stanceL;
+        RTO = ~new_stanceR && old_stanceR;
 
-        LHS=new_stanceL && ~old_stanceL;
-        RHS=new_stanceR && ~old_stanceR;
-        LTO=~new_stanceL && old_stanceL;
-        RTO=~new_stanceR && old_stanceR;
-
-        %Maquina de estados: 0 = initial, 1 = single L, 2= single R, 3 = DS from
-        %single L, 4= DS from single R
+        %Maquina de estados: 0 = initial, 1 = single L, 2 = single R,
+        %3 = DS from single L, 4 = DS from single R
         switch phase
-            case 0 %DS, only initial phase
-                if RTO
-                    phase=1; %Go to single L
-                    RstepCount=RstepCount+1;
-                    %                 RTOTime(RstepCount) = TimeStamp;
+            case 0          % DS, only initial phase
+                if RTO      % go to single L
+                    phase = 1;
+                    RstepCount = RstepCount + 1;
+                    % RTOTime(RstepCount) = TimeStamp;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-                elseif LTO %Go to single R
-                    phase=2;
+                elseif LTO  % go to single R
+                    phase = 2;
                     LstepCount=LstepCount+1;
-                    %                 LTOTime(LstepCount) = TimeStamp;
+                    % LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
-            case 1 %single L
+            case 1          % single L
                 if RHS
-                    phase=3;
+                    phase = 3;
                     datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    %                 RHSTime(RstepCount) = TimeStamp;
+                    % RHSTime(RstepCount) = TimeStamp;
                     RHSTime(RstepCount) = now;
                     % RHS marks the end of single stance L
                     durSSL(1) = durSSL(2);  % overwrite previous SSL duration
@@ -506,35 +504,33 @@ try     % so that if something fails, communications are closed properly
                     % stance duration divided by two (since targeting mid-point
                     % of single stance for stimulus pulse)
 
-                    % Weighting most recent SSL duration more
+                    % weighting most recent SSL duration more
                     % heavily (e.g., 67% since likely more predictive)
                     stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
                     % estimate single stance duration using exponential updating factor
                     % estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
                     % stimDelayL = estSSL * percentSS2Stim;
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
-                    %plot cursor
+                    % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
                     % drawnow;
-
-                    %for Hreflex, stim is allowed after HS, and time when did HS happen
-                    canStim = true;
+                    canStim = true; % allow stim after HS and start timer
                     tic;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
-                        phase=2;
+                        phase = 2;
                         LstepCount=LstepCount+1;
-                        %                   LTOTime(LstepCount) = TimeStamp;
+                        % LTOTime(LstepCount) = TimeStamp;
                         LTOTime(LstepCount) = now;
                         datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                         % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                     end
                 end
-            case 2 %single R
+            case 2          % single R
                 if LHS
-                    phase=4;
+                    phase = 4;
                     datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    %                 LHSTime(LstepCount) = TimeStamp;
+                    % LHSTime(LstepCount) = TimeStamp;
                     LHSTime(LstepCount) = now;
                     % LHS marks the end of single stance R
                     durSSR(1) = durSSR(2);  % overwrite previous SSR duration
@@ -547,18 +543,16 @@ try     % so that if something fails, communications are closed properly
                     % estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
                     % stimDelayR = estSSR * percentSS2Stim;
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
-                    %plot cursor
+                    % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     % drawnow;
-
-                    %for Hreflex, stim is allowed after HS, and time when did HS happen
-                    canStim = true;
+                    canStim = true; % allow stim after HS and start timer
                     tic;
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
-                        phase=1;
+                        phase = 1;
                         RstepCount=RstepCount+1;
-                        %                 RTOTime(RstepCount) = TimeStamp;
+                        % RTOTime(RstepCount) = TimeStamp;
                         RTOTime(RstepCount) = now;
                         datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                         % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
@@ -568,26 +562,26 @@ try     % so that if something fails, communications are closed properly
                 if LTO
                     phase = 2; %To single R
                     LstepCount=LstepCount+1;
-                    %                 LTOTime(LstepCount) = TimeStamp;
+                    % LTOTime(LstepCount) = TimeStamp;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+                    % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
             case 4 %DS, coming from single R
                 if RTO
-                    phase =1; %To single L
+                    phase = 1; %To single L
                     RstepCount=RstepCount+1;
-                    %                 RTOTime(RstepCount) = TimeStamp;
+                    % RTOTime(RstepCount) = TimeStamp;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+                    % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
                 end
         end
 
-        if hreflex_present %only do this if has the stimulator
+        if hreflex_present      % only do this if has the stimulator
             % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
             timeSinceLTO = now - LTOTime(LstepCount);
-            %         timeSinceHS = toc; %Hreflex Alt Sol.
+            % timeSinceHS = toc; % Hreflex Alt Sol.
             if isnan(stimInterval)
                 shouldStimR = logical(stimR(RstepCount));
                 shouldStimL = logical(stimL(LstepCount));
@@ -597,20 +591,25 @@ try     % so that if something fails, communications are closed properly
             end
 
             if (shouldStimR && phase == 2 && canStim && (timeSinceLTO >= 0.80*stimDelayR))
-                %         if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
-                %         timeSinceHS >= 0.8*stimDelayR(RstepCount))%single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
+                % if (~mod(RstepCount,stimInterval) && phase == 2 && canStim &&
+                % timeSinceHS >= 0.8*stimDelayR(RstepCount)) % single stance R detected & estimated in mid stance already (from stimDelay).%Hreflex Alt Sol.
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue
+                    continue;
                 end
-                write(portArduino,1,'int16'); % 1 is always stim right, hard-coded here and in Arduino. Don't change this.
-                if isCalibration %play sound
+
+                if isCalibration    % play sound
                     play(CalibAudioR);
                 end
-                canStim = false; %don't stim again untill LHS.
-                datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
 
-                %             fprintf('\nR Stim:')
-                %             disp(timeSinceHS);
+                try         % send command to Arduino to stimulate right
+                    write(portArduino,1,'int16'); % hard-coded here and in Arduino. Don't change this.
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send right leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
+                end
+                canStim = false;
+                datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
             end
 
             % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
@@ -618,19 +617,25 @@ try     % so that if something fails, communications are closed properly
             % Changed to using ONLY RstepCount to force stimulation order
             % of left and right within one stride
             if (shouldStimL && phase == 1 && canStim && (timeSinceRTO >= 0.80*stimDelayL))
-                %         if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount))%single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol.
+                % if (~mod(LstepCount,stimInterval) && phase == 1 && canStim && timeSinceHS >= 0.8*stimDelayL(LstepCount)) % single L detected & estimated in mid stance already (from stimDelay)%Hreflex Alt Sol.
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
-                    continue
+                    continue;
                 end
-                write(portArduino,2,'int16'); % stim left
-                if isCalibration %play sound
+
+                if isCalibration    % play sound
                     play(CalibAudioL);
                 end
-                canStim = false; %don't stim right away.
-                datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
 
-                %             fprintf('\nL Stim:')
-                %             disp(timeSinceHS);
+                try         % send command to Arduino to stimulate left
+                    write(portArduino,2,'int16');
+                catch ME
+                    % handle any potential communication errors
+                    warning(ME.identifier,['Failed to send left leg ' ...
+                        'stimulation command to Arduino: %s'],ME.message);
+                end
+
+                canStim = false;    % prevent immediate stimulation
+                datlog.stim.L(end+1,:) = [RstepCount, stimDelayL, timeSinceRTO];
             end
         end
 
@@ -811,15 +816,14 @@ try     % so that if something fails, communications are closed properly
     end %While, when STOP button is pressed
 
     if STOP
-        %     datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
-        %     log=['Stop button pressed, stopping... ' num2str(clock)];
-        %     listbox{end+1}=log;
-        %Shuqi: 02/07/2024, adjusted to log time with precision
+        % datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+        % log = ['Stop button pressed, stopping... ' num2str(clock)];
+        % listbox{end+1} = log;
+        % Shuqi: 02/07/2024, adjusted to log time with precision
         datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
-    else
     end
 
     % log the final event marking trial end, without audio telling participant
@@ -832,8 +836,8 @@ try     % so that if something fails, communications are closed properly
 catch ME
     datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
     datlog.errormsgs{end+1} = ME;
-    %     log=['Error ocurred during the control loop'];%End try
-    %     listbox{end+1}=log;
+    % log = ['Error ocurred during the control loop'];%End try
+    % listbox{end+1} = log;
     disp('Error ocurred during the control loop, see datlog for details...');
 end
 %% Closing routine
@@ -845,13 +849,20 @@ catch ME
     disp(ME);
 end
 
-if hreflex_present %if hreflex, close communication with arduino.
+if hreflex_present      % if hreflex, close communication with arduino
     datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
-    fprintf('Closing Arduino Port');
-    flush(portArduino); % flush remaining data in the buffer
-    delete(portArduino); % close and clear the serial port object
-    fprintf('Done Closing Arduino Port\n');
+    fprintf('Closing serial port communication with the Arduino...\n');
+    try
+        flush(portArduino);     % flush remaining data in the buffer
+        delete(portArduino);    % close and clear the serial port object
+        fprintf('Successfully closed the Arduino serial port.\n');
+    catch ME
+        % handle errors and log the exception message
+        warning(ME.identifier, ...
+            'Failed to properly close Arduino serial port: %s',ME.message);
+    end
 end
+
 try %stopping the treadmill
     %see if the treadmill is supposed to stop at the end of the profile
     if get(ghandle.StoptreadmillEND_checkbox,'Value')==1 && STOP ~=1
@@ -887,7 +898,7 @@ try %stopping the treadmill
     counter=0;
     while ~stopped && counter<5 %Try 5 times to stop the treadmill smoothly
         disp('Treadmill did not stop when requested. Trying again.')
-        %smoothStop(t)
+        % smoothStop(t)
         fprintf(['Trying to close TM4. Date Time: ',num2str(counter),datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
         pause(1) %Give time to smoothStop to execute everything
         [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t)
@@ -902,18 +913,15 @@ catch ME
     datlog.errormsgs{end+1} = ME;
 end
 
-% pause(1)
 disp('closing comms');
 try
     closeNexusIface(MyClient); %This was on before
-    %      MyClient.Disconnect();
     closeTreadmillComm(t);
-    %     keyboard
 catch ME
     datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
     datlog.errormsgs{end+1} = ME;
-    %     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
-    %     listbox{end+1}=log;
+    % log = ['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
+    % listbox{end+1} = log;
     disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
     disp(ME);
 end
@@ -931,7 +939,6 @@ end
 %convert force times
 datlog.forces.data(1,:) = [];
 temp = find(datlog.forces.data(:,1)==0,1,'first');
-% keyboard
 datlog.forces.data(temp:end,:) = [];
 for z = 1:temp-1
     datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));

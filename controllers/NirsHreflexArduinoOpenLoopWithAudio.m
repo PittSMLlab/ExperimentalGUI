@@ -70,8 +70,8 @@ if hreflex_present
 
     if isCalibration        % if H-reflex calibration trial, ...
         oxysoft_present = false;    % disable fNIRS in H-reflex calibration
-        %         stimInterval = 5;           % stimulate every 5 strides
-        %         initStep2SkipForCalib = 5;  % skip first strides for settling in
+        % stimInterval = 5;         % stimulate every 5 strides
+        % initStep2SkipForCalib = 5;% skip first strides for settling in
 
         % load calibration audio for left and right stimulation events
         [audio_data,audio_fs]=audioread('L.mp3');
@@ -86,31 +86,9 @@ if hreflex_present
         stimR = false(numel(velR),1);
     end
 
-    % validate input dimensions
-    % assert(length(stimR) <= 1000,'stimR must have at most 1000 elements.');
-    % assert(length(stimL) <= 1000,'stimL must have at most 1000 elements.');
-
-    % stimR = logical(stimR);         % convert to logical arrays
-    % stimL = logical(stimL);
-    % NOTE: assuming 'stimR' and 'stimL' are always identical since Arduino
-    % has limited memory
-    % stim = false(1000,1);           % initialize 'stim' array
-    % stim(1:numel(stimR)) = stimR;   % set first elements to be 'stimR'
-    % stimStr = char('0' + stim);     % convert logical to '0'/'1' char array
-
-    % command = sprintf("STIM|%s\n",stimStr); % create 'STIM' command
-    % try
-    %     fprintf('Sending should stim stride array...\n');
-    %     writeline(portArduino,command);
-    %     fprintf('stim array sent.\n');
-    % catch ME
-    %     % handle any potential communication errors
-    %     warning(ME.identifier,'Failed to send stim array: %s',ME.message);
-    % end
-
     %     end
     % initialize stimulation control variables
-    % canStim = false;    % default to no stimulation until conditions met
+    canStim = false;    % default to no stimulation until conditions met
 end
 
 if hreflex_present
@@ -124,18 +102,6 @@ if hreflex_present
         warning(ME.identifier,['Failed to send start state machine ' ...
             'commands to Arduino: %s'],ME.message);
     end
-
-    % datlog.messages(end+1,:) = {'Start to close Arduino Port ',now};
-    % fprintf('Closing serial port communication with the Arduino...\n');
-    % try
-    %     flush(portArduino); % flush remaining data in the buffer
-    %     clear(portArduino); % close and clear the serial port object
-    %     fprintf('Successfully closed the Arduino serial port.\n');
-    % catch ME
-    %     % handle errors and log the exception message
-    %     warning(ME.identifier, ...
-    %         'Failed to properly close Arduino serial port: %s',ME.message);
-    % end
 end
 
 %% load GUI handle and audio mp3 files for trial countdown
@@ -520,18 +486,18 @@ try     % so that if something fails, communications are closed properly
         LTO = ~new_stanceL && old_stanceL;
         RTO = ~new_stanceR && old_stanceR;
 
-        %Maquina de estados: 0 = initial, 1 = single L, 2= single R,
-        %3 = DS from single L, 4= DS from single R
+        %Maquina de estados: 0 = initial, 1 = single L, 2 = single R,
+        %3 = DS from single L, 4 = DS from single R
         switch phase
             case 0          % DS, only initial phase
-                if RTO      % Go to single L
-                    phase=1;
+                if RTO      % go to single L
+                    phase = 1;
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-                elseif LTO  % Go to single R
-                    phase=2;
+                elseif LTO  % go to single R
+                    phase = 2;
                     LstepCount=LstepCount+1;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
@@ -539,7 +505,7 @@ try     % so that if something fails, communications are closed properly
                 end
             case 1          % single L
                 if RHS
-                    phase=3;
+                    phase = 3;
                     datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                     RHSTime(RstepCount) = now;
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
@@ -549,26 +515,26 @@ try     % so that if something fails, communications are closed properly
                     canStim = true;
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
-                        phase=2;
+                        phase = 2;
                         LstepCount=LstepCount+1;
                         LTOTime(LstepCount) = now;
                         datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                     end
                 end
-            case 2 %single R
+            case 2          % single R
                 if LHS
-                    phase=4;
+                    phase = 4;
                     datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     LHSTime(LstepCount) = now;
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
                     drawnow;
-                    canStim = true;
+                    canStim = true; % allow stim after HS and start timer
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
-                        phase=1;
+                        phase = 1;
                         RstepCount=RstepCount+1;
                         RTOTime(RstepCount) = now;
                         datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
@@ -581,7 +547,7 @@ try     % so that if something fails, communications are closed properly
                     LstepCount=LstepCount+1;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
-                    %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
+                    % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
             case 4 %DS, coming from single R
                 if RTO
@@ -589,7 +555,7 @@ try     % so that if something fails, communications are closed properly
                     RstepCount=RstepCount+1;
                     RTOTime(RstepCount) = now;
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
-                    %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
+                    % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
                 end
         end
 
@@ -607,9 +573,11 @@ try     % so that if something fails, communications are closed properly
                 if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue;
                 end
+
                 if isCalibration    % play sound
                     play(CalibAudioR);
                 end
+
                 try         % send command to Arduino to stimulate right
                     write(portArduino,2,'int16');
                 catch ME
@@ -626,9 +594,11 @@ try     % so that if something fails, communications are closed properly
                 if isCalibration && LstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                     continue;
                 end
+
                 if isCalibration    % play sound
                     play(CalibAudioL);
                 end
+
                 try         % send command to Arduino to stimulate left
                     write(portArduino,1,'int16');
                 catch ME
@@ -636,7 +606,7 @@ try     % so that if something fails, communications are closed properly
                     warning(ME.identifier,['Failed to send left leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
                 end
-                canStim = false;
+                canStim = false;    % prevent immediate stimulation
                 % datlog.stim.L(end+1,:) = RstepCount;
             end
         end
@@ -828,7 +798,7 @@ try     % so that if something fails, communications are closed properly
     end
 
     if STOP
-        %Shuqi: 02/07/2024, adjusted to log time with precision
+        % Shuqi: 02/07/2024, adjusted to log time with precision
         datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ', now};
         disp(['Stop button pressed, stopping... ' num2str(clock)]);
         set(ghandle.Status_textbox,'String','Stopping...');
@@ -856,13 +826,13 @@ catch ME
     disp(ME);
 end
 
-if hreflex_present      % if hreflex, close communication with arduino.
+if hreflex_present      % if hreflex, close communication with arduino
     datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
     fprintf('Closing serial port communication with the Arduino...\n');
     try
-        flush(portArduino); % flush remaining data in the buffer
-        clear(portArduino); % close and clear the serial port object
-        fprintf('Successfully close the Arduino serial port.\n');
+        flush(portArduino);     % flush remaining data in the buffer
+        delete(portArduino);    % close and clear the serial port object
+        fprintf('Successfully closed the Arduino serial port.\n');
     catch ME
         % handle errors and log the exception message
         warning(ME.identifier, ...
