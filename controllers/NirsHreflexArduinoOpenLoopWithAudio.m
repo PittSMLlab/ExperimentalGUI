@@ -54,7 +54,7 @@ restDuration = 20; %default 20s rest, could change for debugging
 %% Open the port to talk to Arduino
 if hreflex_present
     try
-        % Configure and open serial port communication with Arduino
+        % configure and open serial port communication with Arduino
         fprintf('Opening the Arduino serial communication port.\n');
         portArduino = serialport('COM4',115200);
         % configureTerminator(portArduino,'LF');  % set serial COM terminator
@@ -62,6 +62,7 @@ if hreflex_present
     catch ME
         warning(ME.identifier,'Failed to open Arduino serial port: %s', ...
             ME.message);
+        % if this is the case, check that all Arduino software is closed
         % set to false to bypass stimulation if Arduino connection fails
         hreflex_present = false;
         return;
@@ -295,7 +296,7 @@ end
 if nargin<3
     % TODO: Left force plate is getting very noisy. 30N is not enough to be robust.
     FzThreshold = 100; %Newtons (30 is minimum for noise not to be an issue)
-elseif FzThreshold<30
+elseif FzThreshold < 30
     % warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
     datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 30N instead';
     disp('Warning: Fz threshold too low to be robust to noise, using 30N instead');
@@ -351,7 +352,7 @@ catch ME
     disp(ME);
 end
 
-try % so that if something fails, communications are closed properly
+try     % so that if something fails, communications are closed properly
     MyClient.GetFrame();
     % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
     datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
@@ -370,7 +371,7 @@ try % so that if something fails, communications are closed properly
     commSendTime = zeros(2*N-1,6);
     commSendFrame = zeros(2*N-1,1);
 
-    [RBS,LBS,cur_incl] = readTreadmillPacket(t);% read treadmill incline angle
+    [RBS,LBS,cur_incl] = readTreadmillPacket(t); % read treadmill incline angle
     lastRead = now;
     datlog.inclineang = cur_incl;
     read_theta = cur_incl;
@@ -464,12 +465,12 @@ try % so that if something fails, communications are closed properly
         old_stanceL = new_stanceL;
         old_stanceR = new_stanceR;
 
-        % Read frame, update necessary structures
+        % read frame, update necessary structures
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
         datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
 
-        % Read treadmill, if enough time has elapsed since last read
+        % read treadmill, if enough time has elapsed since last read
         aux = datevec(now) - datevec(lastRead);
         if aux(6) > 0.1 || any(aux(1:5) > 0)    % only read if enough time has elapsed
             [RBS,LBS,read_theta] = readTreadmillPacket(t);  % also read what the treadmill is doing
@@ -481,7 +482,7 @@ try % so that if something fails, communications are closed properly
         set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
         frameind.Value = frameind.Value + 1;
 
-        %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
+        % assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
         Fz_R = MyClient.GetDeviceOutputValue('Right Treadmill','Fz');
         Fz_L = MyClient.GetDeviceOutputValue('Left Treadmill','Fz');
         datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
