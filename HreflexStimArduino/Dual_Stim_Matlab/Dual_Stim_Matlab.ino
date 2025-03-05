@@ -4,45 +4,50 @@
 // author(s): SL, NWB
 
 // stimulation pulse duration (ms)
-const int stimDuration = 20;
+const int durStimPulse = 20;
 
-// stimulator configuration
-const int rightOutputPin = 8;
-const int rightViconOut = 11;
-const int leftOutputPin = 9;
-const int leftViconOut = 12;
-int value = 0;  // serial communication integer
+// right and left stimulator pin configurations
+const int pinOutStimR = 8;
+const int pinOutViconR = 11;
+const int pinOutStimL = 9;
+const int pinOutViconL = 12;
 
-void setup() {
+// TODO: consider using uint8 type for serial communication speed
+int command = 0; // serial communication integer
+
+void setup()
+{
   Serial.begin(115200);
   // ensure pins are properly set for output
-  pinMode(rightOutputPin, OUTPUT);
-  pinMode(rightViconOut, OUTPUT);
-  pinMode(leftOutputPin, OUTPUT);
-  pinMode(leftViconOut, OUTPUT);
+  pinMode(pinOutStimR, OUTPUT);
+  pinMode(pinOutViconR, OUTPUT);
+  pinMode(pinOutStimL, OUTPUT);
+  pinMode(pinOutViconL, OUTPUT);
 }
 
-void loop() {
-  if (Serial.available()) {
-    value = Serial.read();
-    switch (value)
+void loop()
+{
+  // check for input from MATLAB
+  if (Serial.available())
+  {
+    command = Serial.read();
+    switch (command)
     {
-      case 1:   // stimulate right leg
-        digitalWrite(rightOutputPin, HIGH);
-        digitalWrite(rightViconOut, HIGH);
-        delay(stimDuration);
-        digitalWrite(rightOutputPin, LOW);
-        digitalWrite(rightViconOut, LOW);
-        break;
+    case 1: // stimulate the right leg
+      digitalWrite(pinOutStimR, HIGH);
+      digitalWrite(pinOutViconR, HIGH);
+      delay(durStimPulse);
+      digitalWrite(pinOutStimR, LOW);
+      digitalWrite(pinOutViconR, LOW);
+      break;
 
-      case 2:   // stimulate left leg
-        digitalWrite(leftOutputPin, HIGH);
-        digitalWrite(leftViconOut, HIGH);
-        delay(stimDuration);
-        digitalWrite(leftOutputPin, LOW);
-        digitalWrite(leftViconOut, LOW);
-        break;
+    case 2: // stimulate the left leg
+      digitalWrite(pinOutStimL, HIGH);
+      digitalWrite(pinOutViconL, HIGH);
+      delay(durStimPulse);
+      digitalWrite(pinOutStimL, LOW);
+      digitalWrite(pinOutViconL, LOW);
+      break;
     }
   }
 }
-

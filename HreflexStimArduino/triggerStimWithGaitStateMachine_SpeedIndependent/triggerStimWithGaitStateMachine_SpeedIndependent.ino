@@ -70,7 +70,7 @@ int numStepsR = 0; // right step counter
 // event detection))
 const int threshFzUp = 30; // force threshold bits to detect stance phase
 const int threshFzDown = 2;
-const int durStimPulse = 20;           // stimulation pulse duration [ms]
+const int durStimPulse = 20;           // stimulation pulse duration (ms)
 const unsigned long timeDebounce = 50; // de-bouncing time constant
 
 // right and left stimulator pin configurations
@@ -84,6 +84,7 @@ const int pinOutViconL = 12;
 void setup()
 {
   Serial.begin(115200);
+  // ensure pins are properly set for output
   pinMode(pinOutStimR, OUTPUT);
   pinMode(pinOutViconR, OUTPUT);
   pinMode(pinOutStimL, OUTPUT);
