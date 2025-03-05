@@ -40,8 +40,8 @@ float estSSL = 396.6;             // estimated single stance duration left (init
 float estSSR = 396.6;             // estimated single stance duration right (initially 396.6 ms)
 unsigned long durSSL = 397;       // left single stance duration
 unsigned long durSSR = 397;       // right single stance duration
-bool canStimL = false;            // is stimulation allowed at this time?
-bool canStimR = false;            // is stimulation allowed at this time?
+// bool canStimL = false;            // is stimulation allowed at this time?
+// bool canStimR = false;            // is stimulation allowed at this time?
 bool shouldStimL = false;         // should stimulate left leg this stride?
 bool shouldStimR = false;         // should stimulate right leg this stride?
 bool shouldRunSM = false;         // should run gait event state machine?
@@ -81,7 +81,6 @@ const int pinInFzR = A1;
 const int pinOutStimR = 8;
 const int pinOutViconR = 11;
 
-// TODO: consider using uint8 type for serial communication speed
 int command = 0; // serial communication integer
 
 void setup()
@@ -226,7 +225,7 @@ void updateGaitEventStateMachine()
       durSSL = timeRHS - timeRTO;
       // estimate single stance duration using exponential updating factor
       estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
-      canStimL = true; // enable stimulation
+      // canStimL = true; // enable stimulation
     }
     break;
 
@@ -247,7 +246,7 @@ void updateGaitEventStateMachine()
       durSSR = timeLHS - timeLTO;
       // estimate single stance duration using exponential updating factor
       estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
-      canStimR = true; // enable stimulation
+      // canStimR = true; // enable stimulation
     }
     break;
 
@@ -278,9 +277,10 @@ void triggerStimulation()
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-  // Use following condition if troubleshooting: numStepsL % freqStim == 0
-  // TODO: remove 'canStim' booleans once 'shouldStim' serial communication working fine
-  if (phase == 1 && canStimL && shouldStimL)
+  // Use following conditions if troubleshooting:
+  //  canStimL
+  //  numStepsL % freqStim == 0
+  if (phase == 1 && shouldStimL)
   {
     timeTargetStimL = percentSS2Stim * estSSL;
     timeSinceRTO = now - timeRTO;
@@ -291,15 +291,17 @@ void triggerStimulation()
       digitalWrite(pinOutViconL, HIGH);
       timeStimStartL = millis();
       isStimmingL = true;
-      canStimL = false;
+      // canStimL = false;
       shouldStimL = false; // reset trigger for next cycle
     }
   }
 
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  // Use following condition if troubleshooting: numStepsR % freqStim == 0
-  if (phase == 2 && canStimR && shouldStimR)
+  // Use following conditions if troubleshooting:
+  //  canStimR
+  //  numStepsR % freqStim == 0
+  if (phase == 2 && shouldStimR)
   {
     timeTargetStimR = percentSS2Stim * estSSR;
     timeSinceLTO = now - timeLTO;
@@ -310,7 +312,7 @@ void triggerStimulation()
       digitalWrite(pinOutViconR, HIGH);
       timeStimStartR = millis();
       isStimmingR = true;
-      canStimR = false;
+      // canStimR = false;
       shouldStimR = false; // reset trigger for next cycle
     }
   }
