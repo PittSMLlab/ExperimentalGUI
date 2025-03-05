@@ -1,4 +1,7 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,profilename,numAudioCountDown, isCalibration, oxysoft_present,hreflex_present,stimL,stimR)
+function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
+    NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold,...
+    profilename,numAudioCountDown,isCalibration,oxysoft_present,...
+    hreflex_present,stimL,stimR)
 %This is the adapted from Open loop controller with audio feedback, added
 %NIRS events for tied, ramp, split, rest (optional, if exists, always rest
 %for 20 seconds). Also send H reflex stimulations every 10 strides during
@@ -37,7 +40,7 @@ if nargin < 7
     oxysoft_present = true; %default always true, unless debugging without the NIRS instrument.
 end
 
-if nargin < 8 
+if nargin < 8
     hreflex_present = true; %default true, unless debugging without Hreflex stimulator.
 end
 
@@ -45,11 +48,11 @@ restDuration = 20; %default 20s rest, could change for debugging
 
 %% Open the port to talk to Arduino
 if hreflex_present
-     %assume it's at com4 and baud rate 600, which is plenty
-    arduinoPort = serial('COM4','BAUD',600);
-    fprintf('Opening ArduinoPort')
-    fopen(arduinoPort); %if this doens't work bc port is busy, check that all Arduino softwares are closed.
-    fprintf('Doen Opening ArduinoPort')
+    % assume it's at com4 and baud rate 600, which is plenty
+    fprintf('Opening ArduinoPort');
+    % if this doesn't work bc port is busy, check that all Arduino softwares are closed.
+    portArduino = serialport('COM4',115200);
+    fprintf('Done Opening ArduinoPort');
     
     if isCalibration
         oxysoft_present = false; %calibrating Hreflex, don't try to connect to NIRS
@@ -616,7 +619,7 @@ end
             if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                 continue
             end
-            fprintf(arduinoPort,1); %1 is always stim right, hard-coded here and in Arduino. Don't change this.
+            write(portArduino,1,'int16'); % 1 is always stim right, hard-coded here and in Arduino. Don't change this.
             if isCalibration %play sound
                 play(CalibAudioR);
             end
@@ -636,7 +639,7 @@ end
             if isCalibration && RstepCount <= initStep2SkipForCalib %don't stimulate the first 5 strides, give participants time to settle in.
                 continue
             end
-            fprintf(arduinoPort,2); %stim left
+            write(portArduino,2,'int16'); % stim left
             if isCalibration %play sound
                 play(CalibAudioL);
             end
@@ -862,7 +865,8 @@ end
 if hreflex_present %if hreflex, close communication with arduino.
     datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
     fprintf('Closing Arduino Port');
-    fclose(arduinoPort);
+    flush(portArduino); % flush remaining data in the buffer
+    delete(portArduino); % close and clear the serial port object
     fprintf('Done Closing Arduino Port\n');
 end
 try %stopping the treadmill
