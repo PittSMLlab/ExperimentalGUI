@@ -276,29 +276,10 @@ void triggerStimulation()
   // TODO: move definition up to top
   unsigned long now = millis();
 
-  // right leg stimulation trigger conditions
-  // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-  // Use following condition if troubleshooting: numStepsR % freqStim == 0
-  // TODO: remove 'canStim' booleans once 'shouldStim' serial communication working fine
-  if (phase == 2 && canStimR && shouldStimR)
-  {
-    timeTargetStimR = percentSS2Stim * estSSR;
-    timeSinceLTO = now - timeLTO;
-
-    if (timeSinceLTO >= timeTargetStimR && !isStimmingR)
-    {
-      digitalWrite(pinOutStimR, HIGH);
-      digitalWrite(pinOutViconR, HIGH);
-      timeStimStartR = millis();
-      isStimmingR = true;
-      canStimR = false;
-      shouldStimR = false; // reset trigger for next cycle
-    }
-  }
-
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
   // Use following condition if troubleshooting: numStepsL % freqStim == 0
+  // TODO: remove 'canStim' booleans once 'shouldStim' serial communication working fine
   if (phase == 1 && canStimL && shouldStimL)
   {
     timeTargetStimL = percentSS2Stim * estSSL;
@@ -314,19 +295,30 @@ void triggerStimulation()
       shouldStimL = false; // reset trigger for next cycle
     }
   }
+
+  // right leg stimulation trigger conditions
+  // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
+  // Use following condition if troubleshooting: numStepsR % freqStim == 0
+  if (phase == 2 && canStimR && shouldStimR)
+  {
+    timeTargetStimR = percentSS2Stim * estSSR;
+    timeSinceLTO = now - timeLTO;
+
+    if (timeSinceLTO >= timeTargetStimR && !isStimmingR)
+    {
+      digitalWrite(pinOutStimR, HIGH);
+      digitalWrite(pinOutViconR, HIGH);
+      timeStimStartR = millis();
+      isStimmingR = true;
+      canStimR = false;
+      shouldStimR = false; // reset trigger for next cycle
+    }
+  }
 }
 
 void handleStimulationTimeout()
 {
   unsigned long now = millis();
-
-  // right stimulation timeout
-  if (isStimmingR && (now - timeStimStartR) >= durStimPulse)
-  {
-    digitalWrite(pinOutStimR, LOW);
-    digitalWrite(pinOutViconR, LOW);
-    isStimmingR = false;
-  }
 
   // left stimulation timeout
   if (isStimmingL && (now - timeStimStartL) >= durStimPulse)
@@ -334,5 +326,13 @@ void handleStimulationTimeout()
     digitalWrite(pinOutStimL, LOW);
     digitalWrite(pinOutViconL, LOW);
     isStimmingL = false;
+  }
+
+  // right stimulation timeout
+  if (isStimmingR && (now - timeStimStartR) >= durStimPulse)
+  {
+    digitalWrite(pinOutStimR, LOW);
+    digitalWrite(pinOutViconR, LOW);
+    isStimmingR = false;
   }
 }
