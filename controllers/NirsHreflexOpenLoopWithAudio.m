@@ -602,7 +602,7 @@ try     % so that if something fails, communications are closed properly
                 end
 
                 try         % send command to Arduino to stimulate right
-                    write(portArduino,1,'int16'); % hard-coded here and in Arduino. Don't change this.
+                    write(portArduino,2,'int16'); % hard-coded here and in Arduino. Don't change this.
                 catch ME
                     % handle any potential communication errors
                     warning(ME.identifier,['Failed to send right leg ' ...
@@ -627,7 +627,7 @@ try     % so that if something fails, communications are closed properly
                 end
 
                 try         % send command to Arduino to stimulate left
-                    write(portArduino,2,'int16');
+                    write(portArduino,1,'int16');
                 catch ME
                     % handle any potential communication errors
                     warning(ME.identifier,['Failed to send left leg ' ...
