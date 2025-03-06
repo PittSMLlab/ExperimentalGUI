@@ -89,7 +89,7 @@ if hreflex_present
     % durSSL = zeros(2,1);    % two left single stance durations
     % durSSR = zeros(2,1);    % two right single stance durations
     percentSS2Stim = 0.50;  % percentage of single stance phase
-    alpha = 0.7;            % smoothing factor (0 < alpha <= 1)
+    alpha = 0.9;            % smoothing factor (0 < alpha <= 1)
     estSSL = 396.6;             % estimated single stance duration left
     estSSR = 396.6;             % estimated single stance duration right
     stimDelayL = now; %in units of now
@@ -609,7 +609,7 @@ try     % so that if something fails, communications are closed properly
                     warning(ME.identifier,['Failed to send right leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
                 end
-                canStim = false;    % TODO: just use 'shouldStim' instead
+                canStim = false;
                 datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
             end
 
