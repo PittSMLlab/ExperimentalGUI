@@ -72,6 +72,7 @@ if hreflex_present
         totalCalibStims = 22; %default [8:2:28] stim current levels x 2 stim at each level
 
         % load calibration audio for left and right stimulation events
+        % TODO: remove audio commands if no longer using for H-reflex
         [audio_data,audio_fs]=audioread('L.mp3');
         CalibAudioL = audioplayer(audio_data,audio_fs);
         [audio_data,audio_fs]=audioread('R.mp3');
@@ -85,12 +86,12 @@ if hreflex_present
         stimInterval = 10;  % stimulate every 10 strides
     end
     canStim = false; %initialize so that later the code won't complain even if there is no stimulator.
-    durSSL = zeros(2,1);    % two left single stance durations
-    durSSR = zeros(2,1);    % two right single stance durations
-    % percentSS2Stim = 0.65;  % percentage of single stance phase
-    % alpha = 0.7;            % smoothing factor (0 < alpha <= 1)
-    % estSSL = 0;             % estimated single stance duration left
-    % estSSR = 0;             % estimated single stance duration right
+    % durSSL = zeros(2,1);    % two left single stance durations
+    % durSSR = zeros(2,1);    % two right single stance durations
+    percentSS2Stim = 0.50;  % percentage of single stance phase
+    alpha = 0.7;            % smoothing factor (0 < alpha <= 1)
+    estSSL = 396.6;             % estimated single stance duration left
+    estSSR = 396.6;             % estimated single stance duration right
     stimDelayL = now; %in units of now
     stimDelayR = now;
 
@@ -498,18 +499,18 @@ try     % so that if something fails, communications are closed properly
                     % RHSTime(RstepCount) = TimeStamp;
                     RHSTime(RstepCount) = now;
                     % RHS marks the end of single stance L
-                    durSSL(1) = durSSL(2);  % overwrite previous SSL duration
-                    durSSL(2) = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
+                    % durSSL(1) = durSSL(2);  % overwrite previous SSL duration
+                    durSSL = RHSTime(RstepCount) - RTOTime(RstepCount); % compute duration of left leg single stance phase
                     % delay of left leg stimulation from RTO is mean of single
                     % stance duration divided by two (since targeting mid-point
                     % of single stance for stimulus pulse)
 
                     % weighting most recent SSL duration more
                     % heavily (e.g., 67% since likely more predictive)
-                    stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
+                    % stimDelayL = (0.33*durSSL(1) + 0.67*durSSL(2)) / 2;
                     % estimate single stance duration using exponential updating factor
-                    % estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
-                    % stimDelayL = estSSL * percentSS2Stim;
+                    estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
+                    stimDelayL = estSSL * percentSS2Stim;
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
@@ -533,15 +534,15 @@ try     % so that if something fails, communications are closed properly
                     % LHSTime(LstepCount) = TimeStamp;
                     LHSTime(LstepCount) = now;
                     % LHS marks the end of single stance R
-                    durSSR(1) = durSSR(2);  % overwrite previous SSR duration
-                    durSSR(2) = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
+                    % durSSR(1) = durSSR(2);  % overwrite previous SSR duration
+                    durSSR = LHSTime(LstepCount) - LTOTime(LstepCount);  % compute duration of right leg single stance phase
                     % delay of right leg stimulation from LTO is mean of single
                     % stance duration divided by two (since targeting mid-point
                     % of single stance for stimulus pulse)
-                    stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
+                    % stimDelayR = (0.33*durSSR(1) + 0.67*durSSR(2)) / 2;
                     % estimate single stance duration using exponential updating factor
-                    % estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
-                    % stimDelayR = estSSR * percentSS2Stim;
+                    estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
+                    stimDelayR = estSSR * percentSS2Stim;
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
@@ -608,7 +609,7 @@ try     % so that if something fails, communications are closed properly
                     warning(ME.identifier,['Failed to send right leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
                 end
-                canStim = false;
+                canStim = false;    % TODO: just use 'shouldStim' instead
                 datlog.stim.R(end+1,:) = [RstepCount, stimDelayR, timeSinceLTO];
             end
 

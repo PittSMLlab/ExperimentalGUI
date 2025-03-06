@@ -36,10 +36,10 @@ float alpha = 0.7;                   // smoothing factor (0 < alpha <= 1)
 // comparable to those of Hebenstreit et al. 2015 (Human Movement Science).
 // Using a better initial estimate may improve the stimulation timing
 // precision of the first few strides within a trial.
-float estSSL = 396.6;             // estimated single stance duration left (initially 396.6 ms)
-float estSSR = 396.6;             // estimated single stance duration right (initially 396.6 ms)
-unsigned long durSSL = 397;       // left single stance duration
-unsigned long durSSR = 397;       // right single stance duration
+float estSSL = 396.6;       // estimated single stance duration left (initially 396.6 ms)
+float estSSR = 396.6;       // estimated single stance duration right (initially 396.6 ms)
+unsigned long durSSL = 397; // left single stance duration
+unsigned long durSSR = 397; // right single stance duration
 // bool canStimL = false;            // is stimulation allowed at this time?
 // bool canStimR = false;            // is stimulation allowed at this time?
 bool shouldStimL = false;         // should stimulate left leg this stride?
