@@ -430,9 +430,10 @@ try     % so that if something fails, communications are closed properly
         datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
 
         % read treadmill data efficiently
-        if toc(lastRead) > 0.1  % if enough time has elapsed, ...
+        timeDiff = datevec(now) - datevec(lastRead);
+        if timeDiff > 0.1  % if enough time has elapsed, ...
             [RBS,LBS,read_theta] = readTreadmillPacket(t);  % TM data
-            lastRead = tic;
+            lastRead = now;
         end
         datlog.TreadmillCommands.read(frameind.Value,:) = [RBS LBS read_theta now];
         set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
