@@ -2,33 +2,29 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
     NirsHreflexArduinoOpenLoopWithAudio(velL,velR,FzThreshold, ...
     profilename,numAudioCountDown,isCalibration,oxysoft_present, ...
     hreflex_present,stimL,stimR)
-%This is the adapted from Open loop controller with audio feedback, added
-%NIRS events for tied, ramp, split, rest (optional, if exists, always rest
-%for 20 seconds). This version sends whether or not to stimulate on the
-%current stride to the Arduino running the gait event state machine to more
-%precisely time the stimulation at the desired percentage of the stance
-%phase. When to do NIRS event is determined by parsing the velL and velR (0
-%speeds are treated as rest, parse will also find tied, ramp, split, and
-%post)
+% This controller is adapted from the open loop controller with audio
+% feedback. NIRS events for tied, ramp, split, rest (optional, if exists,
+% always rest for 20 seconds) have been added. This function sends whether
+% or not to stimulate on the current stride to the Arduino running the gait
+% event state machine to more precisely stimulate at the desired percentage
+% of the single stance phase. When to do the NIRS event is determined by
+% parsing the velocity profiel (0 speeds are treated as rest)
 %
-%--- Doc from the OPEN loop controller (controlSpeedWithSteps_edit1 with
-% audio countdown) ----
-%This function takes two vectors of speeds (one for each treadmill belt)
-%and succesively updates the belt speed upon ipsilateral Toe-Off
-%The function only updates the belts alternatively, i.e., a single belt
-%speed cannot be updated twice without the other being updated
-%The first value for velL and velR is the initial desired speed, and new
-%speeds will be sent for the following N-1 steps, where N is the length of
-%velL
-% numAudioCountDown: how many count downs to perform, default [-1], means
-% do count down at the end, use -1 as the reserved value. Will play
-% audio "Treadmill will start in 3 - 2 - 1 - now" at the beginning, and
-% "Treadmill will stop in 3 - 2 - 1 - now" in the end.
-% For trials with a change of speed in between, the numAudioCountDown would
-% be an array of what stride the speed will change, appended with -1, for
-% example [25,225,-1] means to play count down for speed change at stride
-% 25 and 225, and then at also count down for treadmill start and stop. The
-% last -1 is required in the array.
+% ---------- Open Loop Controller Documentation ----------
+% This function takes two speed arrays (one for each treadmill belt) and
+% updates the belt speed upon ipsilateral toe-off. The function updates the
+% belts alternatively (i.e., a single belt speed cannot be updated twice
+% without the other being updated). The first value for 'velL' and 'velR'
+% is the initial desired speed, and new speeds will be sent for the
+% following N-1 steps, where N is the length of 'velL'.
+% 'numAudioCountDown': how many count downs to perform, default [-1], means
+% do count down at the end. Will play audio "Treadmill will start in 3 - 2
+% - 1 - now" at the beginning, and "Treadmill will stop in 3 - 2 - 1 - now"
+% at the end. For trials with a change of speed in between, the
+% numAudioCountDown would be an array of what stride the speed will change,
+% appended with -1, for example [25,225,-1] means to play count down for
+% speed change at stride 25 and 225, and then at also count down for
+% treadmill start and stop. The last -1 is required in the array.
 %Feature Improvement TODO: at this point, the arguments: isCalibration,
 %oxysoft_present, hreflex_present are not really accesible when going
 %through the UI flow of using AdaptationGUI, it's only setible via code and
@@ -317,12 +313,12 @@ try     % so that if something fails, communications are closed properly
     datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ', now};
     % set(ghandle.listbox1,'String',listbox);
 
-    % initiate variables
+    % initialize trial variables
     new_stanceL = false;
     new_stanceR = false;
     phase=0;% 0= Double Support, 1 = single L support, 2 = single R support
-    LstepCount=1;
-    RstepCount=1;
+    LstepCount = 1;
+    RstepCount = 1;
     RTOTime(N) = now;
     LTOTime(N) = now;
     RHSTime(N) = now;
@@ -339,8 +335,8 @@ try     % so that if something fails, communications are closed properly
     %delete later after the task is done.
     time1 = now;
     syncname = fullfile(tempdir,'SYNCH.dat');
-    [f,~]=fopen(syncname,'wb');
-    fclose(f);
+    fid = fopen(syncname,'wb');
+    fclose(fid);
     time2 = now;
     disp(etime(datevec(time2),datevec(time1)));
 
@@ -360,9 +356,8 @@ try     % so that if something fails, communications are closed properly
         datlog = nirsEvent('Mid_noaudio','M',['Mid' num2str(nextRestIdx-1)],instructions,datlog,Oxysoft,oxysoft_present);
     end
 
-    %Send first speed command & store
+    % Send first speed command and log it
     acc = 1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
-    % acc = 400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
     payload = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
     sendTreadmillPacket(payload,t);
     datlog.TreadmillCommands.firstSent = [velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl,now];%record the command
@@ -371,19 +366,7 @@ try     % so that if something fails, communications are closed properly
     datlog.messages(end+1,:) = {'First speed command sent', now};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
-    % try         % send command to Arduino to start state machine
-    %     fprintf(['Sending command to reset right and left leg step ' ...
-    %         'counts and start the state machine...\n']);
-    %     writeline(portArduino,"START_SM");    % reset step counters & start
-    %     fprintf('Start state machine command sent successfully.\n');
-    % catch ME
-    %     % handle any potential communication errors
-    %     warning(ME.identifier,['Failed to send start state machine ' ...
-    %         'commands to Arduino: %s'],ME.message);
-    % end
-
-    %% Main loop
-
+    %% Main Loop
     old_velR = libpointer('doublePtr',velR(1,1));
     old_velL = libpointer('doublePtr',velL(1,1));
     frameind = libpointer('doublePtr',1);
@@ -405,7 +388,7 @@ try     % so that if something fails, communications are closed properly
 
     while ~STOP     % only runs trial loop if stop button is not pressed
         while PAUSE % only runs if pause button is pressed
-            pause(.2);
+            pause(0.2);
             datlog.messages(end+1,:) = {'Loop paused at ', now};
             disp(['Paused at ' num2str(clock)]);
             % bring treadmill to a stop and keep it there!...
@@ -449,7 +432,7 @@ try     % so that if something fails, communications are closed properly
         Hz = MyClient.GetDeviceOutputValue('Handrail','Fz');
         Hm = sqrt(Hx.Value^2+Hy.Value^2+Hz.Value^2);
         %if handrail force is too high, notify the experimentor
-        if (Hm > 25)
+        if Hm > 25
             set(ghandle.figure1,'Color',[238 5 5]./255);
         else
             set(ghandle.figure1,'Color',[1 1 1]);
@@ -481,7 +464,7 @@ try     % so that if something fails, communications are closed properly
         %Maquina de estados: 0 = initial, 1 = single L, 2 = single R,
         %3 = DS from single L, 4 = DS from single R
         switch phase
-            case 0          % DS, only initial phase
+            case 0  % Double Support (initial phase)
                 if RTO      % go to single L
                     phase = 1;
                     RstepCount = RstepCount + 1;
@@ -490,7 +473,7 @@ try     % so that if something fails, communications are closed properly
                     set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                 elseif LTO  % go to single R
                     phase = 2;
-                    LstepCount=LstepCount+1;
+                    LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
@@ -507,7 +490,7 @@ try     % so that if something fails, communications are closed properly
 
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase = 2;
-                        LstepCount=LstepCount+1;
+                        LstepCount = LstepCount + 1;
                         LTOTime(LstepCount) = now;
                         datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
@@ -525,7 +508,7 @@ try     % so that if something fails, communications are closed properly
 
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase = 1;
-                        RstepCount=RstepCount+1;
+                        RstepCount = RstepCount + 1;
                         RTOTime(RstepCount) = now;
                         datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
                         set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
@@ -534,7 +517,7 @@ try     % so that if something fails, communications are closed properly
             case 3 %DS, coming from single L
                 if LTO
                     phase = 2; %To single R
-                    LstepCount=LstepCount+1;
+                    LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = now;
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
@@ -772,9 +755,9 @@ try     % so that if something fails, communications are closed properly
     % audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below).
     datlog = nirsEvent('relax_noaudio','O','Trial_End',instructions,datlog,Oxysoft,oxysoft_present);
 catch ME
-    datlog.errormsgs{end+1} = 'Error ocurred during the control loop';
+    datlog.errormsgs{end+1} = 'Error occurred during the control loop';
     datlog.errormsgs{end+1} = ME;
-    disp('Error ocurred during the control loop, see datlog for details...');
+    disp('Error occurred during the control loop, see datlog for details...');
 end
 %% Closing Routine
 % end communications
@@ -786,16 +769,15 @@ catch ME
 end
 
 if hreflex_present      % if hreflex, close communication with arduino
-    datlog.messages(end+1,:) = {'Start to close Arduino Port ', now};
-    fprintf('Closing serial port communication with the Arduino...\n');
+    datlog.messages(end+1,:) = {'Closing Arduino port...', now};
+    fprintf('Closing Arduino serial port...\n');
     try
         flush(portArduino);     % flush remaining data in the buffer
         delete(portArduino);    % close and clear the serial port object
-        fprintf('Successfully closed the Arduino serial port.\n');
+        fprintf('Arduino serial port closed successfully.\n');
     catch ME
         % handle errors and log the exception message
-        warning(ME.identifier, ...
-            'Failed to properly close Arduino serial port: %s',ME.message);
+        warning(ME.identifier,'Failed to close Arduino port properly: %s',ME.message);
     end
 end
 
@@ -805,7 +787,7 @@ try % stopping the treadmill
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
         set(ghandle.figure1,'Color',[1,1,1]);
-        pause(.5); %Do we need this? what for? -- Pablo 26/2/2018
+        pause(0.5); % Pablo I. wrote "Do we need this?"
         fprintf(['Trying to close TM1. Date Time: ' datestr(now,'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
         smoothStop(t);
         if numAudioCountDown % no need to say now again, changed the logic to say it earlier at stepN
@@ -849,7 +831,7 @@ catch ME
     datlog.errormsgs{end+1} = ME;
 end
 
-disp('closing comms');
+disp('Closing communications...');
 try
     closeNexusIface(MyClient);
     closeTreadmillComm(t);
@@ -860,7 +842,7 @@ catch ME
     disp(ME);
 end
 
-disp('converting time in datlog...');
+disp('Converting time in datlog...');
 % convert time data into clock format then re-save
 datlog.buildtime = datestr(datlog.buildtime);
 
@@ -928,7 +910,7 @@ for z = 1:size(datlog.TreadmillCommands.sent,1)
     datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
 end
 
-disp('saving datlog...');
+disp('Saving datlog...');
 try
     save(savename,'datlog');
 catch ME
