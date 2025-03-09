@@ -33,19 +33,27 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %% Set up parameters to communication with NIRS and Arduino (for H-reflex)
 % TODO: update input handling using 'inputParser' (chatGPT recommended)
 %These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
-if nargin < 6 %isCalib not provided, default false.
-    isCalibration = false;
-end
 
-if nargin < 7
-    oxysoft_present = true; %default always true, unless debugging without the NIRS instrument.
-end
+%% Input Handling Using 'inputParser'
+p = inputParser;
+addRequired(p,'velL',@(x) isnumeric(x) && ~isempty(x));
+addRequired(p,'velR',@(x) isnumeric(x) && ~isempty(x));
+addRequired(p,'FzThreshold',@(x) isnumeric(x) && isscalar(x));
+addRequired(p,'profilename',@ischar);
+addRequired(p,'numAudioCountDown',@(x) isnumeric(x));
+addOptional(p,'isCalibration',false,@islogical);
+addOptional(p,'oxysoft_present',true,@islogical);
+addOptional(p,'hreflex_present',true,@islogical);
+addOptional(p,'stimL',false(numel(velL),1),@islogical);
+addOptional(p,'stimR',false(numel(velR),1),@islogical);
+parse(p,velL,velR,FzThreshold,profilename,numAudioCountDown, ...
+    isCalibration,oxysoft_present,hreflex_present,stimL,stimR);
 
-if nargin < 8
-    hreflex_present = true; %default true, unless debugging without Hreflex stimulator.
-end
-
-restDuration = 20; %default 20s rest, could change for debugging
+isCalibration   = p.Results.isCalibration;
+oxysoft_present = p.Results.oxysoft_present;
+hreflex_present = p.Results.hreflex_present;
+stimL           = p.Results.stimL;
+stimR           = p.Results.stimR;
 
 %% Open Arduino Serial Communication (if H-reflex is enabled)
 if hreflex_present
