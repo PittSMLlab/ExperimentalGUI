@@ -44,8 +44,8 @@ addRequired(p,'numAudioCountDown',@(x) isnumeric(x));
 addOptional(p,'isCalibration',false,@islogical);
 addOptional(p,'oxysoft_present',true,@islogical);
 addOptional(p,'hreflex_present',true,@islogical);
-addOptional(p,'stimL',false(numel(velL),1),@islogical);
-addOptional(p,'stimR',false(numel(velR),1),@islogical);
+addOptional(p,'stimL',zeros(numel(velL),1),@isnumeric);
+addOptional(p,'stimR',zeros(numel(velR),1),@isnumeric);
 parse(p,velL,velR,FzThreshold,profilename,numAudioCountDown, ...
     isCalibration,oxysoft_present,hreflex_present,stimL,stimR);
 
