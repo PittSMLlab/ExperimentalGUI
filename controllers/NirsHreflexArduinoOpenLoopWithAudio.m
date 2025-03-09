@@ -352,9 +352,9 @@ try     % so that if something fails, communications are closed properly
     acc = 1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
     payload = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
     sendTreadmillPacket(payload,t);
-    datlog.TreadmillCommands.firstSent = [velR(RstepCount,1) velL(LstepCount,1) acc acc cur_incl datetime('now')];
+    datlog.TreadmillCommands.firstSent = [velR(RstepCount,1) velL(LstepCount,1) acc acc cur_incl now];
     commSendTime(1,:) = clock;
-    datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl datetime('now')];
+    datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now];
     datlog.messages(end+1,:) = {'First speed command sent',datetime('now')};
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
@@ -402,14 +402,14 @@ try     % so that if something fails, communications are closed properly
         % read frame, update necessary structures
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
-        datlog.framenumbers.data(frameind.Value,:) = [framenum.Value datetime('now')];
+        datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
 
         % read treadmill data efficiently if at least 0.1 s has elapsed
         if seconds(datetime('now') - lastRead) > 0.1
             [RBS,LBS,read_theta] = readTreadmillPacket(t);  % TM data
             lastRead = datetime('now');
         end
-        datlog.TreadmillCommands.read(frameind.Value,:) = [RBS LBS read_theta datetime('now')];
+        datlog.TreadmillCommands.read(frameind.Value,:) = [RBS LBS read_theta now];
         set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
         set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
         frameind.Value = frameind.Value + 1;
@@ -417,7 +417,7 @@ try     % so that if something fails, communications are closed properly
         % capture force plate data efficiently
         Fz_R = MyClient.GetDeviceOutputValue('Right Treadmill','Fz');
         Fz_L = MyClient.GetDeviceOutputValue('Left Treadmill','Fz');
-        datlog.forces.data(frameind.Value,:) = [framenum.Value datetime('now') Fz_R.Value Fz_L.Value];
+        datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
         Hx = MyClient.GetDeviceOutputValue('Handrail','Fx');
         Hy = MyClient.GetDeviceOutputValue('Handrail','Fy');
         Hz = MyClient.GetDeviceOutputValue('Handrail','Fz');
@@ -460,19 +460,19 @@ try     % so that if something fails, communications are closed properly
                     phase = 1;
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = datetime('now');
-                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                 elseif LTO  % go to single R
                     phase = 2;
                     LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = datetime('now');
-                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
             case 1          % single L
                 if RHS
                     phase = 3;
-                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     RHSTime(RstepCount) = datetime('now');
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                     % plot cursor
@@ -483,14 +483,14 @@ try     % so that if something fails, communications are closed properly
                         phase = 2;
                         LstepCount = LstepCount + 1;
                         LTOTime(LstepCount) = datetime('now');
-                        datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 datetime('now') framenum.Value];
+                        datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                     end
                 end
             case 2          % single R
                 if LHS
                     phase = 4;
-                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     LHSTime(LstepCount) = datetime('now');
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
@@ -501,7 +501,7 @@ try     % so that if something fails, communications are closed properly
                         phase = 1;
                         RstepCount = RstepCount + 1;
                         RTOTime(RstepCount) = datetime('now');
-                        datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 datetime('now') framenum.Value];
+                        datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                         set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                     end
                 end
@@ -510,7 +510,7 @@ try     % so that if something fails, communications are closed properly
                     phase = 2; %To single R
                     LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = datetime('now');
-                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
             case 4  % double stance, coming from R single stance
@@ -518,7 +518,7 @@ try     % so that if something fails, communications are closed properly
                     phase = 1;  % advance to L single stance
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = datetime('now');
-                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 datetime('now') framenum.Value];
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     % set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
                 end
         end
@@ -657,7 +657,7 @@ try     % so that if something fails, communications are closed properly
         elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
             payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl datetime('now')]; % record the command
+            datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now]; % record the command
             disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
             if (velR(RstepCount,1) ~= old_velR.Value)
                 set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
