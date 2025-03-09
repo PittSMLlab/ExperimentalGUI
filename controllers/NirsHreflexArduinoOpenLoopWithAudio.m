@@ -55,7 +55,7 @@ hreflex_present = p.Results.hreflex_present;
 stimL           = p.Results.stimL;
 stimR           = p.Results.stimR;
 
-%% Open Arduino Serial Communication (if H-reflex is enabled)
+%% Open Arduino Serial Communication (If H-reflex Is Enabled)
 if hreflex_present
     try
         % configure and open serial port communication with Arduino
@@ -81,6 +81,7 @@ if hreflex_present
         CalibAudioR = audioplayer(audio_data,audio_fs);
     end
 
+    % ensure stimulation arrays exist
     if ~(exist('stimL','var') && exist('stimR','var'))
         stimL = false(numel(velL),1);
         stimR = false(numel(velR),1);
@@ -134,8 +135,8 @@ ghandle = guidata(AdaptationGUI);
 % Pop up window to confirm parameter setup, which is helpful in case
 % debugging happened between experiment session to avoid mistakenly
 % forgetting to log fNIRS data.
-button = questdlg(['Confirm that NIRS is recording, oxysoft_present ' ...
-    'is 1, and rest duration is 20.']);
+button = questdlg(['Confirm that NIRS is recording and ' ...
+    '''oxysoft_present'' is true.']);
 if ~strcmp(button,'Yes')
     return;     % abort starting the trial
 end
@@ -291,8 +292,8 @@ try
     MyClient.EnableDeviceData();
     MyClient.SetStreamMode(ViconDataStreamSDK.DotNET.StreamMode.ClientPull);
 catch ME
-    disp('Error in creating Nexus Client Object/communications see datlog for details');
-    datlog.errormsgs{end+1} = 'Error in creating Nexus Client Object/communications';
+    disp('Error creating Nexus Client Object/communications. See datlog for details.');
+    datlog.errormsgs{end+1} = 'Error creating Nexus Client Object/communications.';
     datlog.errormsgs{end+1} = ME;   % store specific error
     disp(ME);
 end
@@ -302,8 +303,8 @@ try
     t = openTreadmillComm();
     fprintf('Done Opening. Date Time: %s\n',datestr(datetime('now'),'yyyy-mm-dd HH:MM:SS:FFF'));
 catch ME
-    disp('Error in creating TCP connection to Treadmill, see datlog for details...');
-    datlog.errormsgs{end+1} = 'Error in creating TCP connection to Treadmill';
+    disp('Error creating TCP connection to Treadmill. See datlog for details.');
+    datlog.errormsgs{end+1} = 'Error creating TCP connection to Treadmill.';
     datlog.errormsgs{end+1} = ME;
     disp(ME);
 end
@@ -453,6 +454,7 @@ try     % so that if something fails, communications are closed properly
         % set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
         % set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
 
+        % gait event detection
         new_stanceL = Fz_L.Value < -FzThreshold;
         new_stanceR = Fz_R.Value < -FzThreshold;
         LHS = new_stanceL && ~old_stanceL;
@@ -460,28 +462,27 @@ try     % so that if something fails, communications are closed properly
         LTO = ~new_stanceL && old_stanceL;
         RTO = ~new_stanceR && old_stanceR;
 
-        %Maquina de estados: 0 = initial, 1 = single L, 2 = single R,
-        %3 = DS from single L, 4 = DS from single R
+        % update gait phase state machine
         switch phase
-            case 0  % Double Support (initial phase)
-                if RTO      % go to single L
+            case 0          % double support (initial phase)
+                if RTO      % advance to single stance L
                     phase = 1;
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = datetime('now');
                     datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
-                elseif LTO  % go to single R
+                elseif LTO  % advance to single stance R
                     phase = 2;
                     LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = datetime('now');
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                 end
-            case 1          % single L
-                if RHS
+            case 1          % single stance L
+                if RHS      % advance to double stance
                     phase = 3;
-                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     RHSTime(RstepCount) = datetime('now');
+                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 now framenum.Value];
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount,1)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
@@ -495,11 +496,11 @@ try     % so that if something fails, communications are closed properly
                         set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
                     end
                 end
-            case 2          % single R
-                if LHS
+            case 2          % single stance R
+                if LHS      % advance to double stance
                     phase = 4;
-                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     LHSTime(LstepCount) = datetime('now');
+                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
                     plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount,1)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
@@ -513,16 +514,16 @@ try     % so that if something fails, communications are closed properly
                         set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
                     end
                 end
-            case 3 %DS, coming from single L
-                if LTO
-                    phase = 2; %To single R
+            case 3          % double stance, coming from single stance L
+                if LTO      % advance to single stance R
+                    phase = 2;
                     LstepCount = LstepCount + 1;
                     LTOTime(LstepCount) = datetime('now');
                     datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now framenum.Value];
                     % set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
-            case 4  % double stance, coming from R single stance
-                if RTO
+            case 4          % double stance, coming from single stance R
+                if RTO      % advance to single stance L
                     phase = 1;  % advance to L single stance
                     RstepCount = RstepCount + 1;
                     RTOTime(RstepCount) = datetime('now');
@@ -645,7 +646,7 @@ try     % so that if something fails, communications are closed properly
             if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
                 fprintf(['-3 Stride . Date Time: ' datestr(datetime('now'),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
                 %log in NIRS that audio count down is happening.
-                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                datlog = nirsEvent('TMStopAudioCountDown','D',['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
                 play(AudioTMStop3);
                 countDownPlayed(end-3) = true; %This should only be run once
             elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
@@ -666,8 +667,8 @@ try     % so that if something fails, communications are closed properly
             payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
             datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now]; % record the command
-            disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))])
-            if (velR(RstepCount,1) ~= old_velR.Value)
+            disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))]);
+            if velR(RstepCount,1) ~= old_velR.Value
                 set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount,1)/1000));
             else %(velL(LstepCount) ~= old_velL.Value)
                 set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount,1)/1000));
@@ -731,7 +732,7 @@ try     % so that if something fails, communications are closed properly
 
     %% Stop State Machine and Close Communications
     try         % send command to Arduino to stop state machine
-        fprintf('Sending command to stop the state machine...\n');
+        fprintf('Sending command to stop the Arduino state machine...\n');
         write(portArduino,3,'int16');    % stop state machine
         fprintf('Stop state machine command sent successfully.\n');
     catch ME
@@ -786,7 +787,7 @@ try % stopping the treadmill
     if get(ghandle.StoptreadmillEND_checkbox,'Value') == 1 && ~STOP
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
-        set(ghandle.figure1,'Color',[1,1,1]);
+        set(ghandle.figure1,'Color',[1 1 1]);
         pause(0.5); % Pablo I. wrote "Do we need this?"
         fprintf('Trying to stop treadmill (TM1) at %s\n',datestr(datetime('now'),'yyyy-mm-dd HH:MM:SS:FFF'));
         smoothStop(t);
