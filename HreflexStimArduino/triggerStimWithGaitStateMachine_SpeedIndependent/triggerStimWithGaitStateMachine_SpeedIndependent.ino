@@ -153,6 +153,31 @@ void resetStateMachine()
   shouldRunSM = true;
 }
 
+// -------------------------- Median Filter Function --------------------------
+// This function takes 'numSamples' analog readings from the specified pin,
+// sorts them, and returns the median value.
+int medianFilter(int pin, int numSamples = 5)
+{
+  int samples[5]; // use an odd number for a simple median
+  for (int i = 0; i < numSamples; i++)
+  {
+    samples[i] = analogRead(pin);
+  }
+  // simple bubble sort
+  for (int i = 0; i < numSamples - 1; i++)
+  {
+    for (int j = i + 1; j < numSamples; j++)
+    {
+      if (samples[j] < samples[i])
+      {
+        int temp = samples[i];
+        samples[i] = samples[j];
+        samples[j] = temp;
+      }
+    }
+  }
+  return samples[numSamples / 2]; // return the median value
+}
 
 // -------------------------- Gait Event State Machine --------------------------
 void updateGaitEventStateMachine()
@@ -162,8 +187,10 @@ void updateGaitEventStateMachine()
   isPrevStanceR = isCurrStanceR;
 
   // read z-axis force plate sensor values to detect new stance phase
-  int leftForce = analogRead(pinInFzL);
-  int rightForce = analogRead(pinInFzR);
+  // TODO: consider updating a force data buffer rather than current approach
+  // use median filter for force readings to reduce noise
+  int leftForce = medianFilter(pinInFzL, 5);
+  int rightForce = medianFilter(pinInFzR, 5);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
