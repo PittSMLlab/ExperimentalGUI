@@ -97,8 +97,6 @@ int command = 0;
 void setup()
 {
   Serial.begin(115200);
-  // disable WiFi to save power on boards with WiFi (if applicable)
-  WiFi.mode(WIFI_OFF);
   // ensure pins are properly set for output
   pinMode(pinOutStimL, OUTPUT);
   pinMode(pinOutViconL, OUTPUT);
