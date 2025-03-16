@@ -3,9 +3,9 @@
 // accept Serial input from MATLAB to indicate whether to stimulate on the
 // current stride. Includes the gait event detection state machine and
 // removes speed dependence by storing a continuously updated single stance
-// duration estimate.
+// duration estimate. A median filter is applied to the analog force signal
+// to reduce noise.
 // date (started): 26 Mar. 2024
-// date (updated): 18 Nov. 2024
 // author(s): SL, NWB
 
 // initialize variables to track gait events and phases
@@ -83,9 +83,12 @@ const int pinOutViconR = 11;
 
 int command = 0; // serial communication integer
 
+// -------------------------- Setup --------------------------
 void setup()
 {
   Serial.begin(115200);
+  // disable WiFi to save power on boards with WiFi (if applicable)
+  WiFi.mode(WIFI_OFF);
   // ensure pins are properly set for output
   pinMode(pinOutStimL, OUTPUT);
   pinMode(pinOutViconL, OUTPUT);
@@ -93,6 +96,7 @@ void setup()
   pinMode(pinOutViconR, OUTPUT);
 }
 
+// -------------------------- Main Loop --------------------------
 void loop()
 {
   processSerialCommands();
@@ -104,6 +108,7 @@ void loop()
   handleStimulationTimeout();
 }
 
+// -------------------------- Serial Communication --------------------------
 void processSerialCommands()
 {
   // check for input from MATLAB
@@ -128,6 +133,10 @@ void processSerialCommands()
     case 3: // stop gait event state machine
       shouldRunSM = false;
       break;
+
+    default:
+      // unrecognized command; do nothing
+      break;
     }
   }
 }
@@ -144,46 +153,47 @@ void resetStateMachine()
   shouldRunSM = true;
 }
 
+
+// -------------------------- Gait Event State Machine --------------------------
 void updateGaitEventStateMachine()
 {
   // implement gait event state machine to update gait phase
-  isPrevStanceL = isCurrStanceL;
+  isPrevStanceL = isCurrStanceL; // save previous stance values
   isPrevStanceR = isCurrStanceR;
 
   // read z-axis force plate sensor values to detect new stance phase
-  float leftSensorVal = analogRead(pinInFzL);
-  float rightSensorVal = analogRead(pinInFzR);
+  int leftForce = analogRead(pinInFzL);
+  int rightForce = analogRead(pinInFzR);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
   {
-    isCurrStanceL = leftSensorVal > threshFzDown;
+    isCurrStanceL = leftForce > threshFzDown;
   }
   else
   {
-    isCurrStanceL = leftSensorVal > threshFzUp;
+    isCurrStanceL = leftForce > threshFzUp;
   }
-
   if (isCurrStanceR)
   {
-    isCurrStanceR = rightSensorVal > threshFzDown;
+    isCurrStanceR = rightForce > threshFzDown;
   }
   else
   {
-    isCurrStanceR = rightSensorVal > threshFzUp;
+    isCurrStanceR = rightForce > threshFzUp;
   }
 
   timeSinceStanceChangeL = millis() - timeStanceChangeL;
   timeSinceStanceChangeR = millis() - timeStanceChangeR;
 
-  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce && timeSinceStanceChangeR > timeDebounce)
+  // update events if stance state changes and debounce time has passed
+  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce)
   {
     timeStanceChangeL = millis();
     LHS = isCurrStanceL && !isPrevStanceL; // left heel strike detection
     LTO = !isCurrStanceL && isPrevStanceL; // left toe off detection
   }
-
-  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > timeDebounce && timeSinceStanceChangeL > timeDebounce)
+  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > timeDebounce)
   {
     timeStanceChangeR = millis();
     RHS = isCurrStanceR && !isPrevStanceR; // right heel strike detection
@@ -270,10 +280,11 @@ void updateGaitEventStateMachine()
   }
 }
 
+// -------------------------- Stimulation Triggering --------------------------
 void triggerStimulation()
 {
   // TODO: move definition up to top
-  unsigned long now = millis();
+  unsigned long timeNow = millis();
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
@@ -282,14 +293,13 @@ void triggerStimulation()
   //  numStepsL % freqStim == 0
   if (phase == 1 && shouldStimL)
   {
-    timeTargetStimL = percentSS2Stim * estSSL;
-    timeSinceRTO = now - timeRTO;
+    timeTargetStimL = (unsigned long)(percentSS2Stim * estSSL);
 
-    if (timeSinceRTO >= timeTargetStimL && !isStimmingL)
+    if ((timeNow - timeRTO) >= timeTargetStimL && !isStimmingL)
     {
       digitalWrite(pinOutStimL, HIGH);
       digitalWrite(pinOutViconL, HIGH);
-      timeStimStartL = millis();
+      timeStimStartL = millis(); // TODO: use 'timeNow' if temporally precise enough
       isStimmingL = true;
       // canStimL = false;
       shouldStimL = false; // reset trigger for next cycle
@@ -303,10 +313,9 @@ void triggerStimulation()
   //  numStepsR % freqStim == 0
   if (phase == 2 && shouldStimR)
   {
-    timeTargetStimR = percentSS2Stim * estSSR;
-    timeSinceLTO = now - timeLTO;
+    timeTargetStimR = (unsigned long)(percentSS2Stim * estSSR);
 
-    if (timeSinceLTO >= timeTargetStimR && !isStimmingR)
+    if ((timeNow - timeLTO) >= timeTargetStimR && !isStimmingR)
     {
       digitalWrite(pinOutStimR, HIGH);
       digitalWrite(pinOutViconR, HIGH);
@@ -318,12 +327,13 @@ void triggerStimulation()
   }
 }
 
+// -------------------------- Stimulation Timeout --------------------------
 void handleStimulationTimeout()
 {
-  unsigned long now = millis();
+  unsigned long timeNow = millis();
 
   // left stimulation timeout
-  if (isStimmingL && (now - timeStimStartL) >= durStimPulse)
+  if (isStimmingL && (timeNow - timeStimStartL) >= durStimPulse)
   {
     digitalWrite(pinOutStimL, LOW);
     digitalWrite(pinOutViconL, LOW);
@@ -331,7 +341,7 @@ void handleStimulationTimeout()
   }
 
   // right stimulation timeout
-  if (isStimmingR && (now - timeStimStartR) >= durStimPulse)
+  if (isStimmingR && (timeNow - timeStimStartR) >= durStimPulse)
   {
     digitalWrite(pinOutStimR, LOW);
     digitalWrite(pinOutViconR, LOW);
