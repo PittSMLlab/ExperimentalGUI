@@ -1,4 +1,4 @@
-function transferDataAndSaveC3D_AutoStudy(participantID,visitNum, PCNum, studyName, indsTrials)
+function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyName, indsTrials)
 %TRANSFERDATAANDSAVEC3D_PC2_C3 Transfer PC2 data and save C3D files for C3
 %   This function accepts the participant ID and a boolean indicating the
 % session as input arguments and recursively transfers all data to the
