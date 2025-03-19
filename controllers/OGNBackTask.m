@@ -66,8 +66,8 @@ condOrder = condOrder.condOrder;
 condOrder = condOrder(condOrderToRun,:);
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
-oxysoft_present = false; 
-restDuration = 5; %default 20s rest, could change for debugging
+oxysoft_present = true; 
+restDuration = 30; %default 20s rest, could change for debugging
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
 timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
 instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
@@ -90,7 +90,7 @@ instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st
 %     nOrders = {'walk','stand0','stand1','stand2','walk0','walk1','walk2'};
 %     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 if startsWith(trialType,'Standing Familarization 0') 
-    nOrders = {'stand0'}
+    nOrders = {'stand0-rep1'}
     % Pop up window to confirm parameter setup, do this only once at the
     % very first familarization trial.
     button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30');  
@@ -99,19 +99,19 @@ if startsWith(trialType,'Standing Familarization 0')
     end
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Standing Familarization 1') %full trial familarization
-    nOrders = {'stand1'}
+    nOrders = {'stand1-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Standing Familarization 2') %full trial familarization
-    nOrders = {'stand2'}
+    nOrders = {'stand2-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Full Familarization 0') 
-    nOrders = {'stand0','walk0'}
+    nOrders = {'stand0-rep1','walk0-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Full Familarization 1') %full trial familarization
-    nOrders = {'stand1','walk1'}
+    nOrders = {'stand1-rep1','walk1-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Full Familarization 2') %full trial familarization
-    nOrders = {'stand2','walk2'}
+    nOrders = {'stand2-rep1','walk2-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 
 else %normal trial
@@ -354,6 +354,7 @@ datlog.response.conditionName = {};
 %cautious in case we couldn't figure out what order the conditions
 %were done later no, but those orders are pregenerated so we should
 %know)
+datlog.stimulus.conditionOrder = nOrders;
 datlog.stimulus.conditionName = {};
 datlog.stimulus.conditionIndex = [];
 datlog.stimulus.targetLocs = [];
@@ -511,6 +512,7 @@ try %So that if something fails, communications are closed properly
         datlog = nirsEvent('walk','W','walk', instructions, datlog, Oxysoft, oxysoft_present); %walk always use event code W
         tStart=clock; %start the clock right after saying walk
         enableMemory = false;
+        sequenceComplete = false; 
     else
         %get the value from the map of the current condition key
         %nOrders{currentIndex} are str format of task to run, e.g., 's0','w0' etc.
@@ -760,7 +762,7 @@ try %So that if something fails, communications are closed properly
             
             %check for passing minDuration only, don't check for upper
             %bound
-            if ((~strcmp(nOrders{currentIndex},'walk')) && sequenceComplete) || ((strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
+            if (((~strcmp(nOrders{currentIndex},'walk')) || startsWith(nOrders{currentIndex},'walk-rep')) && sequenceComplete) || ((strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
                 %if walk+DT, stop after full sequence is played. 
                 %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
                 %stop from 19.999 ~ 20.001 seconds
