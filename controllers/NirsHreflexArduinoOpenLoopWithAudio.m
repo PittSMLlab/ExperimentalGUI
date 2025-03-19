@@ -227,7 +227,11 @@ datlog.framenumbers.header = {'frame #','U Time','Relative Time'};
 numFramesEst = 300 * length(velR) + 7200;
 datlog.framenumbers.data = nan(numFramesEst,2);
 datlog.forces.header = {'frame #','U Time','Rfz','Lfz','Relative Time'};
-datlog.forces.data = nan(numFramesEst,4);
+datlog.forces.data = nan(numFramesEst,4); %check file cleaning, how you initialized it should be how you clean it up in the end
+%e.g., if you initialize nan, when saving datlog, should check for first
+%row of nan and remove all entries after to have a clean datlog and have
+%relative time calculated properly. If you initialize to 0, when saving
+%datlog, should check for first row of 0.
 datlog.stepdata.header = {'Step#','U Time','frame #','Relative Time'};
 datlog.stepdata.RHSdata = zeros(numel(velR)+50,3); % empty cell theoretically big enough to house all the steps taken
 datlog.stepdata.RTOdata = zeros(numel(velR)+50,3);
@@ -848,14 +852,14 @@ disp('Converting time in datlog...');
 datlog.buildtime = datestr(datlog.buildtime);
 
 % convert frame times
-temp = find(datlog.framenumbers.data(:,1)==0,1,'first');
+temp = find(isnan(datlog.framenumbers.data(:,1)),1,'first');
 datlog.framenumbers.data(temp:end,:) = [];
 for z = 1:temp-1
     datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 % convert force times
 datlog.forces.data(1,:) = [];
-temp = find(datlog.forces.data(:,1)==0,1,'first');
+temp = find(isnan(datlog.forces.data(:,1)),1,'first');
 datlog.forces.data(temp:end,:) = [];
 for z = 1:temp-1
     datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));
