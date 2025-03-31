@@ -108,6 +108,21 @@ else                                % otherwise, left side is slow, ...
 end
 save(fullfile(dirProfile,'TM_Adaptation'),'velL','velR');
 
+% TM Adaptation / Split-Walking Bouts (Session 2, 150 strides)
+velL = speedMean*ones(25,1);        % initial tied-belt mid speed
+velR = velL;
+if strncmpi(legSlow,'r',1)          % if right side slow, ...
+    % left side fast, right side slow
+    velL = [velL; speedFast * ones(100,1)];         % 100 strides split 2:1
+    velR = [velR; speedSlow * ones(100,1)];
+else    % otherwise, left side slow, right side fast
+    velL = [velL; speedSlow * ones(100,1)];
+    velR = [velR; speedFast * ones(100,1)];
+end
+velL = [velL; speedMean * ones(26,1)];              % final tied-belt mid
+velR = [velR; speedMean * ones(26,1)];
+save(fullfile(dirProfile,'TM_SplitBout'),'velL','velR');
+
 % OG or TM Post-Adaptation (150 strides each trial)
 velL = speedMean * ones(numStrides.long,1);
 velR = velL;
