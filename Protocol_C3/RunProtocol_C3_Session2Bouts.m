@@ -148,7 +148,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
-            pause(pauseTime2min);
+            pause(pauseTime3min20sec);
             play(AudioTimeUp);
         case 5          % TM Baseline Mid Full (Tied)
             handles.popupmenu2.set('Value',11);
@@ -175,7 +175,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             if ~strcmp(answer,'Yes')
                 return;
             end
-            numAudioCountDown = -1;
+            numAudioCountDown = [25 125 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             if currTrial == 9               % if trial 9, ...
