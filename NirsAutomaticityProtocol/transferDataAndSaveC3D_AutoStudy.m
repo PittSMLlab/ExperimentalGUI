@@ -15,9 +15,11 @@ function transferDataAndSaveC3D_AutoStudy(participantID,visitNum, PCNum, studyNa
 %       omitted, all trials are processed
 
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., AUC01)','VisitNum (1,2,3,or 4)','PCNum (1 or 2)','StudyName (e.g.,YANIRSAutomaticityStudy)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))'},...
-        'Copy PC2 Data to Server',[1 45; 1 45; 1 45; 1 45; 1 45],...
-        {'AUC10','1','1','YANIRSAutomaticityStudy','[ ]'});
+    answer = inputdlg({'SubjectID (e.g., AUC01)','VisitNum (1,2,3,or 4)','PCNum (1 or 2)',,...
+        'StudyName (e.g.,YANIRSAutomaticityStudy)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
+        'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
+        'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45],...
+        {'AUC10','1','1','YANIRSAutomaticityStudy','[ ]','N'});
     participantID = answer{1};
     if ~isa(eval(answer{2}),'double') %input format check, something that's not a number was inputed, throw an error
         error('Invalid input given, visit number should be a single digit number')
@@ -31,6 +33,7 @@ if nargin == 0 %no input, ask user
 
     studyName = answer{4};
     indsTrials = eval(answer{5});
+    processOnly = strcmpi(answer{6},'Y');
 else
     narginchk(4,5); %min3, max 4 inputs needed.
     visitNum = sprintf('V0%d',visitNum);
@@ -63,6 +66,15 @@ else
 end
 if strcmp(button,'Yes') %automatically advance to next condition.
     batchProcess = true;
+    if PCNum == 1
+        answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
+        'TM Trials to auto process',[1 45],...
+        {'[ ]'});
+        tmTrials = eval(answer{1});
+        if isempty(tmTrials)
+            error('Invalid entry detected. Should be an array of integers for TM trials')
+        end
+    end
 else
     batchProcess = false;
 end
@@ -106,23 +118,24 @@ for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
     end
 end
 
-% transfer data using utility function with error handling
-try
-    fprintf('...Copying data to the server...\n')
-    utils.transferDataSess(srcs,dests, threshTime);         % transfer data
-catch ME
-    warning(ME.identifier,'Data transfer failed: %s\n',ME.message);
-    return;
-end
-
-% check if destination directory was created and populated
-for i = 1:numel(dests)
-    if ~isfolder(dests{i})
-        error('Data transfer unsuccessful; destination folder should have been created with data copoied inside, but not found: %s\n',dests{i});
+if ~processOnly
+    % transfer data using utility function with error handling
+    try
+        fprintf('...Copying data to the server...\n')
+        utils.transferDataSess(srcs,dests, threshTime);         % transfer data
+    catch ME
+        warning(ME.identifier,'Data transfer failed: %s\n',ME.message);
+        return;
     end
-end
-fprintf('...Data copying successful...\n')
 
+    % check if destination directory was created and populated
+    for i = 1:numel(dests)
+        if ~isfolder(dests{i})
+            error('Data transfer unsuccessful; destination folder should have been created with data copoied inside, but not found: %s\n',dests{i});
+        end
+    end
+    fprintf('...Data copying successful...\n')
+end
 if batchProcess
     if PCNum == 1
         % reconstruct and label and fill gaps, this is very time consuming.
@@ -131,7 +144,7 @@ if batchProcess
         try
             tic %TODO: we may want to log the output for debugging/checking later.
             fprintf('...Reconstruct and label and gap filling...\n')
-            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'));
+            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'),tmTrials);
             toc
         catch ME
             warning(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
