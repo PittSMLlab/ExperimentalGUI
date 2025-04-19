@@ -15,10 +15,10 @@ function transferDataAndSaveC3D_AutoStudy(participantID,visitNum, PCNum, studyNa
 %       omitted, all trials are processed
 
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., AUC01)','VisitNum (1,2,3,or 4)','PCNum (1 or 2)',,...
+    answer = inputdlg({'SubjectID (e.g., AUC01)','VisitNum (1,2,3,or 4)','PCNum (1 or 2)',...
         'StudyName (e.g.,YANIRSAutomaticityStudy)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
         'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
-        'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45],...
+        'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45; 1 45],...
         {'AUC10','1','1','YANIRSAutomaticityStudy','[ ]','N'});
     participantID = answer{1};
     if ~isa(eval(answer{2}),'double') %input format check, something that's not a number was inputed, throw an error
@@ -52,13 +52,15 @@ if PCNum == 1
     elseif strcmp(visitNum,'V03') %longest, about 4-4.5 hours
         threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3); %get everything from 5 hours ago
     end
-    answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
-            'Datalog time',[1 45;],...
-            {char(threshTime)});
-    threshTime = datetime(answer{1});
+    if ~processOnly %only relevant if copying data
+        answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
+                'Datalog time',[1 45;],...
+                {char(threshTime)});
+        threshTime = datetime(answer{1});
+    end
 end
 
-if PCNum == 1
+if PCNum == 1%only relevant if copying data
     button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
     %takes 5mins per trial for gap filling
 else
@@ -111,14 +113,14 @@ else
     end
 end
 
-% check if local data directory exists, else raise a warning
-for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
-    if ~isfolder(srcs{i})
-        error('Local data directory does not exist: %s\n',srcs{i});
-    end
-end
-
 if ~processOnly
+    % check if local data directory exists, else raise a warning
+    for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
+        if ~isfolder(srcs{i})
+            error('Local data directory does not exist: %s\n',srcs{i});
+        end
+    end
+
     % transfer data using utility function with error handling
     try
         fprintf('...Copying data to the server...\n')
