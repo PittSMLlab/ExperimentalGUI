@@ -18,10 +18,10 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 %   - velR: number array of right belt speed, size steps x1. not used but followed other controller conventions.
 %   - FzThreshold: Fz threshold to detect a toe off/heel strike, not used
 %   - profilename: string representing profile to load, not used but followed other controller conventions.
-%   - mode: 
-%   - signList:
-%   - paramComputeFunc: 
-%   - paramCalibFunc:
+%   - mode: 1 or 0 for signed or unsigned for velocities i think
+%   - signList: the caller will pass in []
+%   - paramComputeFunc: the caller will pass in []
+%   - paramCalibFunc: the caller will pass in []
 %   - trialType: REQUIRED, string, representing what trial to run, the value should be set via a listdig in the previous step.
 %       allowed values are (expect the exact same match) :{'Standing Familarization (can only run this up to 3 times)','Full Familarization (run through all conditions once)','Trial 1',...
 %             'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'}
@@ -35,7 +35,18 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 % FIXME: add another global var to control to pass the gui to avoid playing
 % sound after clicking.
 
-%% CHANGE this for every person. Parameter for randonization order 
+%% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
+oxysoft_present = true; 
+restDuration = 30; %default 20s rest, could change for debugging
+timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
+%Hard-coded to match what's in the GenerateNBackSequence.m
+%Need at least a few ms, other wise the first number will be played as the instruction is finishing
+recordData = false; %usually false now bc of headset problems, could turn off for debugging
+
+twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch. False if using one clicker and only click for match.
+
+%% Parameter for randonization orde. If Option1, change the condOrderToRun (task randomization order) to run per person.
 %Option1. run pseudorandom sequence, this order and the loading below go
 %togehter
 % condOption = 1;
@@ -54,24 +65,14 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 % %that the trials will be easy to hard then back to easy. I.e., trial1 is 0-back stand and walk/DT; 
 % %trial2 is 1-back, trial3 is 2-back, then trial4 is 2-back, then 1-back, and 0-back
 % condOption = 3;
-% condOrder = load('n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'); 
+% condOrder = load('n-back-condOrder-sameWithin_walkRep1_OrderedAcrossTrials012210.mat'); 
 % condOrder = condOrder.condOrder; %use default order
 
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
 condOption = 4;
-condOrderToRun = [5 3 1 2 4 6]; %always do hard - easy, then easy - hard (2-1-0-0-1-2)
-condOrder = load('n-back-condOrder-sameInTrialEachRep2.mat'); %this loads condOrder
+condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
-condOrder = condOrder(condOrderToRun,:);
-
-%% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
-oxysoft_present = true; 
-restDuration = 30; %default 20s rest, could change for debugging
-recordData = false; %usually false now bc of headset problems, could turn off for debugging
-timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
-instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
-%Need at least a few ms, other wise the first number will be played as the instruction is finishing
 
 %% Set up task sequence, recordings and main loop
 
@@ -153,10 +154,10 @@ for i = 2:7 %walk0-2, stand0-2
         %TODO: this is hard-coded for now, in theory the code can be smart to figure out how many reps there are in the nOrdersKey
         % and load the corresponding rows of sequences. (still require
         % histories of knowing when to start the index)
-        if str2double(trialType(end)) <= 3 %first 3 repts
-            startingIdx = 1; %use row 2-4 since row1 is familiarization
+        if str2double(trialType(end)) <= 3 %trial number, if first 3 trials, use 1-3 rep
+            startingIdx = 1; %use row 2-4 since row1 is familiarization, later will do starting + j where j = 1:3
         else
-            startingIdx = 4; %use row 5-7
+            startingIdx = 4; %use row 5-7, later will do starting + j where j = 1:3
         end
         for j = 1:3 %max 3 reps, load 3 sequnces. Here avoid using same variables bc indexing will be done multiple times
             seq.fullSequence = fullSeq.fullSequence(startingIdx+j,:);
@@ -245,6 +246,9 @@ global enableMemory
 global memory
 global firstPress
 global RFBClicker
+if twoClikerMode
+    global LFBClicker
+end
 STOP = false;
 
 %Consider delete
@@ -347,7 +351,7 @@ datlog.audioCues.start = [];
 datlog.audioCues.audio_instruction_message = {};
 datlog.audioCues.recording={};
 % datlog.response.header = {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime','RelativeTime'};
-datlog.response.dataheader = {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime'};
+datlog.response.dataheader = {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime','Correct(1Correct0Wrong)'};
 datlog.response.data = [];
 datlog.response.conditionName = {};
 %log the current sequence's correct locations (this is being extra
@@ -580,24 +584,47 @@ try %So that if something fails, communications are closed properly
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
         
+        %Check if any clicking happened
         if RFBClicker == 1 %subject responsed, check if correct
             RFBClicker =0; %reset the value
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
-            %{'Time','Block','n','Correctness','Index','Stimulus','ResponseTime'}
-            %index is offset by 1 bc this response is to the previous number played
-            %simplified this, save correctness checking for later, we can
-            %do that with the response data offline.
             
-            %Just ave {'Time', 'Condition', 'ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime'}
-            %with index we can calculate correctness, later on basically all the index participant responseded should = targetLoc
-%             datlog.response.data(end+1,:) = [now, nbackSeqRowIdx,nOrders(currentIndex)-2,ismember(numIndex-1, fullTargetLocs(nbackSeqRowIdx+1,:)),numIndex - 1,currSequence(numIndex-1),responseT];
-            datlog.response.data(end+1,:) = [now, currentIndex, numIndex, currSequence(numIndex),responseT];
+            %Save {'Time', 'ConditionIndex','CurrNumberIndex','CurrStimulusNumberPlayed','ResponseTime'}
+            %Save the condition name (e.g., walk-rep1, walk0-rep3, etc.) in a separate
+            %array datlog.response.conditionName to make the response.data
+            %a numerical array which is easier to manipulate
+            %with CurrNumberIndex we can calculate correctness later on, basically all the index participant responseded should = targetLoc
+            %Right click is for correct/match, so the numIndex
+            %should be a member of the target
+            datlog.response.data(end+1,:) = [now, currentIndex, numIndex, currSequence(numIndex), ...
+                responseT, ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
             datlog.response.conditionName{end+1} = nOrders{currentIndex};
             %Separating the string entry and the other numerical entry may be helpful for performance: https://stackoverflow.com/questions/16243523/matlab-data-structure-for-mixed-type-whats-time-space-efficient
             %keep numerical elements together for easier numerical manipulation and perhaps performance
             
-            fprintf('Clicked on stimulus: %d.\n', currSequence(numIndex))
+            fprintf('Clicked R (match) on stimulus: %d.\n', currSequence(numIndex))
+        end
+        
+        if twoClikerMode && LFBClicker == 1 %two clicker mode and subject responseded, check if correct
+            LFBClicker =0; %reset the value
+            responseT = clock - tStart;
+            responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
+            
+            %Save {'Time', 'ConditionIndex','CurrNumberIndex','CurrStimulusNumberPlayed','ResponseTime'}
+            %Save the condition name (e.g., walk-rep1, walk0-rep3, etc.) in a separate
+            %array datlog.response.conditionName to make the response.data
+            %a numerical array which is easier to manipulate
+            %with CurrNumberIndex we can calculate correctness later on, basically all the index participant responseded should = targetLoc
+            %Right click is for correct/match, so the numIndex
+            %should be a member of the target
+            datlog.response.data(end+1,:) = [now, currentIndex, numIndex, currSequence(numIndex), ...
+                responseT, ~ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
+            datlog.response.conditionName{end+1} = nOrders{currentIndex};
+            %Separating the string entry and the other numerical entry may be helpful for performance: https://stackoverflow.com/questions/16243523/matlab-data-structure-for-mixed-type-whats-time-space-efficient
+            %keep numerical elements together for easier numerical manipulation and perhaps performance
+            
+            fprintf('Clicked L (not match) on stimulus: %d.\n', currSequence(numIndex))
         end
         
         if framenum.Value~= datlog.framenumbers.data(frameind.Value,1) %Frame num value changed, reading data

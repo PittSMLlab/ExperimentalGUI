@@ -33,7 +33,9 @@ condOrder(2,:) = condOrder(end:-1:1);
 condOrder = repmat(condOrder,3,1)
 save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-orderedInTrial.mat'],'condOrder')
 
-%% Option3. now generate one that's the same within trial but across trials go from easy to hard, then hard to easy
+%% Option3. now generate one that's the same n-level within trial, each cond rep 3 times but walk only repeat 1 time; ordered across trials: trial1=0back, trial2 = 1back, trial3 = 2back, then 2-back, 1back, 0back
+%Within trial1: 3 reps of stand0, walk0, and 1 rep of walk; within trial2:
+%3 reps of stand1, walk1, and 1 rept of walk, etc.
 condOrder = cell(trials,totalCond);
 ns = [0:2,2:-1:0]; %easy to hard, then hard to easy
 for j = 1: 6
@@ -77,9 +79,12 @@ for j = 1: 6
 end
 condOrder
 
-save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameInTrialOrderedAcrossTrials.mat'],'condOrder')
+save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithin_walkRep1_OrderedAcrossTrials012210.mat'],'condOrder')
 
-%% Option4. After discussion with Co-Is. Generate same within trial, but 3 reps of walk, walkn, standn each. Then 2 trials of each n.
+%% Option4. After discussion with Co-Is. Generate same within trial, but 3 reps of walk, walkn, standn each. Then 2 trials of each n. Ordered from hard-easy,easy-hard
+%Trial1 = 2back, trial2 = 1back, trial3=0back, then 0back,1back, and 2back
+%Within trial1, 3 reps of walk2, stand2, walk. Then Within trial2, 3 reps
+%of walk1, stand1, walk. Etc.
 rng(2024); %set seeds for repeatability
 conds = {'walk','stand'};
 condOrder = {};
@@ -106,15 +111,31 @@ for n = 0:2
            
     end
 end
-save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameInTrialEachRep2.mat'],'condOrder')
+%now the tasks are in 0,0,1,1,2,2. Reorder them to be hard-easy ,easy-hard
+%(2,1,0,0,1,2)
+condOrder = condOrder([5 3 1 2 4 6],:);
+save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'],'condOrder')
 
-%% Option4.2. Now generate the randomization orders per participant to do n-backs.
+%% Option 4.2. Same as option4, but do 2 reps of each task only to save time.
+%do it in the same order to save datasheet, just drop the last task
+condOrder = load(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat']);
+condOrder = condOrder.condOrder;
+idxToRemove = nan(size(condOrder)); %boolean array, 0 for keep, 1 for remove
+for i = 1:size(condOrder,1) %per row, eliminate everything with rep3
+    idxToRemove(i,:) = contains(condOrder(i,:),'-rep3');
+end
+condOrder = condOrder'; %the logical indexing will flatten the array and put them in column order (top down, then colum2 top-down, etc), what i want to preserve is the orders per row, so first transpose it
+condOrder(logical(idxToRemove')) = [];
+condOrder = reshape(condOrder,6,6)'; %reshape will put elemetns in each column from top down first, then move to next column, this way i preserve the column order (row transpoted), then transpose back to have the correct elements per row
+save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'],'condOrder')
+
+%% Option4.3. Now generate the randomization orders per participant to do n-backs.
+%Within trial will still be 3 reps of walkn,stand, and walk, but the
+%isntead of doing 2-back, 1-back, 0-back, 0-1-2back, now do randomized
+%order.
 sampleSize= 200;
 participantTrialOrder = nan(sampleSize, 6);
 for i = 1:sampleSize
     participantTrialOrder(i,:) = randperm(6);
 end
-save(['BrainGait-n-back-stimulus' filesep 'n-back-subjectOrder-sameInTrialEachRep2.mat'],'condOrder')
-
-
-
+save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep3_RandomPerSubOrder.mat'],'condOrder')
