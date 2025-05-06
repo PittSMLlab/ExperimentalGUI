@@ -66,7 +66,7 @@ if PCNum == 1%only relevant if copying data
 else
     button=questdlg('Do you want to batch process export c3d away after copying the data (Select yes if you have 1 hours time on this computer)?');
 end
-if strcmp(button,'Yes') %automatically advance to next condition.
+if strcmp(button,'Yes')
     batchProcess = true;
     if PCNum == 1
         answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
@@ -138,6 +138,7 @@ if ~processOnly
     end
     fprintf('...Data copying successful...\n')
 end
+
 if batchProcess
     if PCNum == 1
         % reconstruct and label and fill gaps, this is very time consuming.

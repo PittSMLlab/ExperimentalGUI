@@ -15,9 +15,11 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %       omitted, all trials are processed
 
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (1,2,3,or 4)','PCNum (1 or 2)','StudyName (e.g.,BrainWalk)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))'},...
-        'Copy PC2 Data to Server',[1 45; 1 45; 1 45; 1 45; 1 45],...
-        {'BW01','1','1','BrainWalk','[ ]'});
+    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2,3,or 4)','PCNum (1 or 2)',...
+        'StudyName (e.g.,BrainWalk)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
+        'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
+        'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45; 1 45],...
+        {'BW01','2','1','BrainWalk','[ ]','Y'});
     participantID = answer{1};
     if ~isa(eval(answer{2}),'double') %input format check, something that's not a number was inputed, throw an error
         error('Invalid input given, visit number should be a single digit number')
@@ -31,6 +33,7 @@ if nargin == 0 %no input, ask user
 
     studyName = answer{4};
     indsTrials = eval(answer{5});
+    processOnly = strcmpi(answer{6},'Y');
 else
     narginchk(4,5); %min3, max 4 inputs needed.
     visitNum = sprintf('V0%d',visitNum);
@@ -42,17 +45,19 @@ else
 end
 
 if PCNum == 1
-    if strcmp(visitNum,'V01') %longest, about 4-4.5 hours
+    if strcmp(visitNum,'V02') 
         threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
-    elseif strcmp(visitNum,'V02') %longest, about 4-4.5 hours
-        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3.5); %get everything from 5 hours ago
-    elseif strcmp(visitNum,'V03') %longest, about 4-4.5 hours
-        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(3); %get everything from 5 hours ago
+    elseif strcmp(visitNum,'V03') 
+        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
+    elseif strcmp(visitNum,'V04')
+        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
     end
-    answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
-            'Datalog time',[1 45;],...
-            {char(threshTime)});
-    threshTime = datetime(answer{1});
+    if ~processOnly %only relevant if copying data 
+        answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
+                'Datalog time',[1 45;],...
+                {char(threshTime)});
+        threshTime = datetime(answer{1});
+    end
 end
 
 if PCNum == 1
@@ -61,8 +66,18 @@ if PCNum == 1
 else
     button=questdlg('Do you want to batch process export c3d away after copying the data (Select yes if you have 1 hours time on this computer)?');
 end
-if strcmp(button,'Yes') %automatically advance to next condition.
+
+if strcmp(button,'Yes')  %auto fill gap for TM trials only
     batchProcess = true;
+    if PCNum == 1
+        answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
+        'TM Trials to auto process',[1 45],...
+        {'[ ]'});
+        tmTrials = eval(answer{1});
+        if isempty(tmTrials)
+            error('Invalid entry detected. Should be an array of integers for TM trials')
+        end
+    end
 else
     batchProcess = false;
 end
@@ -99,29 +114,31 @@ else
     end
 end
 
-% check if local data directory exists, else raise a warning
-for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
-    if ~isfolder(srcs{i})
-        error('Local data directory does not exist: %s\n',srcs{i});
+if ~processOnly
+    % check if local data directory exists, else raise a warning
+    for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
+        if ~isfolder(srcs{i})
+            error('Local data directory does not exist: %s\n',srcs{i});
+        end
     end
-end
 
-% transfer data using utility function with error handling
-try
-    fprintf('...Copying data to the server...\n')
-    utils.transferDataSess(srcs,dests, threshTime);         % transfer data
-catch ME
-    warning(ME.identifier,'Data transfer failed: %s\n',ME.message);
-    return;
-end
-
-% check if destination directory was created and populated
-for i = 1:numel(dests)
-    if ~isfolder(dests{i})
-        error('Data transfer unsuccessful; destination folder should have been created with data copoied inside, but not found: %s\n',dests{i});
+    % transfer data using utility function with error handling
+    try
+        fprintf('...Copying data to the server...\n')
+        utils.transferDataSess(srcs,dests, threshTime);         % transfer data
+    catch ME
+        warning(ME.identifier,'Data transfer failed: %s\n',ME.message);
+        return;
     end
+
+    % check if destination directory was created and populated
+    for i = 1:numel(dests)
+        if ~isfolder(dests{i})
+            error('Data transfer unsuccessful; destination folder should have been created with data copoied inside, but not found: %s\n',dests{i});
+        end
+    end
+    fprintf('...Data copying successful...\n')
 end
-fprintf('...Data copying successful...\n')
 
 if batchProcess
     if PCNum == 1
