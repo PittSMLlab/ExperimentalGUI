@@ -1,4 +1,4 @@
-function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(velL,velR,FzThreshold,profilename,mode,signList,paramComputeFunc,paramCalibFunc, current_iteration)
+function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(velL,velR,profilename,mode,signList,paramComputeFunc,paramCalibFunc, current_iteration)
 %This function takes two vectors of speeds (one for each treadmill belt)
 %and succesively updates the belt speed upon ipsilateral Toe-Off
 %The function only updates the belts alternatively, i.e., a single belt
@@ -7,7 +7,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
 %% Parameter for randomization order 
-randomization_order = [6 4 1 2 3 5]; %for visit 2, random number between 7 -12
+randomization_order = [2 5 3 6 1 4]; %for visit 2, random number between 7 -12
 startingAlphabet ='A';
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
@@ -240,16 +240,6 @@ try
 catch ME
     disp(ME);
 end
-%Default threshold
-if nargin<3
-    FzThreshold=40; %Newtons (40 is minimum for noise not to be an issue)
-elseif FzThreshold<40
-    %     warning = ['Warning: Fz threshold too low to be robust to noise, using 30N instead'];
-    datlog.messages{end+1,1} = 'Warning: Fz threshold too low to be robust to noise, using 40N instead';
-    disp('Warning: Fz threshold too low to be robust to noise, using 40N instead');
-    FzThreshold=40;
-end
-
 
 %Check that velL and velR are of equal length
 N=length(velL)+1;

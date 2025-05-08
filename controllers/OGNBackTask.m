@@ -18,7 +18,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 %   - velR: number array of right belt speed, size steps x1. not used but followed other controller conventions.
 %   - FzThreshold: Fz threshold to detect a toe off/heel strike, not used
 %   - profilename: string representing profile to load, not used but followed other controller conventions.
-%   - mode: 1 or 0 for signed or unsigned for velocities i think
+%   - mode: 1 or 0 for signed or unsigned for velocities i think, default 1
 %   - signList: the caller will pass in []
 %   - paramComputeFunc: the caller will pass in []
 %   - paramCalibFunc: the caller will pass in []
@@ -71,7 +71,8 @@ twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
 condOption = 4;
-condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
+% condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
+condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
 
 %% Set up task sequence, recordings and main loop
@@ -90,7 +91,7 @@ condOrder = condOrder.condOrder;
 % elseif contains(trialType,'Full Familarization') %full trial familarization
 %     nOrders = {'walk','stand0','stand1','stand2','walk0','walk1','walk2'};
 %     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-if startsWith(trialType,'Standing Familarization 0') 
+if startsWith(trialType,'Standing Familarization 0back') 
     nOrders = {'stand0-rep1'}
     % Pop up window to confirm parameter setup, do this only once at the
     % very first familarization trial.
@@ -99,19 +100,19 @@ if startsWith(trialType,'Standing Familarization 0')
        return; %Abort starting the trial
     end
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif startsWith(trialType,'Standing Familarization 1') %full trial familarization
+elseif startsWith(trialType,'Standing Familarization 1back') %full trial familarization
     nOrders = {'stand1-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif startsWith(trialType,'Standing Familarization 2') %full trial familarization
+elseif startsWith(trialType,'Standing Familarization 2back') %full trial familarization
     nOrders = {'stand2-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif startsWith(trialType,'Full Familarization 0') 
+elseif startsWith(trialType,'Full Familarization 0back') 
     nOrders = {'stand0-rep1','walk0-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif startsWith(trialType,'Full Familarization 1') %full trial familarization
+elseif startsWith(trialType,'Full Familarization 1back') %full trial familarization
     nOrders = {'stand1-rep1','walk1-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
-elseif startsWith(trialType,'Full Familarization 2') %full trial familarization
+elseif startsWith(trialType,'Full Familarization 2back') %full trial familarization
     nOrders = {'stand2-rep1','walk2-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 
@@ -129,8 +130,13 @@ end
 %access the ISIs, sequence they can be in a 3D array (task x 2 (seq, ISI) x numbers)
 
 %set up audio players
-audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
-    'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+if twoClikerMode
+    audioids = {'walk','walk0RightBtn','walk1','walk2','stand0RightBtn','stand1','stand2',...
+        'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+else
+    audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
+        'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+end
 %I-connected, R- rest or stop and rest,O-trialend(relax), W-walk, A-F for walk0-2, stand0-2, H,J-N,P-T for 0-10
 eventCodeCharacter = {'W','A','B','C','D','E','F','O','R','R'}; 
 numberCodeCharacter = {'H','J','K','L','M','N','P','Q','S','T'}; 
@@ -143,6 +149,9 @@ for i = 1 : length(audioids)
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
     instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
 end
+
+%now remove the specific audio ID suffix to load general walk0/1/2 sequence
+audioids = strrep(audioids,'RightBtn','');
 
 % Load pre-generated task order, load the n-back sequences to use later, save them in key-value maps.
 n_back_sequences = containers.Map();
@@ -351,7 +360,7 @@ datlog.audioCues.start = [];
 datlog.audioCues.audio_instruction_message = {};
 datlog.audioCues.recording={};
 % datlog.response.header = {'Time','Block','n','Correctness','Index','Stimulus','ResponseTime','RelativeTime'};
-datlog.response.dataheader = {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseTime','Correct(1Correct0Wrong)'};
+datlog.response.dataheader = {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseKey(1R0L)','ResponseTime','Correct(1Correct0Wrong)'};
 datlog.response.data = [];
 datlog.response.conditionName = {};
 %log the current sequence's correct locations (this is being extra
@@ -590,7 +599,7 @@ try %So that if something fails, communications are closed properly
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
             
-            %Save {'Time', 'ConditionIndex','CurrNumberIndex','CurrStimulusNumberPlayed','ResponseTime'}
+            %Save {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseKey(1R0L)','ResponseTime','Correct(1Correct0Wrong)'};
             %Save the condition name (e.g., walk-rep1, walk0-rep3, etc.) in a separate
             %array datlog.response.conditionName to make the response.data
             %a numerical array which is easier to manipulate
@@ -598,20 +607,20 @@ try %So that if something fails, communications are closed properly
             %Right click is for correct/match, so the numIndex
             %should be a member of the target
             datlog.response.data(end+1,:) = [now, currentIndex, numIndex, currSequence(numIndex), ...
-                responseT, ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
+                1,responseT, ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
             datlog.response.conditionName{end+1} = nOrders{currentIndex};
             %Separating the string entry and the other numerical entry may be helpful for performance: https://stackoverflow.com/questions/16243523/matlab-data-structure-for-mixed-type-whats-time-space-efficient
             %keep numerical elements together for easier numerical manipulation and perhaps performance
             
-            fprintf('Clicked R (match) on stimulus: %d.\n', currSequence(numIndex))
+            fprintf('Clicked R (match) on stimulus: %d, Correctness (1Correct0Incorrect): %d\n', currSequence(numIndex), datlog.response.data(end,end))
         end
         
-        if twoClikerMode && LFBClicker == 1 %two clicker mode and subject responseded, check if correct
+        if twoClikerMode && (~isempty(LFBClicker)) && LFBClicker == 1 %two clicker mode and subject responseded, check if correct
             LFBClicker =0; %reset the value
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
             
-            %Save {'Time', 'ConditionIndex','CurrNumberIndex','CurrStimulusNumberPlayed','ResponseTime'}
+            %Save {'Time','ConditionIndex','CurrNumberIndex','CurrStimulus','ResponseKey(1R0L)','ResponseTime','Correct(1Correct0Wrong)'};
             %Save the condition name (e.g., walk-rep1, walk0-rep3, etc.) in a separate
             %array datlog.response.conditionName to make the response.data
             %a numerical array which is easier to manipulate
@@ -619,12 +628,12 @@ try %So that if something fails, communications are closed properly
             %Right click is for correct/match, so the numIndex
             %should be a member of the target
             datlog.response.data(end+1,:) = [now, currentIndex, numIndex, currSequence(numIndex), ...
-                responseT, ~ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
+                0,responseT, ~ismember(numIndex,n_back_sequences(nOrders{currentIndex}).fullTargetLocs)];
             datlog.response.conditionName{end+1} = nOrders{currentIndex};
             %Separating the string entry and the other numerical entry may be helpful for performance: https://stackoverflow.com/questions/16243523/matlab-data-structure-for-mixed-type-whats-time-space-efficient
             %keep numerical elements together for easier numerical manipulation and perhaps performance
             
-            fprintf('Clicked L (not match) on stimulus: %d.\n', currSequence(numIndex))
+            fprintf('Clicked L (mis-match) on stimulus: %d, Correctness (1Correct0Incorrect): %d\n', currSequence(numIndex), datlog.response.data(end,end))
         end
         
         if framenum.Value~= datlog.framenumbers.data(frameind.Value,1) %Frame num value changed, reading data
@@ -789,9 +798,10 @@ try %So that if something fails, communications are closed properly
             
             %check for passing minDuration only, don't check for upper
             %bound
-            if (((~strcmp(nOrders{currentIndex},'walk')) || startsWith(nOrders{currentIndex},'walk-rep')) && sequenceComplete) || ((strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
+            %TODO this is buggy
+            if ((~strcmp(nOrders{currentIndex},'walk')) && ~startsWith(nOrders{currentIndex},'walk-rep') && sequenceComplete) || ((strcmp(nOrders{currentIndex},'walk') || startsWith(nOrders{currentIndex},'walk-rep')) && (t_diff >= restDuration-timeEpsilon)) % && t_diff <= restDuration +timeEpsilon))
                 %if walk+DT, stop after full sequence is played. 
-                %if walk only, stop after 20s. use round in case couldn't get exactly 20s, so will
+                %Or if walk only, and enough time hsa passed, say stop and rest, use round in case couldn't get exactly 20s, so will
                 %stop from 19.999 ~ 20.001 seconds
                 fprintf('time diff: %f\n',t_diff)
                 
@@ -936,34 +946,6 @@ for z = 1:temp-1
     datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
 end
 
-%Consider delete
-% %convert RHS times
-% temp = find(datlog.stepdata.RHSdata(:,1) == 0,1,'first');
-% datlog.stepdata.RHSdata(temp:end,:) = [];
-% datlog.stepdata.paramRHS(temp:end,:) = [];
-% for z = 1:temp-1
-%     datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
-% end
-% %convert LHS times
-% temp = find(datlog.stepdata.LHSdata(:,1) == 0,1,'first');
-% datlog.stepdata.LHSdata(temp:end,:) = [];
-% datlog.stepdata.paramLHS(temp:end,:) = [];
-% for z = 1:temp-1
-%     datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
-% end
-% %convert RTO times
-% temp = find(datlog.stepdata.RTOdata(:,1) == 0,1,'first');
-% datlog.stepdata.RTOdata(temp:end,:) = [];
-% for z = 1:temp-1
-%     datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
-% end
-% %convert LTO times
-% temp = find(datlog.stepdata.LTOdata(:,1) == 0,1,'first');
-% datlog.stepdata.LTOdata(temp:end,:) = [];
-% for z = 1:temp-1
-%     datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
-% end
-
 %convert audio times
 datlog.audioCues.start = datlog.audioCues.start';
 datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
@@ -971,8 +953,12 @@ temp = isnan(datlog.audioCues.start);
 disp('\nConverting datalog, current starts \n'); 
 disp(datlog.audioCues.start);
 datlog.audioCues.start=datlog.audioCues.start(~temp);
-datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
-datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom','datenum');
+if ~isempty(datlog.framenumbers.data)
+    datlog.audioCues.startInRelativeTime = (datlog.audioCues.start- datlog.framenumbers.data(1,2))*86400;
+    datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start, 'ConvertFrom','datenum');
+else
+    warning('\nNo frame number available, check did this trial actually start in Vicon?')
+end
 
 %convert response time to relative time to vicon frame 1 and add date time format.
 %  {'Time','Index','Stimulus','ResponseTime'} 
@@ -986,8 +972,12 @@ datlog.response.dataheader{end+1} = 'RelativeTimeToTaskStart';
 if isempty(datlog.response.data)
     warning('Participant did not press any button in this trial.')
 else
-    datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time, bc it's in array format first convert to mat for numerical operations, then convert back to mat for storage
-    datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+    if ~isempty(datlog.framenumbers.data)
+        datlog.response.data(:,end+1) = (datlog.response.data(:,1)- datlog.framenumbers.data(1,2))*86400; %relative time, bc it's in array format first convert to mat for numerical operations, then convert back to mat for storage
+        datlog.response.inDateTime = datetime(datlog.response.data(:,1), 'ConvertFrom','datenum');
+    else
+        warning('\nNo frame number available, check did this trial actually start in Vicon?')
+    end
 end
 
 if recordData
