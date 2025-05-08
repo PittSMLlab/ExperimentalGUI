@@ -461,8 +461,8 @@ switch(selection)
     case 10
         disp('AutomaticityAssessmentProtocol');
         mode=1;
-        currTrial = inputdlg('What is the current_iteration: ');
-        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), forceThreshold, shortName,mode,[],[],[],str2num(currTrial{1}));
+        currTrial = inputdlg('What is the current_iteration (o=familiarization): ');
+        [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = NirsAutomaticityAssessment(round(velL*1000), round(velR*1000), shortName,mode,[],[],[],str2num(currTrial{1}));
     case 11
         global numAudioCountDown %Added by Shuqi 1/19/2022, default [-1], only count down at TM start and end
         [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = controlSpeedWithSteps_edit1_AudioCountDown(round(velL*1000), round(velR*1000), forceThreshold, shortName, numAudioCountDown); %
@@ -504,13 +504,14 @@ switch(selection)
         mode=1;
         allowedKeys={'numpad4','numpad6','leftarrow','rightarrow','pagedown','pageup'};
         playClickerSound = false;
-%         trialOptions = {'Standing Familarization (can only run this up to 3 times)','Full Familarization (run through all conditions once)','Trial 1',...
-%             'Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
-        trialOptions = {'Standing Familarization 0 (up to 3 times)','Standing Familarization 1 (up to 3 times)',...
-            'Standing Familarization 2 (up to 3 times)','Full Familarization 0 (only 1 repeat)',...
-            'Full Familarization 1 (only 1 repeat)','Full Familarization 2 (only 1 repeat)',...
+%         trialOptions = {'Standing Familarization 0back (up to 3 times)','Standing Familarization 1back (up to 3 times)',...
+%             'Standing Familarization 2back (up to 3 times)','Full Familarization 0back (only 1 repeat)',...
+%             'Full Familarization 1back (only 1 repeat)','Full Familarization 2back (only 1 repeat)',...
+%             'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
+        trialOptions = {'Full Familarization 0back (up to 3 repeats)',...
+            'Full Familarization 1back (up to 3 repeats)','Full Familarization 2back (up to 3 repeats)',...
             'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5','Trial 6'};
-        [currTrial,~] = listdlg('PromptString','What trial is this:','ListString',trialOptions,'SelectionMode','single','ListSize',[400,300]);
+        [currTrial,~] = listdlg('PromptString','What trial is this:','ListString',trialOptions,'SelectionMode','single','ListSize',[300,150]);
         if isempty(currTrial)
             error('Invalid selection. Try again.')
         else
