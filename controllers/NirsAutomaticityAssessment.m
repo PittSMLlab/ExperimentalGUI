@@ -7,21 +7,22 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = Nir
 %speeds will be sent for the following N-1 steps, where N is the length of
 %velL
 %% Parameter for randomization order 
-randomization_order = [2 5 3 6 1 4]; %for visit 2, random number between 7 -12
+randomization_order = [2 6 5 3 4 1]; %for visit 2, random number between 7 -12
 startingAlphabet ='A';
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = 1; 
-restDuration = 20; %default 20s rest, could change for debugging
+restDuration = 20; %default 20s rest and 20s for task, could change for debugging
 
 %% Set up task sequence, recordings and main loop
+timeEpsilon = 0.05; %tolerance for time elapsed >= target - epsilon will count as in target window. e.g., if rest is 30s, timePassed >= 29.975 will all be considered acceptable
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
 
 if current_iteration == 0
     if strcmp(startingAlphabet, 'A')
-        event_list = [3 1 2 4 5]; %walk, stand alpha A, walk alpha, stand 3 A, walk 3A
+        event_list = [3 1 2 4 5]; %do it in fixed order for famirization: walk, stand alpha A, walk alpha, stand 3 A, walk 3A
     else
-        event_list = [3 6 7 8 9];
+        event_list = [3 6 7 8 9];%walk, stand alpha B, walk alphaB, stand 3 B, walk 3B
     end
     restDuration = 25;
     recordData = false;
@@ -32,9 +33,12 @@ if current_iteration == 0
     end
 else
     if strcmp(startingAlphabet, 'A')
-        all_events = [2 4 3 1 5;4 3 2 1 5;3 1 2 4 5; 3 2 4 5 1;3 4 1 2 5;2 3 5 4 1];
+%         all_events = [2 4 3 1 5;4 3 2 1 5;3 1 2 4 5; 3 2 4 5 1;3 4 1 2 5;2 3 5 4 1]; %AUF/AUC Study order
+        all_events = [1 5 4 2 3; 1 3 2 5 4; 5 3 1 4 2; 5 1 4 2 3; 4 3 1 5 2; 5 4 2 3 1]; %BrainWalk Order
     else
-        all_events= [7 8 3 6 9; 8 3 7 6 9; 3 6 7 8 9; 3 7 8 9 6; 3 8 6 7 9; 7 3 9 8 6]; %fixed order, only change the order to index these.
+        %fixed order, only change the order to index these.
+%         all_events= [7 8 3 6 9; 8 3 7 6 9; 3 6 7 8 9; 3 7 8 9 6; 3 8 6 7 9; 7 3 9 8 6]; %AUF/AUC Study order
+        all_events = [9 3 7 8 6;3 9 6 7 8;9 6 7 8 3;8 6 7 9 3;9 7 8 3 6;7 9 3 8 6]; %BrainWalk order
     end
     event_list = all_events(randomization_order(current_iteration),:);
     %1 = stand and alphabet A, 2 = walk and alphabet A, 3 = walk, 4 = stand and
@@ -354,7 +358,7 @@ try %So that if something fails, communications are closed properly
     datlog = nirsEvent('rest', 'R', nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
     pause(restDuration);
     
-    for possibleStandEvent = 1:4
+    for possibleStandEvent = 1:4 %it's possible all standings are next to each other, in that case loop here untill a walk or DTWalk is coming
         if ismember(eventorder(currentIndex),[1,4,6,8]) %stand and alphabetA or B, or 3 letters A or B
             datlog = nirsEvent(audioids{eventorder(currentIndex)}, eventCodeCharacter{eventorder(currentIndex)}, audioids{eventorder(currentIndex)}, instructions, datlog, Oxysoft, oxysoft_present);
             currentIndex = currentIndex + 1;
@@ -553,22 +557,17 @@ try %So that if something fails, communications are closed properly
             
             tEnd = clock;
             t_diff = tEnd - tStart;
-            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-            if round(t_diff) == restDuration %now stop after 20s passed , before stop after 1 loop %inout1 == 1 && inout2 == 1
-                fprintf('time diff: %f',t_diff)
-                %TODO: use round in case couldn't get exactly 20s, so will
+            t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); %in seconds
+            if  t_diff >= restDuration-timeEpsilon %round(t_diff) == restDuration %%In AUF/AUC: used round in case couldn't get exactly 20s, so will
                 %stop from 19.5 ~ 20.49 seconds
-                if (length(t1) >= 2)
-%                     t_diff = t1(end,:)-t1(end-1,:);
-%                     walk_duration = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-%                     datlog.walkTime(end+1) = walk_duration;
-                end
-                if exist('t2','var') && (length(t1) >= 2)
-%                     t_diff = t2 - t1(end-1,:);
-%                     datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-%                     t_diff = t1(end,:) - t2;
-%                     datlog.straightTime(end+1) = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6));
-                end
+                %can be more accurate, and stop after 20-epsilon has
+                %passed. Use >= to check one side passing only incase the
+                %loop rate is slow and couldn't stay within rest +-
+                %timeEpsilon window, so will be more lenient towards extra
+                %time.
+                fprintf('time diff: %f',t_diff)
+                
+                %but we can more accurate
                 %always stop once, only stop at the computer side, then move on to next instruction.
                 inout1 = 0; %reset
                 inout2 = 0;

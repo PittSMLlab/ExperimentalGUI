@@ -37,14 +37,21 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = true; 
-restDuration = 30; %default 20s rest, could change for debugging
 timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+%this one error propagates over time since every stimulus ISI will have a
+%tolerance of 0.025, overtime the whole block might be off by 0.1-0.2ms
 instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
 %Hard-coded to match what's in the GenerateNBackSequence.m
 %Need at least a few ms, other wise the first number will be played as the instruction is finishing
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
 
 twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch. False if using one clicker and only click for match.
+
+if twoClikerMode
+    restDuration = 5%42; %default 20s rest, could change for debugging
+else
+    restDuration = 5%30; %default 30s rest, could change for debugging
+end
 
 %% Parameter for randonization orde. If Option1, change the condOrderToRun (task randomization order) to run per person.
 %Option1. run pseudorandom sequence, this order and the loading below go
@@ -71,8 +78,8 @@ twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
 condOption = 4;
-% condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
-condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
+condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
+% condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
 
 %% Set up task sequence, recordings and main loop
@@ -95,7 +102,7 @@ if startsWith(trialType,'Standing Familarization 0back')
     nOrders = {'stand0-rep1'}
     % Pop up window to confirm parameter setup, do this only once at the
     % very first familarization trial.
-    button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30');  
+    button=questdlg('Please confirm that you have UPDATED the randomization_order of this participant, oxysoft_present is 1 (NIRS connected), rest duration is 30 if one clicker, 42 if two clicker');  
     if ~strcmp(button,'Yes')
        return; %Abort starting the trial
     end
@@ -147,7 +154,8 @@ instructions = containers.Map();
 for i = 1 : length(audioids)
 %         disp(strcat(audioids{i},'.mp3'))
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
-    instructions(audioids{i}) = audioplayer(audio_data,audio_fs);
+    curKey = strrep(audioids{i},'RightBtn',''); %use the same key for single and two clickers, even though audio file name is different
+    instructions(curKey) = audioplayer(audio_data,audio_fs);
 end
 
 %now remove the specific audio ID suffix to load general walk0/1/2 sequence
@@ -172,6 +180,9 @@ for i = 2:7 %walk0-2, stand0-2
             seq.fullSequence = fullSeq.fullSequence(startingIdx+j,:);
             seq.fullTargetLocs = fullSeq.fullTargetLocs(startingIdx+j,:);
             seq.interStimIntervals = fullSeq.fullInterStimIntervals(startingIdx+j,:);
+            if twoClikerMode %give them 1 more second to respond
+                seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+            end
             seq.audioIdKey = audioids{i};
             seq.nirsEventCode = eventCodeCharacter{i};
             n_back_sequences([audioids{i} '-rep' num2str(j)]) = seq; 
@@ -181,6 +192,9 @@ for i = 2:7 %walk0-2, stand0-2
         fullSeq.fullSequence = fullSeq.fullSequence(nbackSeqRowIdx,:);
         fullSeq.fullTargetLocs = fullSeq.fullTargetLocs(nbackSeqRowIdx,:);
         fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals(nbackSeqRowIdx,:);
+        if twoClikerMode %give them 1 more second to respond
+            seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+        end
         fullSeq.audioIdKey = audioids{i};
         fullSeq.nirsEventCode = eventCodeCharacter{i};
         n_back_sequences(audioids{i}) = fullSeq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})

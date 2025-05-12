@@ -234,9 +234,9 @@ while ~TMprotocolComplete
                 play(AudioTimeUp); 
            case 3 %tmbase mid
                 handles.popupmenu2.set('Value',11) %OPEN Loop
-                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\Practice\TMBaselineMid200.mat';
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\Practice\TMBaselineMid300.mat';
                 manualLoadProfile([],[],handles,profilename)
-                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 200 strides with 0.75m/s (TMBaselineMid200)'); 
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 300 strides with 0.75m/s (TMBaselineMid300)'); 
                 if ~strcmp(button,'Yes')
                   return; %Abort starting the exp
                 end
@@ -253,14 +253,14 @@ while ~TMprotocolComplete
                 end
                 manualLoadProfile([],[],handles,profilename)
                 if dominantRight
-                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 150 strides with 0.75m/s, then R at 1m/s and L at 0.5m/s for 200 strides, then 25 strides with 0.75m/s (Adaptation1_RightDominant)'); 
+                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 50 strides with 0.75m/s, then R at 1m/s and L at 0.5m/s for 200 strides, then 25 strides with 0.75m/s (Adaptation1_RightDominant)'); 
                 else
-                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 150 strides with 0.75m/s, then L at 1m/s and R at 0.5m/s for 200 strides, then 25 strides with 0.75m/s (Adaptation1_LeftDominant)'); 
+                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 50 strides with 0.75m/s, then L at 1m/s and R at 0.5m/s for 200 strides, then 25 strides with 0.75m/s (Adaptation1_LeftDominant)'); 
                 end
                 if ~strcmp(button,'Yes')
                   return; %Abort starting the exp
                 end
-                numAudioCountDown = [150 350 -1];
+                numAudioCountDown = [50 250 -1];
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
                 pause(breakTime); 
                 play(AudioTimeUp);
@@ -382,9 +382,9 @@ while ~TMprotocolComplete
                 play(AudioTimeUp);
             case 3 %TMBaseline Mid
                 handles.popupmenu2.set('Value',11) %OPEN Loop
-                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\Post\TMBaselineMid200.mat';
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\Post\TMBaselineMid300.mat';
                 manualLoadProfile([],[],handles,profilename)
-                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 200 strides with 0.75 m/s (TMBaselineMid200)'); 
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 300 strides with 0.75 m/s (TMBaselineMid300)'); 
                 if ~strcmp(button,'Yes')
                   return; %Abort starting the exp
                 end
@@ -401,14 +401,14 @@ while ~TMprotocolComplete
                 end
                 manualLoadProfile([],[],handles,profilename)
                 if dominantRight
-                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 150 strides with 0.75m/s, then R at 1m/s and L at 0.5m/s for 150 strides, then tied 0.75m/s for 50 strides (MidBaseAndAdaptationAndPost_RightDominant)'); 
+                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 50 strides with 0.75m/s, then R at 1m/s and L at 0.5m/s for 150 strides, then tied 0.75m/s for 50 strides (MidBaseAndAdaptationAndPost_RightDominant)'); 
                 else
-                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 150 strides with 0.75m/s, then L at 1m/s and R at 0.5m/s for 150 strides, then tied 0.75m/s for 50 strides (MidBaseAndAdaptationAndPost_LeftDominant)'); 
+                    button=questdlg('Confirm controller is Open loop controller with audio countdown. Profile is 50 strides with 0.75m/s, then L at 1m/s and R at 0.5m/s for 150 strides, then tied 0.75m/s for 50 strides (MidBaseAndAdaptationAndPost_LeftDominant)'); 
                 end
                 if ~strcmp(button,'Yes')
                   return; %Abort starting the exp
                 end
-                numAudioCountDown = [150 300 -1];
+                numAudioCountDown = [50 200 -1];
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
                 pause(breakTime); 
                 play(AudioTimeUp);
