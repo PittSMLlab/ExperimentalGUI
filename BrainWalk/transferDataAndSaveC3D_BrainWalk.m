@@ -101,8 +101,9 @@ else
     srcs(end+1:end+2) = {fullfile(dirPC1ExpGUI,'datlogs'), fullfile(dirPC1ExpGUI,'datlogs')};
     dests(end+1:end+2) = {fullfile(dirSrvrData,'Datalog'),fullfile(dirSrvrRaw,'Datalog')};
     
-    % copy NIRS if it's viist 1
-    if ismember(visitNum,{'V04','V05'})
+    % copy NIRS if it's viist 1, sometimes it varies, just ask
+    btnDlg=questdlg('Does this session have fNIRS?');
+    if strcmp(btnDlg,'Yes')
        dirOxy = fullfile('C:\Users\cntctsml\Documents\Oxysoft Data\',studyName,participantID);
        srcs(end+1:end+2) = {dirOxy, dirOxy};
        dests(end+1:end+2) = {fullfile(dirSrvrData,'NIRS'),fullfile(dirSrvrRaw,'NIRS')};
