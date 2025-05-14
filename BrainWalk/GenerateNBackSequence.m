@@ -8,14 +8,16 @@
 % C:\Users\Public\Documents\MATLAB\ExperimentalGUI\controllers\AudioInstructionsMP3/
 %set up audio players
 %Set up save path
+close all; clear all; clc
 scriptDir = fileparts(matlab.desktop.editor.getActiveFilename);
-saveDir = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\NirsAutomaticityProtocol' filesep 'BrainGait-n-back-stimulus' filesep];
+saveDir = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk' filesep 'BrainWalk-n-back-stimulus' filesep];
 
 %Optional, add audio to path
 % audioPath = [scriptDir filesep 'AudioInstructionsMP3' filesep];
 % addpath(audioPath)
 audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
-    'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+    'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9',...
+    'walk0RightBtn','stand0RightBtn',};
 instructions = containers.Map();
 durationsSelfCalc = [];
 durationsLoaded = [];
@@ -42,10 +44,12 @@ instructionAudioBufferSec = 2; %don't play the first number right after, give a 
 
 for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
     for n = 0:2 %parameter of the N to generate
-        condAudioKey = [taskTypes{taskTp}, num2str(n)];
         fullSequence = nan(trials, numStimulus);
         fullTargetLocs = zeros(trials, numTargets)-1; %initialize to invalid values -1, if it's nan, when do comparison, by default nan~=nan.
         fullInterStimIntervals = fullSequence;
+        if n == 0 %for 0-back task instruction is diffferent for 1 vs 2 clicker (walk and click 0 vs walk and clic right in 0), so generate a different ISI for 2 clicker
+            fullInterStimIntervals2Clicker = fullSequence;
+        end
         for rep = 1:trials
             sequenceToPlay = nan(1,numStimulus);
             targetLocs = NBackHelper.generateNewTarget(numStimulus, numTargets, n, fullTargetLocs);
@@ -129,7 +133,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
             %in the other matlab code, also has a pause right after
             %instructions to avoid saying the 1st number before instruction
             %finishes.
-            condAudioKey
+            condAudioKey = [taskTypes{taskTp}, num2str(n)];
             totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
 %             for i = sequenceToPlay %assume no time spent on this, allow
 %             participant to answer right away before the audio file is
@@ -143,18 +147,32 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
             
             totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
             fullInterStimIntervals(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+            
+            if n == 0
+                %generate a different ISI for 2 clicker becuase the instruction
+                %is slightly different (walk and click when hear 0, vs walk and
+                %click right when hear 0
+                condAudioKey2 = [taskTypes{taskTp}, num2str(n) 'RightBtn'];
+                totalAudioTime = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
+                totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
+                fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+            end
         end
         fullSequence %visually exam to avoid 1-2-3-4, or 4-3-2-1 etc.    
         fullTargetLocs  
         fullInterStimIntervals
         
-        save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals')
+        if n == 0
+            save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals','fullInterStimIntervals2Clicker')
+        else
+            save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals')
+        end
     end
 end
 
 %% 3. Test the generated sequences,, make sure all sequence will be 30s and make sure the n-back is designed as planned.
 clearvars -except instructions taskTypes totalCondTimeMs saveDir instructionAudioBufferSec
-dataTimingInfo = []; %taskxn x trial x 3 info: totalAudio, minISI, maxISI
+dataTimingInfo = []; %task x n x trial x info: totalAudio1 clicker, totalAudio2clicker, minISI, maxISI, meanISI
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate
         condAudioKey = [taskTypes{taskTp}, num2str(n)];
@@ -191,18 +209,29 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
             if totalAudioTime + sum(fullInterStimIntervals(t,:)) ~= totalCondTimeMs
                 error('Invalid trial time found %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime + sum(fullInterStimIntervals(t,:)))
             end
-            dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
+            
+            if n == 0 %check 2 clicker audio timing
+                totalAudioTime2 = instructions([condAudioKey 'RightBtn']).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
+                totalAudioTime2 = totalAudioTime2 * 1000;
+                if totalAudioTime2 + sum(fullInterStimIntervals2Clicker(t,:)) ~= totalCondTimeMs
+                    error('Invalid trial time found for 2 clicker mode %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime2 + sum(fullInterStimIntervals2Clicker(t,:)))
+                end
+                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, totalAudioTime2, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
+
+            else %log info with 2 clicer column as nan
+                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, nan, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
+            end
         end
     end
 end
 
 %% Get timing summary
 fprintf('\nMin response time across task x n')
-min(squeeze(dataTimingInfo(:,:,:,2)),[],3) %the resulting format is task x n, min response time
+min(squeeze(dataTimingInfo(:,:,:,3)),[],3) %the resulting format is task x n, min response time
 fprintf('\nMax response time across task x n')
-max(squeeze(dataTimingInfo(:,:,:,3)),[],3) %max response time across task x n
+max(squeeze(dataTimingInfo(:,:,:,4)),[],3) %max response time across task x n
 fprintf('\nAverage response time across task x n')
-mean(squeeze(dataTimingInfo(:,:,:,4)),3) %average response time across task x n
+mean(squeeze(dataTimingInfo(:,:,:,5)),3) %average response time across task x n
 fprintf('\nAverage instruction time (with a short buffer after) across task x n')
 mean(squeeze(dataTimingInfo(:,:,:,1)),3) %average instruction time across task x n
 

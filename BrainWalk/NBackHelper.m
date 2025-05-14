@@ -22,7 +22,7 @@ classdef NBackHelper
             %       is used to check that no repeat locations are used
             % $Author: Shuqi Liu $	$Date: 2025/02/14 10:12:38 $	$Revision: 0.1 $
             % Copyright: Sensorimotor Learning Laboratory 2025
-
+            
             %break down into subsections.
             subSeqLength = floor(numStimulus/numTarget); %if 12 stim, 3 target, subseq length = 4, insert a random target every 4.
             targetLocs = zeros(1,numTarget)-1; %initialize to default value = -1, so will go into the while loop at least once bc the existing target is defaulted to -1 everywhere too.
@@ -82,6 +82,7 @@ classdef NBackHelper
 
             %first check that it's possible to find ISIs that match all the
             %requirements, i.e., the total time left is not too short or too long
+            
             if totalTimeLeftMs > numStimulus * ISIMax || totalTimeLeftMs < numStimulus * ISIMin
                 %even if all itnerval is max, or min, it's still below or above
                 %total left, ill condition
@@ -137,7 +138,9 @@ classdef NBackHelper
                     generationSuccess = true;
                 end
             end
+            %now shuffle the response time to avoid beginning and end very
+            %close to min ISI due to the algorithm deficits.
+            responseTime = responseTime(randperm(length(responseTime)));
         end
-
     end
 end

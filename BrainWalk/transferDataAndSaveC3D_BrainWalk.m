@@ -15,7 +15,8 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %       omitted, all trials are processed
 
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2,3,or 4)','PCNum (1 or 2)',...
+    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day))',...
+        'PCNum (1 or 2)',...
         'StudyName (e.g.,BrainWalk)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
         'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
         'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45; 1 45],...
@@ -45,13 +46,7 @@ else
 end
 
 if PCNum == 1
-    if strcmp(visitNum,'V02') 
-        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
-    elseif strcmp(visitNum,'V03') 
-        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
-    elseif strcmp(visitNum,'V04')
-        threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(5); %get everything from 5 hours ago
-    end
+    threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(4); %get everything from 4 hours ago, all protocols should be within 4 hours
     if ~processOnly %only relevant if copying data 
         answer = inputdlg({'Will copy datalog generated after the time below: (if you disagree, change it)'},...
                 'Datalog time',[1 45;],...
@@ -106,8 +101,8 @@ else
     srcs(end+1:end+2) = {fullfile(dirPC1ExpGUI,'datlogs'), fullfile(dirPC1ExpGUI,'datlogs')};
     dests(end+1:end+2) = {fullfile(dirSrvrData,'Datalog'),fullfile(dirSrvrRaw,'Datalog')};
     
-    % copy NIRS if it's viist1
-    if strcmp(visitNum,'V01')
+    % copy NIRS if it's viist 1
+    if ismember(visitNum,{'V04','V05'})
        dirOxy = fullfile('C:\Users\cntctsml\Documents\Oxysoft Data\',studyName,participantID);
        srcs(end+1:end+2) = {dirOxy, dirOxy};
        dests(end+1:end+2) = {fullfile(dirSrvrData,'NIRS'),fullfile(dirSrvrRaw,'NIRS')};

@@ -176,7 +176,7 @@ for i=1:length(iL)
     text(iL(i),yl(1)+.1*diff(yl),[num2str(auxT)],'Color',[1 0 0])
 end
 
-t1 = [];
+% t1 = [];
 % %initialize a data structure that saves information about the trial,
 datlog = struct();
 datlog.buildtime = now;%timestamp
@@ -319,8 +319,8 @@ try %So that if something fails, communications are closed properly
     disp('nirs range')
     y_max = 4250;%0 treadmill, max = 4.25meter ~= 13.94 ft = 6-7 tiles
     y_min = -2300;%0 treadmill, min = 2.3meter ~=7.55 ft = 3-4 tiles
-    inout1 = 0; %initialize both variables to 0
-    inout2 = 0;    
+%     inout1 = 0; %initialize both variables to 0
+%     inout2 = 0;    
     
     LHS_time = 0;
     RHS_time = 0;
@@ -544,15 +544,15 @@ try %So that if something fails, communications are closed properly
                     
             elseif body_y_pos(frameind.Value) <= y_min
                 %reach one end (computer side)
-                t1(end+1,:) = clock;
-                inout1 = 1;
-                disp('Reaching t1')
+%                 t1(end+1,:) = clock;
+%                 inout1 = 1;
+%                 disp('Reaching t1')
             elseif body_y_pos(frameind.Value) >= y_max
                 %reach the door side
-                t2 = clock;
-                disp('Reaching t2')
-                inout2 = 1;
-                inout1 = 0; %half of a loop done, reset the computer side flag untill back in computer side again (complete the loop)
+%                 t2 = clock;
+%                 disp('Reaching t2')
+%                 inout2 = 1;
+%                 inout1 = 0; %half of a loop done, reset the computer side flag untill back in computer side again (complete the loop)
             end
             
             tEnd = clock;
@@ -569,9 +569,9 @@ try %So that if something fails, communications are closed properly
                 
                 %but we can more accurate
                 %always stop once, only stop at the computer side, then move on to next instruction.
-                inout1 = 0; %reset
-                inout2 = 0;
-                t1 = [];
+%                 inout1 = 0; %reset
+%                 inout2 = 0;
+%                 t1 = [];
                 nirsRestEventString = generateNirsRestEventString(eventorder, currentIndex);
                 datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
                 pause(restDuration);

@@ -1,7 +1,7 @@
 %% This script run the Brain walk protocol behavior portion.
 
 %% 1. set up which session to run and dominant leg for each participant
-visitOptions = {'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM)','Visit4(Nirs Alphabet)','Visit4(Nirs N-back)'};
+visitOptions = {'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet)','Visit5(Nirs N-back)'};
 [visitNum,~] = listdlg('PromptString','What visit is this?','ListString',visitOptions,'SelectionMode','single','ListSize',[200,100]);
 if isempty(visitNum)
     error('Invalid selection. Try again.')
@@ -355,7 +355,7 @@ while ~TMprotocolComplete
                 TMprotocolComplete = true;
         end %end of switch statement for v03
     
-    elseif strcmpi(visitNum,'Visit4(Post TM)')
+    elseif strcmpi(visitNum,'Visit4(Post TM + Nirs Alphabet)')
         %% visit 4
         switch currCond
             case 1 %tmbase fast
@@ -468,7 +468,7 @@ end %end of big while loop
 
 
 %% Now run DT
-if strcmpi(visitNum,'Visit4(Nirs Alphabet)')
+if strcmpi(visitNum,'Visit4(Post TM + Nirs Alphabet)')
     protocolComplete = false; %start with -1 first prompt will advance you to 0
 
     while ~protocolComplete
@@ -492,7 +492,7 @@ if strcmpi(visitNum,'Visit4(Nirs Alphabet)')
 end
 
 %% Now run optional DT for N-back
-if strcmpi(visitNum, 'Visit4(Nirs N-back)')
+if strcmpi(visitNum, 'Visit5(Nirs N-back)')
     protocolComplete = false; %start with -1 first prompt will advance you to 0
     confirmProfile = false;
     while ~protocolComplete

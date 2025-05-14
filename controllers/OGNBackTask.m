@@ -37,7 +37,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = true; 
-timeEpsilon = 0.025; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+timeEpsilon = 0.05; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
 %this one error propagates over time since every stimulus ISI will have a
 %tolerance of 0.025, overtime the whole block might be off by 0.1-0.2ms
 instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
@@ -48,9 +48,9 @@ recordData = false; %usually false now bc of headset problems, could turn off fo
 twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch. False if using one clicker and only click for match.
 
 if twoClikerMode
-    restDuration = 5%42; %default 20s rest, could change for debugging
+    restDuration = 42; %default 20s rest, could change for debugging
 else
-    restDuration = 5%30; %default 30s rest, could change for debugging
+    restDuration = 30; %default 30s rest, could change for debugging
 end
 
 %% Parameter for randonization orde. If Option1, change the condOrderToRun (task randomization order) to run per person.
@@ -78,8 +78,8 @@ end
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
 condOption = 4;
-condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
-% condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
+% condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
+condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
 condOrder = condOrder.condOrder;
 
 %% Set up task sequence, recordings and main loop
@@ -608,7 +608,7 @@ try %So that if something fails, communications are closed properly
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
         
         %Check if any clicking happened
-        if RFBClicker == 1 %subject responsed, check if correct
+        if RFBClicker == 1 %subject responsed, check if correct (participant clicked/responded match, which can be clicking grey/first paired controller or clicking A with thumb)
             RFBClicker =0; %reset the value
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
@@ -629,7 +629,7 @@ try %So that if something fails, communications are closed properly
             fprintf('Clicked R (match) on stimulus: %d, Correctness (1Correct0Incorrect): %d\n', currSequence(numIndex), datlog.response.data(end,end))
         end
         
-        if twoClikerMode && (~isempty(LFBClicker)) && LFBClicker == 1 %two clicker mode and subject responseded, check if correct
+        if twoClikerMode && (~isempty(LFBClicker)) && LFBClicker == 1 %two clicker mode and subject responseded, check if correct (participant responded mismatch, which came from clicking 2nd paired controller or clicking index finger on the back)
             LFBClicker =0; %reset the value
             responseT = clock - tStart;
             responseT = abs((responseT(4)*3600)+(responseT(5)*60)+responseT(6)); %his is in second
