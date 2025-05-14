@@ -17,7 +17,7 @@ saveDir = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk' filesep 
 % addpath(audioPath)
 audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
     'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9',...
-    'walk0RightBtn','stand0RightBtn',};
+    'walk0RightBtn','stand0RightBtn','walk0Thumb','stand0Thumb'};
 instructions = containers.Map();
 durationsSelfCalc = [];
 durationsLoaded = [];
@@ -49,6 +49,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
         fullInterStimIntervals = fullSequence;
         if n == 0 %for 0-back task instruction is diffferent for 1 vs 2 clicker (walk and click 0 vs walk and clic right in 0), so generate a different ISI for 2 clicker
             fullInterStimIntervals2Clicker = fullSequence;
+            fullInterStimIntervals2Buttons = fullSequence;
         end
         for rep = 1:trials
             sequenceToPlay = nan(1,numStimulus);
@@ -156,6 +157,11 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
                 totalAudioTime = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
                 fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                
+                condAudioKey3 = [taskTypes{taskTp}, num2str(n) 'Thumb'];
+                totalAudioTime = instructions(condAudioKey3).TotalSamples/instructions(condAudioKey3).SampleRate + instructionAudioBufferSec;
+                totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
+                fullInterStimIntervals2Buttons(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             end
         end
         fullSequence %visually exam to avoid 1-2-3-4, or 4-3-2-1 etc.    
@@ -163,7 +169,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
         fullInterStimIntervals
         
         if n == 0
-            save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals','fullInterStimIntervals2Clicker')
+            save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals','fullInterStimIntervals2Clicker','fullInterStimIntervals2Buttons')
         else
             save([saveDir condAudioKey '-backSequences.mat'],'fullTargetLocs','fullSequence','fullInterStimIntervals')
         end
@@ -172,7 +178,7 @@ end
 
 %% 3. Test the generated sequences,, make sure all sequence will be 30s and make sure the n-back is designed as planned.
 clearvars -except instructions taskTypes totalCondTimeMs saveDir instructionAudioBufferSec
-dataTimingInfo = []; %task x n x trial x info: totalAudio1 clicker, totalAudio2clicker, minISI, maxISI, meanISI
+dataTimingInfo = []; %task x n x trial x info: totalAudio1 clicker, totalAudio2clicker, totalAudio1Clicker2Buttons, minISI, maxISI, meanISI
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate
         condAudioKey = [taskTypes{taskTp}, num2str(n)];
@@ -216,10 +222,16 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
                 if totalAudioTime2 + sum(fullInterStimIntervals2Clicker(t,:)) ~= totalCondTimeMs
                     error('Invalid trial time found for 2 clicker mode %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime2 + sum(fullInterStimIntervals2Clicker(t,:)))
                 end
-                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, totalAudioTime2, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
+                
+                totalAudioTime3 = instructions([condAudioKey 'Thumb']).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
+                totalAudioTime3 = totalAudioTime3 * 1000;
+                if totalAudioTime3 + sum(fullInterStimIntervals2Buttons(t,:)) ~= totalCondTimeMs
+                    error('Invalid trial time found for 1 clicker 2 buttons mode %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime2 + sum(fullInterStimIntervals2Buttons(t,:)))
+                end
+                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, totalAudioTime2, totalAudioTime3 min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
 
             else %log info with 2 clicer column as nan
-                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, nan, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
+                dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, nan, nan, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
             end
         end
     end

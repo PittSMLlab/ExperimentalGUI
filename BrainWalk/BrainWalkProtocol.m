@@ -12,19 +12,21 @@ else
     end
 end
 
-opts.Interpreter = 'tex';
-opts.Default = 'Right';
-dominantRight = questdlg(['Dominant leg is: '],'', ...
-    'Left','Right',opts);
-if strcmp(dominantRight,'Right')
-    dominantRight = true;
-else
-    dominantRight = false;
-end
-
 %display the selections
 visitNum = visitOptions{visitNum}
-dominantRight
+
+if ~strcmp(visitNum,'Visit5(Nirs N-back)') %ask dominant leg only for TM sessions
+    opts.Interpreter = 'tex';
+    opts.Default = 'Right';
+    dominantRight = questdlg(['Dominant leg is: '],'', ...
+        'Left','Right',opts);
+    if strcmp(dominantRight,'Right')
+        dominantRight = true;
+    else
+        dominantRight = false;
+    end
+    dominantRight
+end
 
 %% Set up GUI and run exp
 %load adapation GUI and get handle

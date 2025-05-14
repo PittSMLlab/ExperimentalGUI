@@ -37,7 +37,7 @@ function [RTOTime, LTOTime, RHSTime, LHSTime, commSendTime, commSendFrame] = OGN
 
 %% Parameters FIXed for this protocol (don't change it unless you know what you are doing)
 oxysoft_present = true; 
-timeEpsilon = 0.05; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
+timeEpsilon = 0.035; %tolerance for time elapsed within the target +- epsilon will count as in target window. e.g., if rest is 30s, timePassed = 20.99 to 30.01 will all be considered acceptable
 %this one error propagates over time since every stimulus ISI will have a
 %tolerance of 0.025, overtime the whole block might be off by 0.1-0.2ms
 instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st number so that the 1st number can be heard well and not rushed. 
@@ -45,10 +45,12 @@ instructionAudioBufferSec = 2; %give 1s after playing the instruction before 1st
 %Need at least a few ms, other wise the first number will be played as the instruction is finishing
 recordData = false; %usually false now bc of headset problems, could turn off for debugging
 
-twoClikerMode = true; %true if using both clickers, 1 for match, 1 for mistmatch. False if using one clicker and only click for match.
+twoClikerMode = 1; %0 for 1 clicker and only respond for match
+%1 for using 1 clicker but 2 buttons, front for match and back for mismatch
+%2 for using both clickers, 1 grey for match, 1 black for mistmatch. 
 
 if twoClikerMode
-    restDuration = 42; %default 20s rest, could change for debugging
+    restDuration = 5; %default 20s rest, could change for debugging
 else
     restDuration = 30; %default 30s rest, could change for debugging
 end
@@ -132,13 +134,19 @@ else %normal trial
     %if there are repeats of the same task, needs to index multiple rows.
 end
 
+if condOption < 3 %no repeat within same trial, get rid of the suffix -rep1 from the familiarization hard-code
+    nOrders = strrep(nOrders,'-rep1','');
+end
 %TODO/Improvement: using nOrders as strings are probably more readable but
 %i think it's slower. Can map it to integer for easier comparisons, and to
 %access the ISIs, sequence they can be in a 3D array (task x 2 (seq, ISI) x numbers)
 
 %set up audio players
-if twoClikerMode
+if twoClikerMode == 2 %2 clickers
     audioids = {'walk','walk0RightBtn','walk1','walk2','stand0RightBtn','stand1','stand2',...
+        'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
+elseif twoClikerMode == 1 %1 clicker 2 button
+    audioids = {'walk','walk0Thumb','walk1','walk2','stand0Thumb','stand1','stand2',...
         'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
 else
     audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
@@ -155,11 +163,13 @@ for i = 1 : length(audioids)
 %         disp(strcat(audioids{i},'.mp3'))
     [audio_data,audio_fs]=audioread(strcat(audioids{i},'.mp3'));
     curKey = strrep(audioids{i},'RightBtn',''); %use the same key for single and two clickers, even though audio file name is different
+    curKey = strrep(audioids{i},'Thumb',''); %use the same key for single and two clickers, even though audio file name is different
     instructions(curKey) = audioplayer(audio_data,audio_fs);
 end
 
 %now remove the specific audio ID suffix to load general walk0/1/2 sequence
 audioids = strrep(audioids,'RightBtn','');
+audioids = strrep(audioids,'Thumb','');
 
 % Load pre-generated task order, load the n-back sequences to use later, save them in key-value maps.
 n_back_sequences = containers.Map();
@@ -171,17 +181,30 @@ for i = 2:7 %walk0-2, stand0-2
         %TODO: this is hard-coded for now, in theory the code can be smart to figure out how many reps there are in the nOrdersKey
         % and load the corresponding rows of sequences. (still require
         % histories of knowing when to start the index)
-        if str2double(trialType(end)) <= 3 %trial number, if first 3 trials, use 1-3 rep
+        if contains(trialType,'Familarization')
+            startingIdx = 0; %will load sequences 1-3, but will only use 1
+            repToLoad = 1;
+        elseif str2double(trialType(end)) <= 3 %trial number, if first 3 trials, use 1-3 rep
             startingIdx = 1; %use row 2-4 since row1 is familiarization, later will do starting + j where j = 1:3
+            repToLoad = 3;
         else
             startingIdx = 4; %use row 5-7, later will do starting + j where j = 1:3
+            repToLoad = 3;
         end
-        for j = 1:3 %max 3 reps, load 3 sequnces. Here avoid using same variables bc indexing will be done multiple times
+        for j = 1:repToLoad %max 3 reps, load 3 sequnces. Here avoid using same variables bc indexing will be done multiple times
             seq.fullSequence = fullSeq.fullSequence(startingIdx+j,:);
             seq.fullTargetLocs = fullSeq.fullTargetLocs(startingIdx+j,:);
             seq.interStimIntervals = fullSeq.fullInterStimIntervals(startingIdx+j,:);
             if twoClikerMode %give them 1 more second to respond
-                seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+                if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
+                    if twoClikerMode == 2 %2 clicker, use the 2 interval
+                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(startingIdx+j,:) + 1000; %in ms 
+                    else %1 clicker 2 buttons use the 2button ISI
+                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(startingIdx+j,:) + 1000; %in ms 
+                    end
+                else %for 1and 2back just simply add 1s ISI
+                    seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+                end
             end
             seq.audioIdKey = audioids{i};
             seq.nirsEventCode = eventCodeCharacter{i};
@@ -193,11 +216,20 @@ for i = 2:7 %walk0-2, stand0-2
         fullSeq.fullTargetLocs = fullSeq.fullTargetLocs(nbackSeqRowIdx,:);
         fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals(nbackSeqRowIdx,:);
         if twoClikerMode %give them 1 more second to respond
-            seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+            if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
+                if twoClikerMode == 2 %2 clicker, use the 2 interval
+                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(nbackSeqRowIdx,:) + 1000; %in ms 
+                else %1 clicker 2 buttons use the 2button ISI
+                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(nbackSeqRowIdx,:) + 1000; %in ms 
+                end
+            else %for 1and 2back just simply add 1s ISI
+                fullSeq.interStimIntervals = fullSeq.interStimIntervals + 1000; %in ms 
+            end
         end
         fullSeq.audioIdKey = audioids{i};
         fullSeq.nirsEventCode = eventCodeCharacter{i};
         n_back_sequences(audioids{i}) = fullSeq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
+        
     end
 end
 
@@ -822,15 +854,20 @@ try %So that if something fails, communications are closed properly
                 %finished 1 task, increment the task index
                 currentIndex = currentIndex + 1; %started one of the walking task, increment currentIndex.
                 
-                %if it's familarization and it's the last rest, don't say
-                %anything
-                if ~contains(trialType,'Familarization') || currentIndex <= length (nOrders)
+                %if it's familiarization and it's the last rest, don't say
+                %anything (familiarization doesn't have an ending rest)
+%                 if ~contains(trialType,'Familarization') || currentIndex <= length (nOrders)
+                if currentIndex <= length (nOrders) %more task to come, do a rest before
                     %log the rest before the next condition (e.g., if next is
                     %walk, will log Rest_before_walk)
                     nirsRestEventString = generateNbackRestEventString(nOrders, currentIndex);
                     datlog = nirsEvent('stopAndRest','R',nirsRestEventString, instructions, datlog, Oxysoft, oxysoft_present);
                     enableMemory = false; %doesn't allow click during stop and rest
-                    pause(restDuration);
+%                     if currentIndex > length(nOrders) %last rest in an actual trial, make it shorter
+%                         pause(restDuration);
+%                     else
+                        pause(restDuration);
+%                     end
                 end
 
                 if currentIndex > length (nOrders) %next trial is the end of the block
