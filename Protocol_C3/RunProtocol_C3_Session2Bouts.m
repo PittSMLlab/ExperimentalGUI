@@ -120,7 +120,20 @@ while currTrial < maxTrials % while more trials left to collect, ...
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % No fixed break here - proceed immediately in GUI
-        case 3          % TM Short Exposure Negative
+        case 3          % OG Baseline Mid
+            % overground controller with audio count down
+            handles.popupmenu2.set('Value',8);
+            profilename = fullfile(dirProfile,'OG_Baseline_Mid.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Overground ' ...
+                'audio speed feedback and profile is OG_Baseline_Mid']);
+            if ~strcmp(answer,'Yes')
+                return;
+            end
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % No fixed break here - proceed immediately in GUI
+        case 4          % TM Short Exposure Negative
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
             manualLoadProfile([],[],handles,profilename);
@@ -135,7 +148,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min);       % break for at least two minutes
             play(AudioTimeUp);
-        case 4          % TM Short Exposure Positive
+        case 5          % TM Short Exposure Positive
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Pos.mat');
             manualLoadProfile([],[],handles,profilename);
@@ -148,9 +161,9 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
-            pause(pauseTime3min20sec);
+            pause(pauseTime2min);
             play(AudioTimeUp);
-        case 5          % TM Baseline Mid Full (Tied)
+        case 6          % TM Baseline Mid Full (Tied)
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
             manualLoadProfile([],[],handles,profilename);
@@ -165,7 +178,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min);
             play(AudioTimeUp);
-        case {6,7,8,9,10,11,12,13,14}   % TM Split Walking Bouts
+        case {7,8,9,10,11,12,13,14}      % TM Split Walking Bouts
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_SplitBout.mat');
             manualLoadProfile([],[],handles,profilename);
@@ -178,34 +191,51 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [25 125 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            if currTrial == 9               % if trial 9, ...
+            if currTrial == 11              % if trial 11, ...
                 pause(pauseTime3min20sec);  % need more time for BP/HR
             else                            % otherwise, ...
                 pause(pauseTime2min);       % default to two minutes
             end
             play(AudioTimeUp);
-        case {15,16,17}                     % TM Post-Adaptation
+        case 15                             % Final TM Split Bout
             handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'PostAdaptation.mat');
+            profilename = fullfile(dirProfile,'TM_SplitBout_Short.mat');
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm controller is Open Loop ' ...
                 'Controller with Audio Countdown and profile is ' ...
-                'PostAdaptation']);
-            numAudioCountDown = -1;
+                'TM_SplitBout_Short']);
+            if ~strcmp(answer,'Yes')
+                return;
+            end
+            numAudioCountDown = [25 -1];
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            pause(pauseTime1min);           % short before post-adaptation
+            play(AudioTimeUp);
+        case 16                             % OG Post-Adaptation Long
+            handles.popupmenu2.set('Value',8);
+            profilename = fullfile(dirProfile,'PostAdaptation_Long.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Overground ' ...
+                'audio speed feedback and profile is PostAdaptation_Long']);
             if ~strcmp(answer,'Yes')
                 return;
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            if currTrial == 15              % if trial 15, ...
-                pause(pauseTime3min20sec);  % need more time for BP/HR
-                play(AudioTimeUp);
-            elseif currTrial == 16          % if trial 16, ...
-                pause(pauseTime2min);       % default to two minutes
-                play(AudioTimeUp);
-            else                            % otherwise, ...
-                % do not care about break after last walking trial
+            pause(pauseTime3min20sec);      % need more time for BP/HR
+            play(AudioTimeUp);
+        case 17                             % OG Post-Adaptation
+            handles.popupmenu2.set('Value',8);
+            profilename = fullfile(dirProfile,'PostAdaptation.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Overground ' ...
+                'audio speed feedback and profile is PostAdaptation']);
+            if ~strcmp(answer,'Yes')
+                return;
             end
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
     end
 end
 

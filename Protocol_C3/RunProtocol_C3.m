@@ -11,12 +11,10 @@ prompt = { ...
     ['Enter the participant ID (''C3S##'' for participants with ' ...
     'stroke, ''C3C##'' for control participants, do NOT include ' ...
     '''_S#'' for the session):'], ...
-    'Is this participant in Group 1? (''1'' = true, ''0'' = false)', ...
     'Is this session 1? (''1'' = true, ''0'' = false)'};
 dlgtitle = 'Participant Experimental Inputs';
-fieldsize = [1 60; 1 60; 1 60];
+fieldsize = [1 60; 1 60];
 definput = {'Test', ...                     participant ID
-    '1', ...                                is group 1
     '1'};                                   % is session 1
 answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 
@@ -28,8 +26,7 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 % ID: C3S## for participants with stroke, C3C## for control participants
 % NOTE: do NOT include '_S1' or '_S2' here to indicate session
 participantID = answer{1};
-isGroup1 = logical(str2double(answer{2}));  % is first experimental group?
-isSession1 = logical(str2double(answer{3}));% is first session?
+isSession1 = logical(str2double(answer{2}));% is first session?
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
 
@@ -274,16 +271,14 @@ while currTrial < maxTrials % while more trials left to collect, ...
                 pause(pauseTime2min);       % default to two minutes
             end
             play(AudioTimeUp);
-        case {13,14,15} % Post-Adaptation 1
-            % if group 1, session 1 or group 2, session 2, ...
-            if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
+        case {13,14,15}                     % Post-Adaptation 1
+            if isSession1                   % if session 1, ...
                 handles.popupmenu2.set('Value',8);  % OG
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);
                 answer = questdlg(['Confirm controller is Overground ' ...
                     'audio speed feedback and profile is PostAdaptation']);
-                % if group 1, session 2 or group 2, session 1, ...
-            elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
+            elseif ~isSession1              % if session 2, ...
                 handles.popupmenu2.set('Value',11); % TM
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);
@@ -306,8 +301,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             play(AudioTimeUp);
         case {16,17}    % Post-Adaptation 2
-            % if group 1, session 1 or group 2, session 2, ...
-            if (isGroup1 && isSession1) || (~isGroup1 && ~isSession1)
+            if isSession1                   % if session 1, ...
                 handles.popupmenu2.set('Value',11);  % TM
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);
@@ -315,8 +309,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
                     'Controller with Audio Countdown and profile is ' ...
                     'PostAdaptation']);
                 numAudioCountDown = -1;
-                % if group 1, session 2 or group 2, session 1, ...
-            elseif (isGroup1 && ~isSession1) || (~isGroup1 && isSession1)
+            elseif ~isSession1              % if session 2, ...
                 handles.popupmenu2.set('Value',8); % OG
                 profilename = fullfile(dirProfile,'PostAdaptation.mat');
                 manualLoadProfile([],[],handles,profilename);

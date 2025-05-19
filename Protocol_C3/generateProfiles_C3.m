@@ -122,11 +122,19 @@ end
 velL = [velL; speedMean * ones(26,1)];              % final tied-belt mid
 velR = [velR; speedMean * ones(26,1)];
 save(fullfile(dirProfile,'TM_SplitBout'),'velL','velR');
+velL = [velL(1:125); velL(125)];
+velR = [velR(1:125); velR(125)];
+save(fullfile(dirProfile,'TM_SplitBout_Short'),'velL','velR');
 
 % OG or TM Post-Adaptation (150 strides each trial)
 velL = speedMean * ones(numStrides.long,1);
 velR = velL;
 save(fullfile(dirProfile,'PostAdaptation'),'velL','velR');
+
+% OG Post-Adaptation Long Trial
+velL = speedMean * ones(176,1);
+velR = velL;
+save(fullfile(dirProfile,'PostAdaptation_Long'),'velL','velR');
 
 end
 
