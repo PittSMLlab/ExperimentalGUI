@@ -50,7 +50,7 @@ twoClikerMode = 1; %0 for 1 clicker and only respond for match
 %2 for using both clickers, 1 grey for match, 1 black for mistmatch. 
 
 if twoClikerMode
-    restDuration = 5; %default 20s rest, could change for debugging
+    restDuration = 42; %default 20s rest, could change for debugging
 else
     restDuration = 30; %default 30s rest, could change for debugging
 end

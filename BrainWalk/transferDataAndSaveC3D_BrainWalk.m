@@ -70,7 +70,8 @@ if strcmp(button,'Yes')  %auto fill gap for TM trials only
         {'[ ]'});
         tmTrials = eval(answer{1});
         if isempty(tmTrials)
-            error('Invalid entry detected. Should be an array of integers for TM trials')
+            warning('No TM trials provided, will not do batch processing.')
+            batchProcess = false;
         end
     end
 else
@@ -144,7 +145,7 @@ if batchProcess
         try
             tic %TODO: we may want to log the output for debugging/checking later.
             fprintf('...Reconstruct and label and gap filling...\n')
-            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'));
+            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'),tmTrials);
             toc
         catch ME
             warning(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
