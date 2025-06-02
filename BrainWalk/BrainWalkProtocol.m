@@ -470,33 +470,34 @@ end %end of big while loop
 
 
 %% Now run DT
-%confirm do you want to keep going?
-button=questdlg('Start running NirsAutomaticityAssessment (alphabet dual-task) trials? (Choose No, if want to skip the alphabet DT portion)');
-if strcmp(button,'Yes') %wait for a Yes click before starting another Vicon trial for DT
-    if strcmpi(visitNum,'Visit4(Post TM + Nirs Alphabet)')
-        protocolComplete = false; %start with -1 first prompt will advance you to 0
+if strcmpi(visitNum,'Visit4(Post TM + Nirs Alphabet)')
+    %confirm do you want to keep going?
+    button=questdlg('Start running NirsAutomaticityAssessment (alphabet dual-task) trials? (Choose No, if want to skip the alphabet DT portion)');
+    if strcmp(button,'Yes') %wait for a Yes click before starting another Vicon trial for DT
+        if strcmpi(visitNum,'Visit4(Post TM + Nirs Alphabet)')
+            protocolComplete = false; %start with -1 first prompt will advance you to 0
 
-        while ~protocolComplete %keep going untill protocol complete (user said done)
-            handles.popupmenu2.set('Value',10) %AutomaticityAssessmentProtocol
-            profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\AlphabetTrials.mat';
-            manualLoadProfile([],[],handles,profilename)
-            AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            %Can not by pass the trial selection and do auto-advance because
-            %need to call the adaptation GUI, and will have to go through
-            %everything in the switch statement in AdaptationGUI.
-            %If by passthat and call NirsAutomaticityAssessment fucntion
-            %directly, will loose the control to auto start/stop Vicon, and
-            %interact with GUI to stop the trial.
+            while ~protocolComplete %keep going untill protocol complete (user said done)
+                handles.popupmenu2.set('Value',10) %AutomaticityAssessmentProtocol
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\AlphabetTrials.mat';
+                manualLoadProfile([],[],handles,profilename)
+                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+                %Can not by pass the trial selection and do auto-advance because
+                %need to call the adaptation GUI, and will have to go through
+                %everything in the switch statement in AdaptationGUI.
+                %If by passthat and call NirsAutomaticityAssessment fucntion
+                %directly, will loose the control to auto start/stop Vicon, and
+                %interact with GUI to stop the trial.
 
-            %confirm do you want to keep going?
-            button=questdlg('Keep running NirsAutomaticityAssessment (alphabet dual-task) trials? (Choose No No if all trials are done)');
-            if ~strcmp(button,'Yes') %confirm trial choice is correct
-              protocolComplete = true; %If chose no, abort starting the exp
-            end
-        end  
+                %confirm do you want to keep going?
+                button=questdlg('Keep running NirsAutomaticityAssessment (alphabet dual-task) trials? (Choose No No if all trials are done)');
+                if ~strcmp(button,'Yes') %confirm trial choice is correct
+                  protocolComplete = true; %If chose no, abort starting the exp
+                end
+            end  
+        end
     end
 end
-
 %% Now run optional DT for N-back
 if strcmpi(visitNum, 'Visit5(Nirs N-back)')
     protocolComplete = false; %start with -1 first prompt will advance you to 0
