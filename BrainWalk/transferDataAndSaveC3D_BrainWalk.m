@@ -14,6 +14,9 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %   indsTrials: (optional) indices of the trials to export to C3D; if
 %       omitted, all trials are processed
 
+%Mount the drive
+system('C:\Users\cntctsml\Desktop\mount_research.bat')
+
 if nargin == 0 %no input, ask user
     answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day))',...
         'PCNum (1 or 2)',...
@@ -138,6 +141,15 @@ if ~processOnly
 end
 
 if batchProcess
+    opts.Interpreter = 'tex';
+    reopnNexusAns = 'I have closed and re-opened Vicon Nexus and saw that the W drive was in nexus now.';
+    button = questdlg(['Please close and re-open Vicon Nexus now. The network drive has been remounted. Click below when you are done and nexus is fully reloaded with W drive in the communications panel.'],'', ...
+        reopnNexusAns,opts);
+    
+    if ~strcmpi(button,reopnNexusAns)
+        return
+    end
+
     if PCNum == 1
         % reconstruct and label and fill gaps, this is very time consuming.
         % Do not do this on the testing computer unless you are sure you
@@ -165,5 +177,7 @@ if batchProcess
         end
     end
 end
-end
 
+%now unmount the drive to ensure experiment runs safe without network.
+system('C:\Users\cntctsml\Desktop\unmount_research.bat')
+end
