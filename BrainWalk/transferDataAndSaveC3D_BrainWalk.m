@@ -147,19 +147,23 @@ if batchProcess
             fprintf('...Reconstruct and label and gap filling...\n')
             dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'),tmTrials);
             toc
+            fprintf('...Batch processing and gap filling complete...\n')
         catch ME
-            warning(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
+            %i don't need it to fail safe, rather see the resutls to know
+            %someting was wrong.
+            error(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
         end
     else
         % export session trials to C3D using dataMotion functions
         try
             fprintf('...Exporting file to c3d...\n')
             dataMotion.exportSessionToC3D(fullfile(dirSrvrData,'PC2'),indsTrials);
-        catch ME
-            warning(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
+            fprintf('...Batch processing and gap filling complete...\n')
+        catch ME %i don't need it to fail safe, rather see the resutls to know
+            %someting was wrong.
+            error(ME.identifier,'Error exporting to C3D: %s\n',ME.message);
         end
     end
-    fprintf('...Batch processing and gap filling complete...\n')
 end
 end
 
