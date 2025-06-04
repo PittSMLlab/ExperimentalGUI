@@ -14,8 +14,9 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %   indsTrials: (optional) indices of the trials to export to C3D; if
 %       omitted, all trials are processed
 
-%Mount the drive
-system('C:\Users\cntctsml\Desktop\mount_research.bat')
+% %Mount the drive, first unmount it if it exists.
+% system('C:\Users\cntctsml\Desktop\unmount_research.bat')
+% system('C:\Users\cntctsml\Desktop\mount_research.bat')
 
 if nargin == 0 %no input, ask user
     answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day))',...
@@ -77,6 +78,12 @@ if strcmp(button,'Yes')  %auto fill gap for TM trials only
             batchProcess = false;
         end
     end
+    
+    opts.Interpreter = 'tex';
+    opts.Default = 'Yes, I checked W drive is present in Nexus.';
+    reopnNexusAns = 'Yes, I checked W drive is present in Nexus.';
+    button = questdlg(['Is W drive present in Nexus? If not, check that the research drive is mounted to W in file explore. Then close and reopen Vicon Nexus. Click below when nexus is fully reloaded with W drive in the communications panel.'],'', ...
+        reopnNexusAns,opts);
 else
     batchProcess = false;
 end
@@ -140,12 +147,7 @@ if ~processOnly
     fprintf('...Data copying successful...\n')
 end
 
-if batchProcess
-    opts.Interpreter = 'tex';
-    reopnNexusAns = 'I have closed and re-opened Vicon Nexus and saw that the W drive was in nexus now.';
-    button = questdlg(['Please close and re-open Vicon Nexus now. The network drive has been remounted. Click below when you are done and nexus is fully reloaded with W drive in the communications panel.'],'', ...
-        reopnNexusAns,opts);
-    
+if batchProcess    
     if ~strcmpi(button,reopnNexusAns)
         return
     end
@@ -179,5 +181,5 @@ if batchProcess
 end
 
 %now unmount the drive to ensure experiment runs safe without network.
-system('C:\Users\cntctsml\Desktop\unmount_research.bat')
+% system('C:\Users\cntctsml\Desktop\unmount_research.bat')
 end
