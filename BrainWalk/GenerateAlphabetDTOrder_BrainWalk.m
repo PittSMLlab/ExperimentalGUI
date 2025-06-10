@@ -3,8 +3,8 @@
 % Procedure: 1. the number 1-5 represent: stand alpha A, walk alpha, walk, stand 3 A, walk 3A
 % 2. Pregenerate 6 different possible permutations of these 5 tasks (out of
 % 5! total possibilities), to make 1) printing datasheet easier, and 2)
-% over-randomization with seeds rng(2025). This will be 6 possible trials
-% of the task
+% avoid over-randomization. Used seeds rng(2025) and picked the first 6 possible
+% trials order of the task
 % 3. Now generate 200 orders to run these 6 trials. This will be the
 % randomization order per subject, with seeds rng(10)
 close all; clc
@@ -40,6 +40,17 @@ orderForParticipant = nan(numParticipant,6); %1 row per participant, and 6 trial
 for i = 1:numParticipant
     orderForParticipant(i,:) = randperm(6); %generate a random permutation of 1:6, i.e., orders to do the preselected trials.
 end
+
+%A mistake was made such that BW002 ran the order in row 1, all
+%participants following was done correctly (e.g. BW005 would use order in
+%row 5, etc.)
+%For quick resproducibility purpose, manually shuffle the order for row1
+%and row2 so that in analysis this will be correct. 
+temp = orderForParticipant(2,:);
+orderForParticipant(2,:) = orderForParticipant(1,:);
+orderForParticipant(1,:) = temp;
+
 %save it
 save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
 save('W:\BrainWalk\Data\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
+
