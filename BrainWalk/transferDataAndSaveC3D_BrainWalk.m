@@ -88,7 +88,8 @@ else
     batchProcess = false;
 end
 
-dirSrvrData = fullfile(['W:\' studyName '\Data'],participantID, visitNum);
+dirSrvrData = fullfile(['W:\' studyName '\Data'],participantID, visitNum); %this can be more robust if we give the full path instead of the mapped letter, e.g., 
+% ['\\share.files.pitt.edu\ssoe\bioe\torres_shared2\Torres Backup\Research\' studyName '\Data']
 dirSrvrRaw = fullfile(['W:\' studyName '\DataBackup\'],participantID,visitNum);   
     
 if PCNum == 2
@@ -115,7 +116,7 @@ else
     % copy NIRS if it's viist 1, sometimes it varies, just ask
     btnDlg=questdlg('Does this session have fNIRS?');
     if strcmp(btnDlg,'Yes')
-       dirOxy = fullfile('C:\Users\cntctsml\Documents\Oxysoft Data\',studyName,participantID);
+       dirOxy = fullfile('C:\Users\cntctsml\Documents\Oxysoft Data\',studyName,participantID,visitNum);
        srcs(end+1:end+2) = {dirOxy, dirOxy};
        dests(end+1:end+2) = {fullfile(dirSrvrData,'NIRS'),fullfile(dirSrvrRaw,'NIRS')};
     end
