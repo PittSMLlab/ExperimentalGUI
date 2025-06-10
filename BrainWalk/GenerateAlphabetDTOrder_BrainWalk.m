@@ -18,6 +18,8 @@ for i = 1:6
 end
 %save it
 save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_A_TaskOrders','possibleTaskOrders')
+save('W:\BrainWalk\Data\BrainWalk_AlphabetDT_A_TaskOrders','possibleTaskOrders')
+
 %print out the task order in readable string format to make data sheet
 taskName = {'stand2A', 'walk2A', 'walk', 'stand3A', 'walk3A'};
 taskName(possibleTaskOrders)
