@@ -1,6 +1,7 @@
 %Regenerate the alphabet task order since the previous pseudoranomization
 %code was lost. 
-% Procedure: 1. the number 1-5 represent: stand alpha A, walk alpha, walk, stand 3 A, walk 3A
+% Procedure: Used MATLAB R2021a
+%1. the number 1-5 represent: stand alpha A, walk alpha, walk, stand 3 A, walk 3A
 % 2. Pregenerate 6 different possible permutations of these 5 tasks (out of
 % 5! total possibilities), to make 1) printing datasheet easier, and 2)
 % avoid over-randomization. Used seeds rng(2025) and picked the first 6 possible
@@ -51,6 +52,12 @@ end
 temp = orderForParticipant(2,:);
 orderForParticipant(2,:) = orderForParticipant(1,:);
 orderForParticipant(1,:) = temp;
+
+%Another mistake where BW006 ran the incorrect order (did BW005 order for trial1, 
+% but experimenter found out and corrected it manullay for the rest withotu repeat, did [2 5 6 4 1 3]
+%For reproducibility purpose, manually update it here so that future
+%analysis or regeneration of the orders will remain consistent.
+orderForParticipant(6,:) = [2 5 6 4 1 3];
 
 %save it
 save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
