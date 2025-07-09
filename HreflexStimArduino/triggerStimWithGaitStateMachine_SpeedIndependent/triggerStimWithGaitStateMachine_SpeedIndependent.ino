@@ -197,8 +197,10 @@ void updateGaitEventStateMachine()
   // read z-axis force plate sensor values to detect new stance phase
   // TODO: consider updating a force data buffer rather than current approach
   // use median filter for force readings to reduce noise
-  int leftForce = medianFilter(pinInFzL, 5);
-  int rightForce = medianFilter(pinInFzR, 5);
+  int leftForce = analogRead(pinInFzL);
+  int rightForce = analogRead(pinInFzR);
+  
+  // logForceData(leftForce, rightForce);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
@@ -222,13 +224,13 @@ void updateGaitEventStateMachine()
   timeSinceStanceChangeR = millis() - timeStanceChangeR;
 
   // update events if stance state changes and debounce time has passed
-  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce)
+  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce && timeSinceStanceChangeR > timeDebounce)
   {
     timeStanceChangeL = millis();
     LHS = isCurrStanceL && !isPrevStanceL; // left heel strike detection
     LTO = !isCurrStanceL && isPrevStanceL; // left toe off detection
   }
-  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > timeDebounce)
+  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > timeDebounce && timeSinceStanceChangeL > timeDebounce)
   {
     timeStanceChangeR = millis();
     RHS = isCurrStanceR && !isPrevStanceR; // right heel strike detection
@@ -383,3 +385,15 @@ void handleStimulationTimeout()
     isStimmingR = false;
   }
 }
+
+// ---------------------------LogData------------------------------------------
+// void logForceData(int leftForce, int rightForce)
+// {
+//   // Send data in CSV format (time, left force, right force)
+//   unsigned long currentTime = millis();
+//   Serial.print(currentTime);
+//   Serial.print(",");
+//   Serial.print(leftForce);
+//   Serial.print(",");
+//   Serial.println(rightForce);
+// }
