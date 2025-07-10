@@ -30,6 +30,9 @@ const int durStimPulse = 20;            // stimulation pulse duration (ms)
 const unsigned long timeDebounce = 100; // de-bouncing time constant (ms)
 const float percentSS2Stim = 0.50;      // 50% of single stance phase target
 const float alpha = 0.7;                // smoothing factor (0 < alpha <= 1)
+const float alphaLPF = 0.02;            // low-pass filter smoothing (0 < alpha << 1)
+const unsigned long intervalLog = 5;    // ms between CSV logs
+unsigned long timeLastLog = 0;
 
 // -------------------------- Global Variables --------------------------
 // gait event state variables
@@ -41,6 +44,10 @@ bool LHS = false;           // is there a left heel strike event?
 bool RHS = false;           // is there a right heel strike event?
 bool LTO = false;           // is there a left toe off event?
 bool RTO = false;           // is there a right toe off event?
+
+// continuous filtered forces
+float filtL = 0;
+float filtR = 0;
 
 // timing variables (in ms)
 unsigned long timeLHS = 0;           // time of most recent LHS events
@@ -114,6 +121,7 @@ void loop()
     triggerStimulation();
   }
   handleStimulationTimeout();
+  // logForceCSV();
 }
 
 // -------------------------- Serial Communication --------------------------
@@ -164,12 +172,14 @@ void resetStateMachine()
 // -------------------------- Median Filter Function --------------------------
 // This function takes 'numSamples' analog readings from the specified pin,
 // sorts them, and returns the median value.
-int medianFilter(int pin, int numSamples = 5)
+int medianFilter(int pin, int numSamples = 9)
 {
-  int samples[5]; // use an odd number for a simple median
+  int samples[9];                           // use an odd number for a simple median
+  numSamples = constrain(numSamples, 1, 9); // prevent overflow
   for (int i = 0; i < numSamples; i++)
   {
     samples[i] = analogRead(pin);
+    delayMicroseconds(500); // short delay to get distinct samples (2kHz)
   }
   // simple bubble sort
   for (int i = 0; i < numSamples - 1; i++)
@@ -199,8 +209,11 @@ void updateGaitEventStateMachine()
   // use median filter for force readings to reduce noise
   int leftForce = analogRead(pinInFzL);
   int rightForce = analogRead(pinInFzR);
-  
   // logForceData(leftForce, rightForce);
+
+  // IIR low-pass filter
+  filtL += alphaLPF * (leftForce - filtL);
+  filtR += alphaLPF * (rightForce - filtR);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
@@ -328,11 +341,11 @@ void triggerStimulation()
   // Use following conditions if troubleshooting:
   //  canStimL
   //  numStepsL % freqStim == 0
-  if (phase == 1 && shouldStimL)
+  if (phase == 1 && shouldStimL && !isStimmingL)
   {
     timeTargetStimL = (unsigned long)(percentSS2Stim * estSSL);
 
-    if ((timeNow - timeRTO) >= timeTargetStimL && !isStimmingL)
+    if ((timeNow - timeRTO) >= timeTargetStimL)
     {
       digitalWrite(pinOutStimL, HIGH);
       digitalWrite(pinOutViconL, HIGH);
@@ -348,11 +361,11 @@ void triggerStimulation()
   // Use following conditions if troubleshooting:
   //  canStimR
   //  numStepsR % freqStim == 0
-  if (phase == 2 && shouldStimR)
+  if (phase == 2 && shouldStimR && !isStimmingR)
   {
     timeTargetStimR = (unsigned long)(percentSS2Stim * estSSR);
 
-    if ((timeNow - timeLTO) >= timeTargetStimR && !isStimmingR)
+    if ((timeNow - timeLTO) >= timeTargetStimR)
     {
       digitalWrite(pinOutStimR, HIGH);
       digitalWrite(pinOutViconR, HIGH);
@@ -386,14 +399,17 @@ void handleStimulationTimeout()
   }
 }
 
-// ---------------------------LogData------------------------------------------
+// --- CSV logging of raw & filtered forces --------------
 // void logForceData(int leftForce, int rightForce)
 // {
-//   // Send data in CSV format (time, left force, right force)
 //   unsigned long currentTime = millis();
-//   Serial.print(currentTime);
-//   Serial.print(",");
-//   Serial.print(leftForce);
-//   Serial.print(",");
-//   Serial.println(rightForce);
+//   if (currentTime - timeLastLog >= intervalLog)
+//   {
+//     Serial.print(currentTime);
+//     Serial.print(",");
+//     Serial.print(leftForce);
+//     Serial.print(",");
+//     Serial.println(rightForce);
+//     timeLastLog = currentTime;
+//   }
 // }
