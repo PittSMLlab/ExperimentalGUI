@@ -5,76 +5,74 @@
 % y-axis scaling, and saves the final plot window.
 % -------------------------------------------------------------------------
 %% USER PARAMETERS
-% Adjust these values before running.
-portName    = "COM4";           % "COM3" Windows, "/dev/ttyACM0" Linux/Mac
-baudRate    = 115200;             % must match Arduino's Serial.begin()
-durationSec = 60;               % total logging time in seconds
+% Adjust these values before running
+namePort    = "COM4";           % "COM4" Windows, "/dev/ttyACM0" Linux/Mac
+baudRate    = 115200;           % must match Arduino's Serial.begin()
+durationLog = 60;               % total logging time in seconds
 outputFile  = "force_data.csv"; % path to CSV output file
-plotWindow  = 2;                % seconds of data to display real-time plot
+durationPlot  = 2;              % seconds of data to display real-time plot
 
 %% INITIALIZE SERIAL CONNECTION
-% Create serialport object (R2019b and newer)
+% create serialport object (R2019b and newer)
 try
-    s = serialport(portName, baudRate);
+    s = serialport(namePort,baudRate);
 catch ME
     error("Failed to open serial port %s at %d baud.\n%s", ...
-        portName, baudRate, ME.message);
+        namePort,baudRate,ME.message);
 end
 % assume Arduino sends newline-terminated data
-configureTerminator(s, "LF");
-flush(s);
+configureTerminator(s,"LF");
+flush(s);                       % flush buffer before starting logging
 
 %% OPEN CSV FILE
-fid = fopen(outputFile, 'w');
+fid = fopen(outputFile,'w');    % open output CSV file
 if fid == -1
     clear s;
-    error("Could not open output file: %s", outputFile);
+    error("Could not open output file: %s",outputFile);
 end
 % write header line
-timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
-fprintf(fid, 'Timestamp,LeftZ,RightZ\n');   % CSV header
+fprintf(fid,'Timestamp,LeftFz,RightFz\n');    % CSV header
 
 %% SET UP REAL-TIME PLOT
 hFig = figure('Name','Force Plate Z-Axis','NumberTitle','off');
 hAx = axes(hFig);
 hold(hAx,'on');
-hLeft  = plot(hAx, nan, nan, 'b-', 'DisplayName','Left Z');
-hRight = plot(hAx, nan, nan, 'r-', 'DisplayName','Right Z');
+hLeft  = plot(hAx,nan,nan,'b-','DisplayName','Left Fz');
+hRight = plot(hAx,nan,nan,'r-','DisplayName','Right Fz');
 legend(hAx,'show');
 xlabel(hAx,'Time (s)');
-ylabel(hAx,'Force Z');
+ylabel(hAx,'Force Z (bits)');
 grid(hAx,'on');
 
 %% START DATA ACQUISITION AND PLOTTING
 fprintf('Logging force data and updating plot for %.1f seconds...\n', ...
-    durationSec);
+    durationLog);
 tStart = tic;
 % data buffers
 timeBuf  = [];
 leftBuf  = [];
 rightBuf = [];
 
-while toc(tStart) < durationSec
+while toc(tStart) < durationLog
     % read a line from serial device
     rawLine = readline(s);
-    % expecting format: "%f,%f" (e.g. "12.34,56.78")
-    nums = sscanf(rawLine, '%lu,%d,%d');
+    nums = sscanf(rawLine,'%lu,%d,%d');
     if numel(nums) == 3
         tNow = toc(tStart);
         % append to buffers
-        timeBuf(end+1)  = nums(1);     %#ok<SAGROW>
+        timeBuf(end+1)  = nums(1);  %#ok<SAGROW>
         leftBuf(end+1)  = nums(2);  %#ok<SAGROW>
         rightBuf(end+1) = nums(3);  %#ok<SAGROW>
-        % trim buffers to plotWindow
-        idx   = timeBuf >= tNow - plotWindow;
+        % trim buffers to durationPlot
+        idx   = timeBuf >= tNow - durationPlot;
         tPlot = timeBuf(idx);
         lPlot = leftBuf(idx);
         rPlot = rightBuf(idx);
         % update plot data
-        set(hLeft,  'XData', tPlot, 'YData', lPlot);
-        set(hRight, 'XData', tPlot, 'YData', rPlot);
+        set(hLeft,'XData',tPlot,'YData',lPlot);
+        set(hRight,'XData',tPlot,'YData',rPlot);
         % dynamic y-axis limits
-        allY = [lPlot, rPlot];
+        allY = [lPlot rPlot];
         yMin = min(allY);
         yMax = max(allY);
         yRange = yMax - yMin;
@@ -83,29 +81,28 @@ while toc(tStart) < durationSec
         else
             margin = 0.1 * yRange;
         end
-        ylim(hAx, [yMin - margin, yMax + margin]);
-        xlim(hAx, [max(0, tNow-plotWindow), tNow]);
+        ylim(hAx,[yMin - margin yMax + margin]);
+        xlim(hAx,[max(0,tNow-durationPlot) tNow]);
         drawnow limitrate;
-        % write to CSV with timestamp
-        % ts = datestr(datetime('now'), timestampFormat);
-        fprintf(fid, '%lu,%d,%d\n', nums(1), nums(2), nums(3));
+        fprintf(fid,'%lu,%d,%d\n',nums(1),nums(2),nums(3)); % write to CSV
     else
         % optionally, display or log malformed lines
-        fprintf('Warning: could not parse data: "%s"\n', rawLine);
+        fprintf('Warning: could not parse data: "%s"\n',rawLine);
     end
 end
 
 %% SAVE FINAL PLOT
-[folder, ~, ~] = fileparts(outputFile);
-plotFile = fullfile(folder, 'force_plot_last2s.png');
+folder = fileparts(outputFile);
+plotFile = fullfile(folder,'force_plot_last2s.png');
 try
-    saveas(hFig, plotFile);
-    fprintf('Final plot saved to %s\n', plotFile);
+    saveas(hFig,plotFile);
+    fprintf('Final plot saved to %s\n',plotFile);
 catch
-    warning('Could not save plot to %s', plotFile);
+    warning('Could not save plot to %s',plotFile);
 end
 
 %% CLEAN UP
 fclose(fid);
 clear s;
-fprintf('Logging complete. CSV saved to %s\n', outputFile);
+fprintf('Logging complete. CSV saved to %s\n',outputFile);
+
