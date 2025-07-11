@@ -6,8 +6,8 @@
 % -------------------------------------------------------------------------
 %% USER PARAMETERS
 % Adjust these values before running.
-portName    = "COM3";           % "COM3" Windows, "/dev/ttyACM0" Linux/Mac
-baudRate    = 9600;             % must match Arduino's Serial.begin()
+portName    = "COM4";           % "COM3" Windows, "/dev/ttyACM0" Linux/Mac
+baudRate    = 115200;             % must match Arduino's Serial.begin()
 durationSec = 60;               % total logging time in seconds
 outputFile  = "force_data.csv"; % path to CSV output file
 plotWindow  = 2;                % seconds of data to display real-time plot
@@ -58,13 +58,13 @@ while toc(tStart) < durationSec
     % read a line from serial device
     rawLine = readline(s);
     % expecting format: "%f,%f" (e.g. "12.34,56.78")
-    nums = sscanf(rawLine, '%f,%f');
-    if numel(nums) == 2
+    nums = sscanf(rawLine, '%lu,%d,%d');
+    if numel(nums) == 3
         tNow = toc(tStart);
         % append to buffers
-        timeBuf(end+1)  = tNow;     %#ok<SAGROW>
-        leftBuf(end+1)  = nums(1);  %#ok<SAGROW>
-        rightBuf(end+1) = nums(2);  %#ok<SAGROW>
+        timeBuf(end+1)  = nums(1);     %#ok<SAGROW>
+        leftBuf(end+1)  = nums(2);  %#ok<SAGROW>
+        rightBuf(end+1) = nums(3);  %#ok<SAGROW>
         % trim buffers to plotWindow
         idx   = timeBuf >= tNow - plotWindow;
         tPlot = timeBuf(idx);
@@ -87,8 +87,8 @@ while toc(tStart) < durationSec
         xlim(hAx, [max(0, tNow-plotWindow), tNow]);
         drawnow limitrate;
         % write to CSV with timestamp
-        ts = datestr(datetime('now'), timestampFormat);
-        fprintf(fid, '%s,%.3f,%.3f\n', ts, nums(1), nums(2));
+        % ts = datestr(datetime('now'), timestampFormat);
+        fprintf(fid, '%lu,%d,%d\n', nums(1), nums(2), nums(3));
     else
         % optionally, display or log malformed lines
         fprintf('Warning: could not parse data: "%s"\n', rawLine);
