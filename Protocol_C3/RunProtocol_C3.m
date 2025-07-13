@@ -29,11 +29,25 @@ participantID = answer{1};
 isSession1 = logical(str2double(answer{2}));% is first session?
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
+isCtrl = startsWith(participantID,'C3C');
 
 %% Retrieve 6-Minute/10-Meter Walk Test Data Input from Experimenter
-if isSession1                               % if session 1, ...
+if isSession1 && ~isCtrl    % if session 1 and not control participant, ...
     % 6MWT/10MWT is only completed during session 1
     [speedOGMid,speedOGFast] = utils.extractSpeedsNMWT();
+end
+
+%% Identify Participant with Stroke for Whom Participant is Serving as Ctrl
+if isCtrl
+    prompt = { ...
+        ['Enter the ID of the participant with stroke for whom this ' ...
+        'participant is serving as a control (''C3S##'', do NOT ' ...
+        'include ''_S#'' for the session):']};
+    dlgtitle = 'Control Participant Input';
+    fieldsize = [1 60];
+    definput = {'Test'};                    % participant with stroke ID
+    answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+    participantID_Stroke = answer{1};
 end
 
 %% Generate Speed Profiles or Retrieve Profile Directory
