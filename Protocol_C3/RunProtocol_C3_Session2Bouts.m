@@ -246,7 +246,7 @@ tic;
 transferData_PC1_C3(participantID,false,threshTime);
 toc;
 
-%% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
+%% Run Reconstruct & Label Pipeline & Automatically Fill Marker Gaps
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE THE
 % NEXT EXPERIMENTER NEEDS THE LAB SPACE

@@ -86,7 +86,7 @@ maxCond = 13;
 pauseTime2min30 = 115;
 pauseTime1min = 40;
 
-%% Check if Should Complete H-Reflex Walking Calibration Trials
+%% Complete Pre-Session H-Reflex Walking Calibration Trials
 isCalibration = runWalkingCalibrations(handles,profileDir);
 
 %% Start the Main Portion of the Experimental Protocol
@@ -208,21 +208,21 @@ while currCond < maxCond    % while more trials left to collect, ...
             manualLoadProfile([],[],handles,profilename)
             button=questdlg('Please confirm the trial information: post 1 (50 tied fast, 30 negshort, 100 tied fast)?');
             if ~strcmp(button,'Yes')
-                return; %Abort starting the exp
+                return;     % abort starting experiment
             end
-%             numAudioCountDown = [50 80 -1];
+            % numAudioCountDown = [50 80 -1];
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-            %             if currCond == 12 %only time break for 1st train.
+            % if currCond == 12 %only time break for 1st train.
             pause(pauseTime2min30); %break for 5mins at least.
             play(AudioTimeUp);
-            %             end
-        case {13} %end adapt
+            % end
+        case 13 %end adapt
             handles.popupmenu2.set('Value',14) %NIRS train
             profilename = [profileDir 'Post2.mat'];
             manualLoadProfile([],[],handles,profilename)
             button=questdlg('Confirm trial and profile is Post 2 (tied for 200)');
             if ~strcmp(button,'Yes')
-                return; %Abort starting the exp
+                return;     % abort starting experiment
             end
             numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
@@ -233,21 +233,20 @@ end
 isCalibration = runWalkingCalibrations(handles,profileDir);
 
 %% Transfer the Data After the Experiment Has Finished
+% pause for one minute to allow Vicon Nexus to stop and save last trial
+pause(60);
 tic;
 transferData_SpinalAdapt(subjectID,threshTime);
 toc;
 
-%% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
-% TODO: uncomment after verifying works properly
+%% Run Reconstruct & Label Pipeline & Automatically Fill Marker Gaps
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE THE
 % NEXT EXPERIMENTER NEEDS THE LAB SPACE
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% tic;
-% % TODO: will need to update path below for participants with stroke (i.e.,
-% % multiple behavioral visits)
-% dirSrvrData = fullfile('W:\SpinalAdaptStudy\Data',subjectID,'Vicon');
-% dataMotion.processAndFillSmallMarkerGapsSession(dirSrvrData);
-% % dataMotion.reconstructAndLabelSession(dirSrvrData);
-% toc;
+% TODO: update path below for participants with stroke (i.e., two visits)
+tic;
+dirSrvrData = fullfile('W:\SpinalAdaptStudy\Data',subjectID,'Vicon');
+dataMotion.processAndFillMarkerGapsSession(dirSrvrData);
+toc;
 
