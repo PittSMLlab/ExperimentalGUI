@@ -28,16 +28,16 @@ function [profileDir] = GenerateProfileSpinalBoutStudy(slow, fast, baseOnly, pro
         %base fast
         velL = [ones(150,1) * fast];
         velR = velL;
-%         stimL = repmat([0 0 0 1 0 0 0 0 0 0]',15,1);
-%         stimR = stimL;
-        save([profileDir 'TMBaseFast.mat'],'velL' ,'velR')
+        stimL = repmat([0 0 0 1 0 0 0 0 0 0]',15,1);
+        stimR = stimL;
+        save([profileDir 'TMBaseFast.mat'],'velL' ,'velR','stimL','stimR')
 
         %base slow
         velL = [ones(150,1) * slow];
         velR = velL;
-%         stimL = repmat([0 0 0 1 0 0 0 0 0 0]',15,1);
-%         stimR = stimL;
-        save([profileDir 'TMBaseSlow.mat'],'velL' ,'velR')
+        stimL = repmat([0 0 0 1 0 0 0 0 0 0]',15,1);
+        stimR = stimL;
+        save([profileDir 'TMBaseSlow.mat'],'velL' ,'velR','stimL','stimR')
 
         %base OG slow
         velL = [ones(100,1) * slow];

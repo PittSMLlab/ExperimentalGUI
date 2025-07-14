@@ -12,11 +12,11 @@ ramp2Split = false; % SAH1-16 ramp2Split= true, also there was an coding error s
 speedRatio = 0.7; %slow/fast, SAH 1-16 did speedRatio = 0.5; %starting 7/8/2024, try ratio 1:0.7
 
 % for stroke participant use SAS01V01 (Sub##V## format)
-subjectID = 'ShuqiPractice';    % SAH01 for young, SAS01V01 for stroke
+subjectID = 'SABH06';    % SAH01 for young, SAS01V01 for stroke
 % To use the GUI to automatically compute the 6MWT speed, call
 %   utils.extractSpeedsNMWT();
 % and update the 'fast' speed below with output value
-fast = 1.1;     % speed m/s
+fast = 1.3963;     % speed m/s
 %if 2:1 ratio, slow=0.5*fast, if 70%, slow = 0.7*fast
 slow = fast * speedRatio;
 
@@ -77,6 +77,7 @@ AudioTimeUp = audioplayer(audio_data,audio_fs);
 % load AdapationGUI and get the GUI figure handle
 handles = guidata(AdaptationGUI);
 
+%these variables are needed to pass proper arguments into the controllers
 global profilename
 global numAudioCountDown
 global isCalibration
@@ -87,12 +88,15 @@ pauseTime2min30 = 115;
 pauseTime1min = 40;
 
 %% Complete Pre-Session H-Reflex Walking Calibration Trials
-isCalibration = runWalkingCalibrations(handles,profileDir);
+isCalibration = true; %Run this block at least once
+while isCalibration     % repeat calibrations until select 'No'
+    isCalibration = runWalkingCalibrations(handles,profileDir);
+end
 
 %% Start the Main Portion of the Experimental Protocol
 %the TM will start now/ stop now is not exactly on point but maybe not
 %easy to make it better.
-isCalibration = false;      % reset
+% isCalibration = false;      % reset
 firstCond = true;
 currCond = 0;               % initialize current condition to start loop
 while currCond < maxCond    % while more trials left to collect, ...
@@ -101,7 +105,7 @@ while currCond < maxCond    % while more trials left to collect, ...
             'continue with the next condition?']);
         if strcmp(nextCondButton,'Yes') % automatically advance to next
             currCond = currCond + 1;
-            if contains(subjectID,'SAH') && ismember(currCond,[3 4])    %Healthy young people & OG trials now
+            if contains(subjectID,'SABH') && ismember(currCond,[3 4])    %Healthy young people & OG trials now
                 currCond = 5;   % skip OG for young adults, start pre-train
             end
         elseif strcmp(nextCondButton,'No')
@@ -185,6 +189,7 @@ while currCond < maxCond    % while more trials left to collect, ...
             if ~strcmp(button,'Yes')
                 return;     % abort starting experiment
             end
+%             numAudioCountDown = []; %If errors out in this condition, comment this out. -----Temp7/14/2025-----
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles)
             pause(pauseTime2min30);     % break for at least 2.5 minutes
@@ -211,6 +216,7 @@ while currCond < maxCond    % while more trials left to collect, ...
                 return;     % abort starting experiment
             end
             % numAudioCountDown = [50 80 -1];
+            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
             % if currCond == 12 %only time break for 1st train.
             pause(pauseTime2min30); %break for 5mins at least.
