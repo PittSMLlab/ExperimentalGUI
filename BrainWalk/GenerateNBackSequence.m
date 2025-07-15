@@ -28,19 +28,46 @@ for i = 1 : length(audioids)
 end
 %30s, roughly 2.5 each, 
 
+%% Get max instruction time
+taskTypes = {'walk','stand'};
+instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
+instructionTimes = [];
+for taskTp = 1:2 %DT then ST
+    for n = 0:2
+        condAudioKey = [taskTypes{taskTp}, num2str(n)];
+        instructionTimes(end+1) = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
+        if n == 0
+            %generate a different ISI for 2 clicker becuase the instruction
+            %is slightly different (walk and click when hear 0, vs walk and
+            %click right when hear 0
+            condAudioKey2 = [taskTypes{taskTp}, num2str(n) 'RightBtn'];
+            instructionTimes(end+1) = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
+
+            condAudioKey3 = [taskTypes{taskTp}, num2str(n) 'Thumb'];
+            instructionTimes(end+1) = instructions(condAudioKey3).TotalSamples/instructions(condAudioKey3).SampleRate + instructionAudioBufferSec;
+        end
+    end
+end
+fprintf('Max instruction time (in s): %.4f seconds\n',max(instructionTimes))
+%+ mean([1.8201,5]) * 12
+%37.632 + 5.048
+
 %% 2. Generate the sequence in a pseurandom fashion such the sequence is generated to match the req to begine with.
 rng(2000) %set seeds for repeatability
 numStimulus = 12; %12 stimulus
 numTargets = 3;
 trials = 8; %5 trials, each with 2 (ST, and DT), and familiarizations (3? trials x 2)
 taskTypes = {'walk','stand'};
-totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instruction times
+instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
+
+% totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instruction times
+totalCondTimeMs = 42*1000; %longer time since longer ISI for 2 clicker/2button mode
 %ms %2350-3150 from literature won'twork. If we count time played per number, a good range is 1450-2300
 %if we ignore the time needed to finish playing a number, the average per number across all conditions is
 %2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
 ISIMin = 1880; 
-ISIMax= 2680; %max
-instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
+% ISIMax= 2680; %max
+ISIMax = 3680; %decided to increase the total response time by 1 if it's 2 clicker or 2 button mode bc it's harder
 
 for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
     for n = 0:2 %parameter of the N to generate
@@ -147,7 +174,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
 %             totalAudioTime = totalAudioTime +4; %
             
             totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
-            fullInterStimIntervals(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+            fullInterStimIntervals(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             
             if n == 0
                 %generate a different ISI for 2 clicker becuase the instruction
@@ -156,12 +183,14 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
                 condAudioKey2 = [taskTypes{taskTp}, num2str(n) 'RightBtn'];
                 totalAudioTime = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
-                fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+%                 fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Clicker(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
                 
                 condAudioKey3 = [taskTypes{taskTp}, num2str(n) 'Thumb'];
                 totalAudioTime = instructions(condAudioKey3).TotalSamples/instructions(condAudioKey3).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
-                fullInterStimIntervals2Buttons(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+%                 fullInterStimIntervals2Buttons(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Buttons(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             end
         end
         fullSequence %visually exam to avoid 1-2-3-4, or 4-3-2-1 etc.    
@@ -177,8 +206,13 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
 end
 
 %% 3. Test the generated sequences,, make sure all sequence will be 30s and make sure the n-back is designed as planned.
-clearvars -except instructions taskTypes totalCondTimeMs saveDir instructionAudioBufferSec
+close all;
+clearvars -except instructions taskTypes totalCondTimeMs saveDir instructionAudioBufferSec ISIMin ISIMax
 dataTimingInfo = []; %task x n x trial x info: totalAudio1 clicker, totalAudio2clicker, totalAudio1Clicker2Buttons, minISI, maxISI, meanISI
+f = figure('units','normalized','outerposition',[0 0 1 1]);
+f1 = figure('units','normalized','outerposition',[0 0 1 1]);
+f2 = figure('units','normalized','outerposition',[0 0 1 1]);
+fs = {f, f1, f2};
 for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
     for n = 0:2 %parameter of the N to generate
         condAudioKey = [taskTypes{taskTp}, num2str(n)];
@@ -206,7 +240,19 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
                 error('Invalid trial generated %s trial: %d',condAudioKey, t)
             end
 
-            %now check if the timing is good.
+            %check if each ISI is within min and max
+            lessThanMin = fullInterStimIntervals(t,:) < ISIMin;
+            if any(lessThanMin) %find any < min (violating range requiremen)
+                fmt = ['Invalid ISI found (less than ISIMin) for trial: %d. Invalid locations (1s): ' repmat('%1.0f ',1,numel(fullInterStimIntervals(t,:)))];
+                error(sprintf(fmt,t,lessThanMin))
+            end
+            moreThanMax = fullInterStimIntervals(t,:) < ISIMin;
+            if any(moreThanMax) %find any < min (violating range requiremen)
+                fmt = ['Invalid ISI found (more than ISIMax) for trial: %d. Invalid locations (1s): ' repmat('%1.0f ',1,numel(fullInterStimIntervals(t,:)))];
+                error(sprintf(fmt,t,moreThanMax))
+            end
+            
+            %now check if totla timing is good.
             totalAudioTime = instructions(condAudioKey).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
 %             for i = fullSequence(t,:)
 %                 totalAudioTime = totalAudioTime+instructions(num2str(i)).TotalSamples/instructions(num2str(i)).SampleRate;
@@ -216,7 +262,7 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
                 error('Invalid trial time found %s trial: %d. Expected: %d, found: %d',condAudioKey, t, totalCondTimeMs, totalAudioTime + sum(fullInterStimIntervals(t,:)))
             end
             
-            if n == 0 %check 2 clicker audio timing
+            if n == 0 %check 2 clicker audio timing, these ones have different instruction audio for 0-back but same for 1/2 since they jsut say (1-back, 2-back) vs 0 says(walk and press right or press thumb when hear 0)
                 totalAudioTime2 = instructions([condAudioKey 'RightBtn']).TotalSamples/instructions(condAudioKey).SampleRate + instructionAudioBufferSec;
                 totalAudioTime2 = totalAudioTime2 * 1000;
                 if totalAudioTime2 + sum(fullInterStimIntervals2Clicker(t,:)) ~= totalCondTimeMs
@@ -234,8 +280,30 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
                 dataTimingInfo(taskTp,n+1,t,:) = [totalAudioTime, nan, nan, min(fullInterStimIntervals(t,:)), max(fullInterStimIntervals(t,:)), mean(fullInterStimIntervals(t,:))];
             end
         end
+        
+        ISIToPlot = {fullInterStimIntervals,fullInterStimIntervals2Clicker,fullInterStimIntervals2Buttons};
+        for fIdx= 1:numel(fs)
+            figure(fs{fIdx});
+            %visualize the ISI to see if it's normally distributed
+            subplot(length(taskTypes),3,n+1+(taskTp-1)*3); %task type (ST/DT) x ns (0,1,2 back)
+            hold on;
+            histfit(reshape(ISIToPlot{fIdx},[],1));
+            xline(ISIMin,'--','DisplayName','min','LineWidth',2);
+            xline(ISIMax,'--','DisplayName','max','LineWidth',2);
+            xline(mean([ISIMax,ISIMin]),'--','DisplayName','median of max and min (expected mu)','LineWidth',2)
+%             pd = fitdist((reshape(fullInterStimIntervals,[],1)),'Normal');
+            
+            if n == 0 && taskTp == 1 %legend only once
+                legend()
+            end
+        
+        end
     end
 end
+
+figure(f); sgtitle('fullInterStimIntervals');
+figure(f1); sgtitle('fullInterStimIntervals2Clicker');
+figure(f2); sgtitle('fullInterStimIntervals2Buttons');
 
 %% Get timing summary
 fprintf('\nMin response time across task x n')
