@@ -65,7 +65,8 @@ totalCondTimeMs = 42*1000; %longer time since longer ISI for 2 clicker/2button m
 %ms %2350-3150 from literature won'twork. If we count time played per number, a good range is 1450-2300
 %if we ignore the time needed to finish playing a number, the average per number across all conditions is
 %2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
-ISIMin = 1880; 
+ 
+ISIMin = 1270; % CHANGED MIN FOR WIDER RANGE OF ISI - Mean response time of BW002 and BW005
 % ISIMax= 2680; %max
 ISIMax = 3680; %decided to increase the total response time by 1 if it's 2 clicker or 2 button mode bc it's harder
 
