@@ -62,12 +62,18 @@ instructionAudioBufferSec = 2; %don't play the first number right after, give a 
 
 % totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instruction times
 totalCondTimeMs = 42*1000; %longer time since longer ISI for 2 clicker/2button mode
+% totalCondTimeMs = 40*1000; %longer time to accommodate the wider ISI range 7/15/20255 JC
 %ms %2350-3150 from literature won'twork. If we count time played per number, a good range is 1450-2300
 %if we ignore the time needed to finish playing a number, the average per number across all conditions is
 %2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
-ISIMin = 1880; 
+
+% ISIMin = 1880; 
 % ISIMax= 2680; %max
-ISIMax = 3680; %decided to increase the total response time by 1 if it's 2 clicker or 2 button mode bc it's harder
+
+% ISIMin = 1880;
+% ISIMax = 3680; %decided to increase the total response time by 1 if it's 2 clicker or 2 button mode bc it's harder
+ISIMin = 1270; % Mean of BW002 and BW005 - updated to widen the range of ISI 7/15/20255 JC
+ISIMax = 4680; % Wider ISI range 7/15/20255 JC
 
 for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
     for n = 0:2 %parameter of the N to generate
@@ -174,7 +180,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
 %             totalAudioTime = totalAudioTime +4; %
             
             totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
-            fullInterStimIntervals(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+            fullInterStimIntervals(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             
             if n == 0
                 %generate a different ISI for 2 clicker becuase the instruction
@@ -184,13 +190,13 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
                 totalAudioTime = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
 %                 fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
-                fullInterStimIntervals2Clicker(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Clicker(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
                 
                 condAudioKey3 = [taskTypes{taskTp}, num2str(n) 'Thumb'];
                 totalAudioTime = instructions(condAudioKey3).TotalSamples/instructions(condAudioKey3).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
 %                 fullInterStimIntervals2Buttons(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
-                fullInterStimIntervals2Buttons(rep,:) = BrainWalk.generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Buttons(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             end
         end
         fullSequence %visually exam to avoid 1-2-3-4, or 4-3-2-1 etc.    
