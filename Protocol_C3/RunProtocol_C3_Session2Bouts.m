@@ -104,8 +104,8 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             numAudioCountDown = -1; % include final audio countdown
             AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles)
-            % No fixed break here - proceed immediately in GUI
+                handles.Execute_button,[],handles);
+            % no fixed break here - proceed immediately in GUI
         case 2          % TM Baseline Fast (Tied)
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_Baseline_Fast.mat');
@@ -119,7 +119,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % No fixed break here - proceed immediately in GUI
+            % no fixed break here - proceed immediately in GUI
         case 3          % OG Baseline Mid
             % overground controller with audio count down
             handles.popupmenu2.set('Value',8);
@@ -132,7 +132,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            % No fixed break here - proceed immediately in GUI
+            % no fixed break here - proceed immediately in GUI
         case 4          % TM Short Exposure Negative
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
@@ -160,7 +160,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             end
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles)
+                handles.Execute_button,[],handles);
             pause(pauseTime2min);
             play(AudioTimeUp);
         case 6          % TM Baseline Mid Full (Tied)
