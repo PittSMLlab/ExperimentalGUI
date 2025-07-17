@@ -61,8 +61,8 @@ taskTypes = {'walk','stand'};
 instructionAudioBufferSec = 2; %don't play the first number right after, give a 1s buffer other wise the instruction barely finishes and the first number is already out.
 
 % totalCondTimeMs = 30*1000; %30,000ms (30s) per condition including all the instruction times
-totalCondTimeMs = 42*1000; %longer time since longer ISI for 2 clicker/2button mode
-% totalCondTimeMs = 40*1000; %longer time to accommodate the wider ISI range 7/15/20255 JC
+% totalCondTimeMs = 42*1000; %longer time since longer ISI for 2 clicker/2button mode
+totalCondTimeMs = 40*1000; %longer time to accommodate the wider ISI range 7/15/20255 JC
 %ms %2350-3150 from literature won'twork. If we count time played per number, a good range is 1450-2300
 %if we ignore the time needed to finish playing a number, the average per number across all conditions is
 %2280ms = mean((30s-each task instruction duration)/12), assume +-400s (following the range from literature
@@ -293,23 +293,32 @@ for taskTp = 1:length(taskTypes) %1 is ST, 2 is DT
             %visualize the ISI to see if it's normally distributed
             subplot(length(taskTypes),3,n+1+(taskTp-1)*3); %task type (ST/DT) x ns (0,1,2 back)
             hold on;
-            histfit(reshape(ISIToPlot{fIdx},[],1));
-            xline(ISIMin,'--','DisplayName','min','LineWidth',2);
-            xline(ISIMax,'--','DisplayName','max','LineWidth',2);
-            xline(mean([ISIMax,ISIMin]),'--','DisplayName','median of max and min (expected mu)','LineWidth',2)
+            h = histfit(reshape(ISIToPlot{fIdx}./1000,[],1));
+            xline(ISIMin./1000,'--','DisplayName','min','LineWidth',2);
+            xline(ISIMax./1000,'--','DisplayName','max','LineWidth',2);
+            xline(mean([ISIMax,ISIMin])./1000,'--','DisplayName','mu=median(min,max)','LineWidth',2)
 %             pd = fitdist((reshape(fullInterStimIntervals,[],1)),'Normal');
             
             if n == 0 && taskTp == 1 %legend only once
-                legend()
+                lgd = legend();
+                lgd.String(1:2) = {'ISIData','Fit'};
+                xlabel('ISI (s)')
+                ylabel('Count')
             end
-        
+            title(condAudioKey)
+            %xlim([1 6])
         end
     end
 end
 
-figure(f); sgtitle('fullInterStimIntervals');
-figure(f1); sgtitle('fullInterStimIntervals2Clicker');
-figure(f2); sgtitle('fullInterStimIntervals2Buttons');
+figure(f); sgtitle('fullInterStimIntervals'); set(findall(gcf,'-property','FontSize'),'FontSize',15); linkaxes;
+figure(f1); sgtitle('fullInterStimIntervals2Clicker'); set(findall(gcf,'-property','FontSize'),'FontSize',15); linkaxes;
+figure(f2); sgtitle('fullInterStimIntervals2Buttons'); set(findall(gcf,'-property','FontSize'),'FontSize',15); linkaxes;
+
+% save the figurse
+saveas(f,[saveDir filesep 'Expected_fullInterStimIntervals.png'])
+saveas(f1,[saveDir filesep 'Expected_fullInterStimIntervals2Clicker.png'])
+saveas(f2,[saveDir filesep 'Expected_fullInterStimIntervals2Buttons.png'])
 
 %% Get timing summary
 fprintf('\nMin response time across task x n')

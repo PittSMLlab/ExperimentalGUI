@@ -50,7 +50,7 @@ twoClikerMode = 1; %0 for 1 clicker and only respond for match
 %2 for using both clickers, 1 grey for match, 1 black for mistmatch. 
 
 if twoClikerMode
-    restDuration = 42; %default 20s rest, could change for debugging
+    restDuration = 40; %new protocol since 7/14/2025 decided to set total duration to 40s instead of 42 for BW02 and BW05
 else
     restDuration = 30; %default 30s rest, could change for debugging
 end
@@ -218,9 +218,9 @@ for i = 2:7 %walk0-2, stand0-2
         if twoClikerMode %give them 1 more second to respond
             if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
                 if twoClikerMode == 2 %2 clicker, use the 2 interval
-                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(nbackSeqRowIdx,:) + 1000; %in ms 
+                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(nbackSeqRowIdx,:); %in ms 
                 else %1 clicker 2 buttons use the 2button ISI
-                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(nbackSeqRowIdx,:) + 1000; %in ms 
+                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(nbackSeqRowIdx,:); %in ms 
                 end
             else %for 1and 2back just simply add 1s ISI
                 fullSeq.interStimIntervals = fullSeq.interStimIntervals + 1000; %in ms 
@@ -229,7 +229,6 @@ for i = 2:7 %walk0-2, stand0-2
         fullSeq.audioIdKey = audioids{i};
         fullSeq.nirsEventCode = eventCodeCharacter{i};
         n_back_sequences(audioids{i}) = fullSeq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})
-        
     end
 end
 

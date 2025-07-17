@@ -89,7 +89,10 @@ else
 end
 
 dirSrvrData = fullfile(['W:\' studyName '\Data'],participantID, visitNum); %this can be more robust if we give the full path instead of the mapped letter, e.g., 
-% ['\\share.files.pitt.edu\ssoe\bioe\torres_shared2\Torres Backup\Research\' studyName '\Data']
+% ['\\share.files.pitt.edu\ssoe\bioe\torres_shared2\Torres
+% Backup\Research\' studyName '\Data']. However, using the direct path
+% doesn't work for Vicon, Vicon only shows data in the mapped letter
+% format, loading data with full path will be stuck at the processing step.
 dirSrvrRaw = fullfile(['W:\' studyName '\DataBackup\'],participantID,visitNum);   
     
 if PCNum == 2
