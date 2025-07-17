@@ -180,7 +180,7 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
 %             totalAudioTime = totalAudioTime +4; %
             
             totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
-            fullInterStimIntervals(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+            fullInterStimIntervals(rep,:) = generateUniformISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             
             if n == 0
                 %generate a different ISI for 2 clicker becuase the instruction
@@ -190,13 +190,13 @@ for taskTp = 1:length(taskTypes) %1 is DT, 2 is ST
                 totalAudioTime = instructions(condAudioKey2).TotalSamples/instructions(condAudioKey2).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
 %                 fullInterStimIntervals2Clicker(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
-                fullInterStimIntervals2Clicker(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Clicker(rep,:) = generateUniformISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
                 
                 condAudioKey3 = [taskTypes{taskTp}, num2str(n) 'Thumb'];
                 totalAudioTime = instructions(condAudioKey3).TotalSamples/instructions(condAudioKey3).SampleRate + instructionAudioBufferSec;
                 totalTimeLeftMs = totalCondTimeMs -  totalAudioTime*1000;%30s - instruction - letter audio length
 %                 fullInterStimIntervals2Buttons(rep,:) = NBackHelper.generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
-                fullInterStimIntervals2Buttons(rep,:) = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
+                fullInterStimIntervals2Buttons(rep,:) = generateUniformISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax);
             end
         end
         fullSequence %visually exam to avoid 1-2-3-4, or 4-3-2-1 etc.    
