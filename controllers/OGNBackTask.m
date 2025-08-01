@@ -198,12 +198,12 @@ for i = 2:7 %walk0-2, stand0-2
             if twoClikerMode %give them 1 more second to respond
                 if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
                     if twoClikerMode == 2 %2 clicker, use the 2 interval
-                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(startingIdx+j,:) + 1000; %in ms 
+                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(startingIdx+j,:); %in ms 
                     else %1 clicker 2 buttons use the 2button ISI
-                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(startingIdx+j,:) + 1000; %in ms 
+                        seq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(startingIdx+j,:); %in ms 
                     end
                 else %for 1and 2back just simply add 1s ISI
-                    seq.interStimIntervals = seq.interStimIntervals + 1000; %in ms 
+                    seq.interStimIntervals = seq.interStimIntervals; %in ms 
                 end
             end
             seq.audioIdKey = audioids{i};
@@ -223,7 +223,7 @@ for i = 2:7 %walk0-2, stand0-2
                     fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(nbackSeqRowIdx,:); %in ms 
                 end
             else %for 1and 2back just simply add 1s ISI
-                fullSeq.interStimIntervals = fullSeq.interStimIntervals + 1000; %in ms 
+                fullSeq.interStimIntervals = fullSeq.interStimIntervals; %in ms 
             end
         end
         fullSeq.audioIdKey = audioids{i};

@@ -59,7 +59,13 @@ orderForParticipant(1,:) = temp;
 %analysis or regeneration of the orders will remain consistent.
 orderForParticipant(6,:) = [2 5 6 4 1 3];
 
-%save it
+%Another error: BW020 ran the order of BW017, the code might have done
+%somethign werid that day. Manually fip them now for reproducibility
+temp = orderForParticipant(17,:);
+orderForParticipant(17,:) = orderForParticipant(20,:);
+orderForParticipant(20,:) = temp;
+
+%% save it
 save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
 save('W:\BrainWalk\Data\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
 
