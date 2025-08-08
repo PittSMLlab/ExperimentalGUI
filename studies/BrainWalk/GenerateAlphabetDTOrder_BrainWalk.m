@@ -9,6 +9,8 @@
 % 3. Now generate 200 orders to run these 6 trials. This will be the
 % randomization order per subject, with seeds rng(10)
 close all; clc
+scriptDir = fileparts(matlab.desktop.editor.getActiveFilename);
+
 rng(2025)
 
 fprintf('\n Start with A:\n')
@@ -18,7 +20,7 @@ for i = 1:6
     fprintf('%d %d %d %d %d;',possibleTaskOrders(i,:))
 end
 %save it
-save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_A_TaskOrders','possibleTaskOrders')
+save([scriptDir filesep 'BrainWalk_AlphabetDT_A_TaskOrders'],'possibleTaskOrders')
 save('W:\BrainWalk\Data\BrainWalk_AlphabetDT_A_TaskOrders','possibleTaskOrders')
 
 %print out the task order in readable string format to make data sheet
@@ -66,6 +68,7 @@ orderForParticipant(17,:) = orderForParticipant(20,:);
 orderForParticipant(20,:) = temp;
 
 %% save it
-save('C:\Users\Public\Documents\MATLAB\ExperimentalGUI\BrainWalk\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
+
+save([scriptDir filesep 'BrainWalk_AlphabetDT_ParticipantOrders'],'orderForParticipant')
 save('W:\BrainWalk\Data\BrainWalk_AlphabetDT_ParticipantOrders','orderForParticipant')
 
