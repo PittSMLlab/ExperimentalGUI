@@ -49,10 +49,16 @@ twoClikerMode = 1; %0 for 1 clicker and only respond for match
 %1 for using 1 clicker but 2 buttons, front for match and back for mismatch
 %2 for using both clickers, 1 grey for match, 1 black for mistmatch. 
 
-if twoClikerMode
-    restDuration = 40; %new protocol since 7/14/2025 decided to set total duration to 40s instead of 42 for BW02 and BW05
+randMtd = ISIRandMethod.uniform;
+
+if ISIRandMethod.pseudo == randMtd
+    if twoClikerMode
+        restDuration = 42; %for 2 clicker psuedo was 30s + 1s padding per task.
+    else
+        restDuration = 30; %used to default to 30 when using 1 clicker in the beginning.
+    end
 else
-    restDuration = 30; %default 30s rest, could change for debugging
+    restDuration = 40; %new protocol since 7/14/2025 decided to set total duration to 40s instead of 42 for BW02 and BW05
 end
 
 %% Parameter for randonization orde. If Option1, change the condOrderToRun (task randomization order) to run per person.
@@ -174,7 +180,7 @@ audioids = strrep(audioids,'Thumb','');
 % Load pre-generated task order, load the n-back sequences to use later, save them in key-value maps.
 n_back_sequences = containers.Map();
 for i = 2:7 %walk0-2, stand0-2
-    fullSeq = load([audioids{i} '-backSequences.mat']);
+    fullSeq = load([char(randMtd) '-' audioids{i} '-backSequences.mat']);
     %optimize storage to save only the relevant rows and save effort for
     %indexing later.
     if condOption >= 3 %special case there is repeated conditions 
@@ -195,17 +201,16 @@ for i = 2:7 %walk0-2, stand0-2
             seq.fullSequence = fullSeq.fullSequence(startingIdx+j,:);
             seq.fullTargetLocs = fullSeq.fullTargetLocs(startingIdx+j,:);
             seq.interStimIntervals = fullSeq.fullInterStimIntervals(startingIdx+j,:);
-            if twoClikerMode %give them 1 more second to respond
-                if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
+%             if twoClikerMode %give them 1 more second to respond
+%                 if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
                     if twoClikerMode == 2 %2 clicker, use the 2 interval
                         seq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(startingIdx+j,:); %in ms 
-                    else %1 clicker 2 buttons use the 2button ISI
+                    elseif twoClikerMode == 1 %1 clicker 2 buttons use the 2button ISI
                         seq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(startingIdx+j,:); %in ms 
+                    else %1 clicker
+                        seq.interStimIntervals =fullSeq.fullInterStimIntervals(startingIdx+j,:);
                     end
-                else %for 1and 2back just simply add 1s ISI
-                    seq.interStimIntervals = seq.interStimIntervals; %in ms 
-                end
-            end
+%             end
             seq.audioIdKey = audioids{i};
             seq.nirsEventCode = eventCodeCharacter{i};
             n_back_sequences([audioids{i} '-rep' num2str(j)]) = seq; 
@@ -214,18 +219,16 @@ for i = 2:7 %walk0-2, stand0-2
     else %here can use same variable bc indexing only once
         fullSeq.fullSequence = fullSeq.fullSequence(nbackSeqRowIdx,:);
         fullSeq.fullTargetLocs = fullSeq.fullTargetLocs(nbackSeqRowIdx,:);
-        fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals(nbackSeqRowIdx,:);
-        if twoClikerMode %give them 1 more second to respond
-            if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
+%         if twoClikerMode %give them 1 more second to respond
+%             if (i == 2 || i == 5) %walk0 or stand 0, use a different ISI bc instructions differ
                 if twoClikerMode == 2 %2 clicker, use the 2 interval
                     fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Clicker(nbackSeqRowIdx,:); %in ms 
-                else %1 clicker 2 buttons use the 2button ISI
+                elseif twoClikerMode == 1 %1 clicker 2 buttons use the 2button ISI
                     fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals2Buttons(nbackSeqRowIdx,:); %in ms 
+                else %for 1and 2back just simply add 1s ISI
+                    fullSeq.interStimIntervals = fullSeq.fullInterStimIntervals(nbackSeqRowIdx,:) %in ms 
                 end
-            else %for 1and 2back just simply add 1s ISI
-                fullSeq.interStimIntervals = fullSeq.interStimIntervals; %in ms 
-            end
-        end
+%         end
         fullSeq.audioIdKey = audioids{i};
         fullSeq.nirsEventCode = eventCodeCharacter{i};
         n_back_sequences(audioids{i}) = fullSeq; %save with the key matching the cond name convention ({'s0','s1','s2','w0','w1','w2'})

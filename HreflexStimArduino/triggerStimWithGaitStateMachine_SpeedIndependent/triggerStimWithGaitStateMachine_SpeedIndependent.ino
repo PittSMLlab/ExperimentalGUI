@@ -209,11 +209,12 @@ void updateGaitEventStateMachine()
   // use median filter for force readings to reduce noise
   int leftForce = analogRead(pinInFzL);
   int rightForce = analogRead(pinInFzR);
-  // logForceData(leftForce, rightForce);
 
   // IIR low-pass filter
-  filtL += alphaLPF * (leftForce - filtL);
-  filtR += alphaLPF * (rightForce - filtR);
+  // filtL += alphaLPF * (leftForce - filtL);
+  // filtR += alphaLPF * (rightForce - filtR);
+
+  // logForceData(leftForce,rightForce);
 
   // current step is stance if foot in contact with force plate
   if (isCurrStanceL)
@@ -339,8 +340,8 @@ void triggerStimulation()
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
   // Use following conditions if troubleshooting:
-  //  canStimL
-  //  numStepsL % freqStim == 0
+  // canStimL
+  // numStepsL % freqStim == 0
   if (phase == 1 && shouldStimL && !isStimmingL)
   {
     timeTargetStimL = (unsigned long)(percentSS2Stim * estSSL);
@@ -359,8 +360,8 @@ void triggerStimulation()
   // right leg stimulation trigger conditions
   // use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
   // Use following conditions if troubleshooting:
-  //  canStimR
-  //  numStepsR % freqStim == 0
+  // canStimR
+  // numStepsR % freqStim == 0
   if (phase == 2 && shouldStimR && !isStimmingR)
   {
     timeTargetStimR = (unsigned long)(percentSS2Stim * estSSR);
@@ -400,16 +401,16 @@ void handleStimulationTimeout()
 }
 
 // --- CSV logging of raw & filtered forces --------------
-// void logForceData(int leftForce, int rightForce)
-// {
-//   unsigned long currentTime = millis();
-//   if (currentTime - timeLastLog >= intervalLog)
-//   {
-//     Serial.print(currentTime);
-//     Serial.print(",");
-//     Serial.print(leftForce);
-//     Serial.print(",");
-//     Serial.println(rightForce);
-//     timeLastLog = currentTime;
-//   }
-// }
+void logForceData(int leftForce, int rightForce)
+{
+  unsigned long currentTime = millis();
+  if (currentTime - timeLastLog >= intervalLog)
+  {
+    Serial.print(currentTime);
+    Serial.print(",");
+    Serial.print(leftForce);
+    Serial.print(",");
+    Serial.println(rightForce);
+    timeLastLog = currentTime;
+  }
+}

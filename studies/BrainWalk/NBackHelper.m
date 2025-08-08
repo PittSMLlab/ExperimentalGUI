@@ -2,7 +2,7 @@ classdef NBackHelper
     %Static helper function to generate N-back sequences matching the
     %requirements, i.e., target every x number of stimulis, total sequence
     %time add up to a given number
-    
+        
     methods(Static)
         % Helper funciton to get the target location, break down the total stim into sub-sections to ensure they won't be next to each other. 
         function targetLocs = generateNewTarget(numStimulus, numTarget, nback, existingTargetLocs)
@@ -48,7 +48,7 @@ classdef NBackHelper
         end
 
         % Helper funciton to set up inter stimulus intervals (ISI) such that they are between [ISIMin, and ISIMax], but also add up to the total left remaining
-        function responseTime = generateISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax)
+        function responseTime = generatePseudoISI(totalTimeLeftMs, numStimulus, ISIMin,ISIMax)
             %Generate inter stimulus intervals, aka time for paticipant to respond, randomized such that the interval
             %is in [min, max] but also sum to the total time left. This is a
             %pseudorandom procedure, using a heureustic that we first allocate min
@@ -142,5 +142,103 @@ classdef NBackHelper
             %close to min ISI due to the algorithm deficits.
             responseTime = responseTime(randperm(length(responseTime)));
         end
+        
+        function responseTime = generateNormalISI(totalTimeLeftMs, numStimulus, ISIMin, ISIMax)
+            % Generate ISIs from a truncated normal distribution and adjust them to sum to totalTimeLeftMs
+
+            % Check feasibility
+            if totalTimeLeftMs < numStimulus * ISIMin || totalTimeLeftMs > numStimulus * ISIMax
+                error('Impossible to allocate time within ISI bounds');
+            end
+
+            % Parameters for normal distribution
+            mu = (ISIMin + ISIMax) / 2;
+            sigma = (ISIMax - ISIMin) / 6; % ~99.7% data within bounds in normal dist
+
+            % Generate truncated normal samples
+            rawISI = zeros(1, numStimulus);
+            generated = [];
+
+            for i = 1:numStimulus
+                val = inf;
+                attempts = 0;
+                maxAttempts = 1000;
+
+                while (val < ISIMin || val > ISIMax || ismember(val, generated)) && attempts < maxAttempts
+                    val = round(normrnd(mu, sigma));
+                    attempts = attempts + 1;
+                end
+
+                if attempts >= maxAttempts
+                    error('Could not generate enough unique ISIs. Consider widening ISI range or reducing numStimulus.');
+                end
+
+                rawISI(i) = val;
+                generated(end+1) = val;
+            end
+
+
+            % Rescale ISIs so their sum equals totalTimeLeftMs
+            scaleFactor = totalTimeLeftMs / sum(rawISI);
+            responseTime = round(rawISI * scaleFactor);
+
+            % Fix rounding issues: adjust final element so total sum is exact
+            discrepancy = totalTimeLeftMs - sum(responseTime);
+            responseTime(end) = responseTime(end) + discrepancy;
+
+            % Shuffle to randomize order
+            responseTime = responseTime(randperm(numStimulus));
+        end
+
+        function responseTime = generateUniformISI(totalTimeLeftMs, numStimulus, ISIMin, ISIMax)
+            % Generate uniformly distributed ISIs with constraints on min and max values
+
+            numBins = 6;
+            ISIsPerBin = numStimulus / numBins;
+
+            % Check feasibility
+            if totalTimeLeftMs < numStimulus * ISIMin || totalTimeLeftMs > numStimulus * ISIMax
+                error('Impossible to allocate time within ISI bounds');
+            end
+
+            % Define bin edges
+            binEdges = linspace(ISIMin, ISIMax, numBins + 1);
+
+            validISI = false;
+
+            while ~validISI
+                rawISI = [];
+
+                for b = 1:numBins
+                    binMin = ceil(binEdges(b));
+                    binMax = floor(binEdges(b + 1));
+
+                    if binMin > binMax
+                        error('Bin range is invalid — increase ISI range or reduce number of bins.');
+                    end
+
+                    % Generate uniform ISIs from current bin
+                    binSamples = randi([binMin, binMax], 1, ISIsPerBin);
+                    rawISI = [rawISI binSamples];
+                end
+
+                % Rescale ISIs to match total time
+                scaleFactor = totalTimeLeftMs / sum(rawISI);
+                responseTime = round(rawISI * scaleFactor);
+
+                % Fix rounding discrepancy
+                discrepancy = totalTimeLeftMs - sum(responseTime);
+                responseTime(end) = responseTime(end) + discrepancy;
+
+                % Check if all ISIs are at least ISIMin
+                if all(responseTime >= ISIMin) && all(responseTime <= ISIMax)
+                    validISI = true;
+                end
+            end
+
+            % Shuffle
+            responseTime = responseTime(randperm(numStimulus));
+        end     
+        
     end
 end
