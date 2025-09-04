@@ -22,11 +22,29 @@ answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 participantID = answer{1};
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
+isCtrl = startsWith(participantID,'C3C');
+
+%% Identify Participant with Stroke for Whom Participant is Serving as Ctrl
+if isCtrl
+    prompt = { ...
+        ['Enter the ID of the participant with stroke for whom this ' ...
+        'participant is serving as a control (''C3S##'', do NOT ' ...
+        'include ''_S#'' for the session):']};
+    dlgtitle = 'Control Participant Input';
+    fieldsize = [1 60];
+    definput = {'Test'};                    % participant with stroke ID
+    answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+    participantID_Stroke = answer{1};
+end
 
 %% Generate Speed Profiles or Retrieve Profile Directory
 dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
     'profiles\Stroke_CCC'];
-raw = dir(fullfile(dirBase,participantID)); % retrieve folder
+if isCtrl                                   % if control participant, ...
+    raw = dir(fullfile(dirBase,participantID_Stroke));  % retrieve folder
+else
+    raw = dir(fullfile(dirBase,participantID));
+end
 ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
 profiles = raw(~ignore);
 % NOTE: there should only be one profile folder since the irrelevant
@@ -39,7 +57,12 @@ elseif length(profiles) > 1
     return;
 else
     disp('Continuing with the experiment.');
-    dirProfile = fullfile(dirBase,participantID,profiles.name);
+    if isCtrl                       % if control participant, ...
+        dirProfile = fullfile(dirBase,participantID_Stroke, ...
+            profiles.name);
+    else                            % otherwise, participant w/ stroke
+        dirProfile = fullfile(dirBase,participantID,profiles.name);
+    end
 end
 
 %% Set Up the GUI & Run the Experiment

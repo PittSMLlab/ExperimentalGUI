@@ -53,47 +53,69 @@ end
 %% Generate Speed Profiles or Retrieve Profile Directory
 dirBase = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
     'profiles\Stroke_CCC'];
-raw = dir(fullfile(dirBase,participantID)); % retrieve folder
+if isCtrl                                   % if control participant, ...
+    raw = dir(fullfile(dirBase,participantID_Stroke));  % retrieve folder
+else
+    raw = dir(fullfile(dirBase,participantID));
+end
 ignore = endsWith({raw.name},{'.','..'});   % remove current/parent
 profiles = raw(~ignore);
 if isSession1                               % if session 1, ...
-    % Request User Input for Speed Profile Generation
-    opts.Interpreter = 'none';
-    opts.Default = 'No, I generated them already';
-    shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
-        'participant ID and other inputs are correct in ' ...
-        'RunProtocol_C3.m.'], ...
-        'Regenerate Profiles?','Yes','No, I generated them already',opts);
-    switch shouldGenProfiles
-        case 'Yes'
-            % generate speed profiles for both legs as slow leg since
-            % decide later which leg will be fast/slow based on step length
-            dirProfileR = generateProfiles_C3(participantID,'R', ...
-                speedOGMid,speedOGFast);
-            dirProfileL = generateProfiles_C3(participantID,'L', ...
-                speedOGMid,speedOGFast);
-            dirProfile = dirProfileR;
-        case 'No, I generated them already'
-            if isempty(profiles)
-                disp(['There are no profiles found, quitting the ' ...
-                    'script now.']);
+    if ~isCtrl                              % if participant w/stroke, ...
+        % Request User Input for Speed Profile Generation
+        opts.Interpreter = 'none';
+        opts.Default = 'No, I generated them already';
+        shouldGenProfiles = questdlg(['Regenerate profiles? Confirm ' ...
+            'participant ID and other inputs are correct in ' ...
+            'RunProtocol_C3.m.'], ...
+            'Regenerate Profiles?','Yes','No, I generated them already',opts);
+        switch shouldGenProfiles
+            case 'Yes'
+                % generate speed profiles for both legs as slow leg since
+                % decide later which leg will be fast/slow based on step length
+                dirProfileR = generateProfiles_C3(participantID,'R', ...
+                    speedOGMid,speedOGFast);
+                dirProfileL = generateProfiles_C3(participantID,'L', ...
+                    speedOGMid,speedOGFast);
+                dirProfile = dirProfileR;
+            case 'No, I generated them already'
+                if isempty(profiles)
+                    disp(['There are no profiles found, quitting the ' ...
+                        'script now.']);
+                    return;
+                else
+                    disp(['The profiles are already generated, continuing ' ...
+                        'with the experiment.']);
+                    dirProfile = fullfile(dirBase,participantID, ...
+                        profiles(1).name);
+                end
+            otherwise
+                disp('No response was provided, quitting the script now.');
                 return;
-            else
-                disp(['The profiles are already generated, continuing ' ...
-                    'with the experiment.']);
-                dirProfile = fullfile(dirBase,participantID, ...
-                    profiles(1).name);
-            end
-        otherwise
-            disp('No response was provided, quitting the script now.');
+        end
+    else                                    % otherwise, matched control
+        if isempty(profiles)
+            disp(['There are no profiles found, quitting the ' ...
+                'script now.']);
             return;
+        else
+            fprintf(['Using the profiles from match %s, continuing ' ...
+                'with the experiment.'],participantID_Stroke);
+            dirProfile = fullfile(dirBase,participantID_Stroke, ...
+                profiles.name);
+        end
     end
     % display slow, fast, and middle speeds for experimenter documentation
-    load(fullfile(dirProfile,'TM_Adaptation.mat'));
-    fprintf('The slow treadmill speed is %.3f m/s.\n',velR(1));
-    fprintf('The fast treadmill speed is %.3f m/s.\n',velL(1));
     load(fullfile(dirProfile,'TM_Baseline_Mid1.mat'));
     fprintf('The mid treadmill speed is %.3f m/s.\n',velR(1));
+    load(fullfile(dirProfile,'TM_Adaptation.mat'));
+    if velR(1) > velL(1)
+        fprintf('The fast treadmill speed is %.3f m/s.\n',velR(1));
+        fprintf('The slow treadmill speed is %.3f m/s.\n',velL(1));
+    else
+        fprintf('The slow treadmill speed is %.3f m/s.\n',velR(1));
+        fprintf('The fast treadmill speed is %.3f m/s.\n',velL(1));
+    end
 else                                            % otherwise, session 2
     % NOTE: there should only be one profile folder since the irrelevant
     % one should have been deleted in session 1
@@ -105,7 +127,12 @@ else                                            % otherwise, session 2
         return;
     else
         disp('Continuing with the experiment.');
-        dirProfile = fullfile(dirBase,participantID,profiles.name);
+        if isCtrl                       % if control participant, ...
+            dirProfile = fullfile(dirBase,participantID_Stroke, ...
+                profiles.name);
+        else                            % otherwise, participant w/ stroke
+            dirProfile = fullfile(dirBase,participantID,profiles.name);
+        end
     end
 end
 
@@ -200,7 +227,7 @@ while currTrial < maxTrials % while more trials left to collect, ...
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % TODO: implement automatically running SLRealTime script
-            if isSession1                       % if first session, ...
+            if isSession1 && ~isCtrl    % if first session for stroke, ...
                 answer = questdlg(['Now run the ''SLRealtime'' Vicon ' ...
                     'Nexus processing script on the TM_Baseline_Mid1 ' ...
                     'trial. Which leg has the *longer* step length ' ...
@@ -352,7 +379,7 @@ tic;
 transferData_PC1_C3(participantID,isSession1,threshTime);
 toc;
 
-%% Run Reconstruct & Label Pipeline & Automatically Fill Small Marker Gaps
+%% Run Reconstruct & Label Pipeline & Automatically Fill Marker Gaps
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE THE
 % NEXT EXPERIMENTER NEEDS THE LAB SPACE

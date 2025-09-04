@@ -57,7 +57,6 @@ end
 
 pathsCreate = {
     fullfile(dirSrvrData,sess,'Figures')
-    fullfile(dirSrvrData,sess,'SyncFiles')
     };
 
 for p = 1:length(pathsCreate)       % for each path to create, ...
