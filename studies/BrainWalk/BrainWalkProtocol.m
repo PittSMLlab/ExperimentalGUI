@@ -467,19 +467,7 @@ while ~TMprotocolComplete
     elseif strcmpi(visitNum,'TrailRun to familiarize with TM')
         %% Trial run to familiarize with TM and test if participant is comfortable doing the walking study.
         switch currCond
-            case 1 %tmbase fast
-                handles.popupmenu2.set('Value',11) %OPEN Loop
-                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMFast150.mat';
-                manualLoadProfile([],[],handles,profilename)
-                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 150 strides with 1m/s (TMFast150)'); 
-                if ~strcmp(button,'Yes')
-                  return; %Abort starting the exp
-                end
-                numAudioCountDown = [-1]; %count start and end only, no speed change in between
-                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
-                pause(breakTime); 
-                play(AudioTimeUp);
-            case 2 %TMBaselineSlow
+            case 1 %TMBaselineSlow
                 handles.popupmenu2.set('Value',11) %OPEN Loop
                 profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMSlow150.mat';
                 manualLoadProfile([],[],handles,profilename)
@@ -491,7 +479,7 @@ while ~TMprotocolComplete
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
                 pause(breakTime); 
                 play(AudioTimeUp);
-            case 3 %TMBaseline Mid
+            case 2 %TMBaseline Mid
                 handles.popupmenu2.set('Value',11) %OPEN Loop
                 profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMMid300.mat';
                 manualLoadProfile([],[],handles,profilename)
@@ -500,6 +488,18 @@ while ~TMprotocolComplete
                   return; %Abort starting the exp
                 end
                 numAudioCountDown = [-1];%count start and end only, no speed change in between
+                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+                pause(breakTime); 
+                play(AudioTimeUp);
+            case 3 %tmbase fast
+                handles.popupmenu2.set('Value',11) %OPEN Loop
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMFast150.mat';
+                manualLoadProfile([],[],handles,profilename)
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 150 strides with 1m/s (TMFast150)'); 
+                if ~strcmp(button,'Yes')
+                  return; %Abort starting the exp
+                end
+                numAudioCountDown = [-1]; %count start and end only, no speed change in between
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
                 TMprotocolComplete = true;
         end
