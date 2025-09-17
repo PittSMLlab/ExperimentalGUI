@@ -19,7 +19,7 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 % system('C:\Users\cntctsml\Desktop\mount_research.bat')
 
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day))',...
+    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day), or 0 (for trial run to familarize with TM))',...
         'PCNum (1 or 2)',...
         'StudyName (e.g.,BrainWalk)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
         'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
@@ -68,16 +68,16 @@ end
 
 if strcmp(button,'Yes')  %auto fill gap for TM trials only
     batchProcess = true;
-    if PCNum == 1
-        answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
-        'TM Trials to auto process',[1 45],...
-        {'[ ]'});
-        tmTrials = eval(answer{1});
-        if isempty(tmTrials)
-            warning('No TM trials provided, will not do batch processing.')
-            batchProcess = false;
-        end
-    end
+%     if PCNum == 1
+%         answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
+%         'TM Trials to auto process',[1 45],...
+%         {'[ ]'});
+%         tmTrials = eval(answer{1});
+%         if isempty(tmTrials)
+%             warning('No TM trials provided, will not do batch processing.')
+%             batchProcess = false;
+%         end
+%     end
     
     opts.Interpreter = 'tex';
     opts.Default = 'Yes, I checked W drive is present in Nexus.';
@@ -163,7 +163,7 @@ if batchProcess
         try
             tic %TODO: we may want to log the output for debugging/checking later.
             fprintf('...Reconstruct and label and gap filling...\n')
-            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'),tmTrials);
+            dataMotion.processAndFillMarkerGapsSession(fullfile(dirSrvrData,'Vicon'),indsTrials);
             toc
             fprintf('...Batch processing and gap filling complete...\n')
         catch ME

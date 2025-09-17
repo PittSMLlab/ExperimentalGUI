@@ -1,7 +1,7 @@
 %% This script run the Brain walk protocol behavior portion.
 
 %% 1. set up which session to run and dominant leg for each participant
-visitOptions = {'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet)','Visit5(Nirs N-back)'};
+visitOptions = {'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet)','Visit5(Nirs N-back)','TrailRun to familiarize with TM'};
 [visitNum,~] = listdlg('PromptString','What visit is this?','ListString',visitOptions,'SelectionMode','single','ListSize',[200,100]);
 if isempty(visitNum)
     error('Invalid selection. Try again.')
@@ -15,7 +15,7 @@ end
 %display the selections
 visitNum = visitOptions{visitNum}
 
-if ~strcmp(visitNum,'Visit5(Nirs N-back)') %ask dominant leg only for TM sessions
+if ~ismember(visitNum,{'Visit5(Nirs N-back)','TrailRun to familiarize with TM'}) %ask dominant leg only for TM sessions with split
     opts.Interpreter = 'tex';
     opts.Default = 'Right';
     dominantRight = questdlg(['Dominant leg is: '],'', ...
@@ -38,14 +38,14 @@ global numAudioCountDown
 [audio_data,audio_fs]=audioread('TimeToWalk.mp3');
 AudioTimeUp = audioplayer(audio_data,audio_fs);
 
-if ismember(visitNum,{'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet)'})
+if ismember(visitNum,{'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet)','TrailRun to familiarize with TM'})
     TMprotocolComplete = false;
     breakTime = 170; %a little over 3mins
 else
     TMprotocolComplete = true; %not a TM trial, skip the next section
 end
 
-%% Starr the protocol
+%% Start the protocol
 currCond = 0;
 
 while ~TMprotocolComplete
@@ -464,6 +464,44 @@ while ~TMprotocolComplete
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
                 TMprotocolComplete = true;
         end %end of switch for visit 3
+    elseif strcmpi(visitNum,'TrailRun to familiarize with TM')
+        %% Trial run to familiarize with TM and test if participant is comfortable doing the walking study.
+        switch currCond
+            case 1 %tmbase fast
+                handles.popupmenu2.set('Value',11) %OPEN Loop
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMFast150.mat';
+                manualLoadProfile([],[],handles,profilename)
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 150 strides with 1m/s (TMFast150)'); 
+                if ~strcmp(button,'Yes')
+                  return; %Abort starting the exp
+                end
+                numAudioCountDown = [-1]; %count start and end only, no speed change in between
+                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+                pause(breakTime); 
+                play(AudioTimeUp);
+            case 2 %TMBaselineSlow
+                handles.popupmenu2.set('Value',11) %OPEN Loop
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMSlowt150.mat';
+                manualLoadProfile([],[],handles,profilename)
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 150 strides with 0.5 m/s (TMSlow150)'); 
+                if ~strcmp(button,'Yes')
+                  return; %Abort starting the exp
+                end
+                numAudioCountDown = [-1];%count start and end only, no speed change in between
+                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+                pause(breakTime); 
+                play(AudioTimeUp);
+            case 3 %TMBaseline Mid
+                handles.popupmenu2.set('Value',11) %OPEN Loop
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMMid300.mat';
+                manualLoadProfile([],[],handles,profilename)
+                button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 300 strides with 0.75 m/s (TMMid300)'); 
+                if ~strcmp(button,'Yes')
+                  return; %Abort starting the exp
+                end
+                numAudioCountDown = [-1];%count start and end only, no speed change in between
+                AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+        end
         
     end %end of the if else loop per visit
 end %end of big while loop
