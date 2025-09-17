@@ -481,7 +481,7 @@ while ~TMprotocolComplete
                 play(AudioTimeUp);
             case 2 %TMBaselineSlow
                 handles.popupmenu2.set('Value',11) %OPEN Loop
-                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMSlowt150.mat';
+                profilename = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI\profiles\BrainWalk\TMTrialRun\TMSlow150.mat';
                 manualLoadProfile([],[],handles,profilename)
                 button=questdlg('Confirm controller is Open loop controller with audio countdown and profile is 150 strides with 0.5 m/s (TMSlow150)'); 
                 if ~strcmp(button,'Yes')
@@ -501,6 +501,7 @@ while ~TMprotocolComplete
                 end
                 numAudioCountDown = [-1];%count start and end only, no speed change in between
                 AdaptationGUI('Execute_button_Callback',handles.Execute_button,[],handles)
+                TMprotocolComplete = true;
         end
         
     end %end of the if else loop per visit

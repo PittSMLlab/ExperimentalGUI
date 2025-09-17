@@ -14,10 +14,11 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %   indsTrials: (optional) indices of the trials to export to C3D; if
 %       omitted, all trials are processed
 
-% %Mount the drive, first unmount it if it exists.
+%% Mount the drive, first unmount it if it exists.
 % system('C:\Users\cntctsml\Desktop\unmount_research.bat')
 % system('C:\Users\cntctsml\Desktop\mount_research.bat')
 
+%% Gather user input on session info, what data to trasnfer, whether or not they want to just batch process the data, etc.
 if nargin == 0 %no input, ask user
     answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day), or 0 (for trial run to familarize with TM))',...
         'PCNum (1 or 2)',...
@@ -49,6 +50,7 @@ else
     end
 end
 
+%Get time window to copy datalog 
 if PCNum == 1
     threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss') - hours(4); %get everything from 4 hours ago, all protocols should be within 4 hours
     if ~processOnly %only relevant if copying data 
@@ -59,35 +61,43 @@ if PCNum == 1
     end
 end
 
-if PCNum == 1
-    button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
-    %takes 5mins per trial for gap filling
-else
-    button=questdlg('Do you want to batch process export c3d away after copying the data (Select yes if you have 1 hours time on this computer)?');
+%Ask user if they want to immediately process the data after transfering
+if strcmp(visitNum,'V00') %Trial run, no need to process the data, no data there.
+    batchProcess = false; 
+else %other sessions, ask the user what to do
+    if PCNum == 1
+        button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
+        %takes 5mins per trial for gap filling
+    else
+        button=questdlg('Do you want to batch process export c3d away after copying the data (Select yes if you have 1 hours time on this computer)?');
+    end
+
+    if strcmp(button,'Yes') 
+        batchProcess = true;
+        %if want to process TM only (this is obsolete now, new code robust
+        %enough to process all types of trials)
+    %     if PCNum == 1
+    %         answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
+    %         'TM Trials to auto process',[1 45],...
+    %         {'[ ]'});
+    %         tmTrials = eval(answer{1});
+    %         if isempty(tmTrials)
+    %             warning('No TM trials provided, will not do batch processing.')
+    %             batchProcess = false;
+    %         end
+    %     end
+
+        opts.Interpreter = 'tex';
+        opts.Default = 'Yes, I checked W drive is present in Nexus.';
+        reopnNexusAns = 'Yes, I checked W drive is present in Nexus.';
+        button = questdlg(['Is W drive present in Nexus? If not, check that the research drive is mounted to W in file explore. Then close and reopen Vicon Nexus. Click below when nexus is fully reloaded with W drive in the communications panel.'],'', ...
+            reopnNexusAns,opts);
+    else
+        batchProcess = false;
+    end
 end
 
-if strcmp(button,'Yes')  %auto fill gap for TM trials only
-    batchProcess = true;
-%     if PCNum == 1
-%         answer = inputdlg({'Enter TM Trials (integer vector, e.g., [1,3,5]). Only TMTrials will be processed by code, please batch process OG trials using nico_test. '},...
-%         'TM Trials to auto process',[1 45],...
-%         {'[ ]'});
-%         tmTrials = eval(answer{1});
-%         if isempty(tmTrials)
-%             warning('No TM trials provided, will not do batch processing.')
-%             batchProcess = false;
-%         end
-%     end
-    
-    opts.Interpreter = 'tex';
-    opts.Default = 'Yes, I checked W drive is present in Nexus.';
-    reopnNexusAns = 'Yes, I checked W drive is present in Nexus.';
-    button = questdlg(['Is W drive present in Nexus? If not, check that the research drive is mounted to W in file explore. Then close and reopen Vicon Nexus. Click below when nexus is fully reloaded with W drive in the communications panel.'],'', ...
-        reopnNexusAns,opts);
-else
-    batchProcess = false;
-end
-
+%% Define the directory to transfer data from and to.
 dirSrvrData = fullfile(['W:\' studyName '\Data'],participantID, visitNum); %this can be more robust if we give the full path instead of the mapped letter, e.g., 
 % ['\\share.files.pitt.edu\ssoe\bioe\torres_shared2\Torres
 % Backup\Research\' studyName '\Data']. However, using the direct path
@@ -125,7 +135,8 @@ else
     end
 end
 
-if ~processOnly
+%% Transfer the data if not just to process existing data
+if ~processOnly %not just processing data, first copy the data
     % check if local data directory exists, else raise a warning
     for i = 1:2:numel(srcs)%check srcs, skip every other one bc there is a repeat
         if ~isfolder(srcs{i})
@@ -151,6 +162,7 @@ if ~processOnly
     fprintf('...Data copying successful...\n')
 end
 
+%% Process the data using the automatic pipeline
 if batchProcess    
     if ~strcmpi(button,reopnNexusAns)
         return
@@ -184,6 +196,6 @@ if batchProcess
     end
 end
 
-%now unmount the drive to ensure experiment runs safe without network.
+%% now unmount the drive to ensure experiment runs safe without network.
 % system('C:\Users\cntctsml\Desktop\unmount_research.bat')
 end
