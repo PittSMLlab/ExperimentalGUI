@@ -64,6 +64,7 @@ end
 %Ask user if they want to immediately process the data after transfering
 if strcmp(visitNum,'V00') %Trial run, no need to process the data, no data there.
     batchProcess = false; 
+    processOnly = false; %not an option to just process V00 data, since there is no marker data to process there.
 else %other sessions, ask the user what to do
     if PCNum == 1
         button=questdlg('Do you want to batch process and fill gaps right away after copying the data (Select yes if you have ~2 hours time on this computer)?');
