@@ -114,7 +114,41 @@ end
 %now the tasks are in 0,0,1,1,2,2. Reorder them to be hard-easy ,easy-hard
 %(2,1,0,0,1,2)
 condOrder = condOrder([5 3 1 2 4 6],:);
-save(['BrainGait-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'],'condOrder')
+save(['BrainWalk-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'],'condOrder')
+%% Option 5 Same as Option 4 but generate for 3 back 
+rng(2025); %set seeds for repeatability
+conds = {'walk','stand'};
+condOrder = {};
+for n = 0:3 % Go up to 3-back 
+    conds = {'walk',['walk' num2str(n)],['stand' num2str(n)]};
+    conds = repmat(conds,1,2);
+    for rep = 1:2 %each n repeat twice to get 4 rep per task total
+        condOrder(end+1,:) = conds(randperm(6)); %randomize the orders
+        %after permutation, also add in suffix of -rep1, rep2 to separate
+        %them
+        walkRep = 1; walkNRep = 1; standNRep = 1;
+        for i = 1:6
+            if strcmp(condOrder{end,i},'walk')
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(walkRep)];
+                walkRep = walkRep + 1;
+            elseif strcmp(condOrder{end,i},['walk' num2str(n)])
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(walkNRep)];
+                walkNRep = walkNRep + 1;
+            elseif strcmp(condOrder{end,i},['stand' num2str(n)])
+                condOrder{end,i} = [condOrder{end,i} '-rep' num2str(standNRep)];
+                standNRep = standNRep + 1;
+            end
+        end
+           
+    end
+end
+%now the tasks are in 0,0,1,1,2,2,3,3. Reorder them to be hard-easy ,easy-hard
+%Load the original 2-back 
+condOrder2back = load(['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\studies\BrainWalk\BrainWalk-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat']);
+%Insert the 3-back on the first and last row of the original 2-back
+%condOrder so that it's 3,2,1,0,0,1,2,3
+condOrder3back = [condOrder(7,:); condOrder2back.condOrder;  condOrder(8,:)];
+save(['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\studies\BrainWalk\BrainWalk-n-back-stimulus' filesep 'n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial32100123.mat'],'condOrder3back');
 
 %% Option 4.2. Same as option4, but do 2 reps of each task only to save time.
 %do it in the same order to save datasheet, just drop the last task

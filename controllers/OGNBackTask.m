@@ -85,10 +85,16 @@ end
 
 % Option4. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
 % is repeated twice for total 6 reps per condition (walk will have way more).
-condOption = 4;
-% condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
-condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
-condOrder = condOrder.condOrder;
+% condOption = 4; 
+% % condOrder = load('n-back-condOrder-sameWithinAllRep3_OrderedAcrossTrial210012.mat'); %this loads condOrder
+% condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial210012.mat'); %this loads condOrder
+% condOrder = condOrder.condOrder;
+
+% Option5. Same n in trial, but random n-orders across trials. 3 reps of walk, walkn, standn per trial, and each n
+% is repeated twice for total 6 reps per condition (walk will have way more).
+condOption = 5; 
+condOrder = load('n-back-condOrder-sameWithinAllRep2_OrderedAcrossTrial32100123.mat'); %this loads condOrder
+condOrder = condOrder.condOrder3back;
 
 %% Set up task sequence, recordings and main loop
 
@@ -121,6 +127,9 @@ elseif startsWith(trialType,'Standing Familarization 1back') %full trial familar
 elseif startsWith(trialType,'Standing Familarization 2back') %full trial familarization
     nOrders = {'stand2-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Standing Familarization 3back') %full trial familarization
+    nOrders = {'stand3-rep1'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Full Familarization 0back') 
     nOrders = {'stand0-rep1','walk0-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
@@ -129,6 +138,9 @@ elseif startsWith(trialType,'Full Familarization 1back') %full trial familarizat
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 elseif startsWith(trialType,'Full Familarization 2back') %full trial familarization
     nOrders = {'stand2-rep1','walk2-rep1'}
+    nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
+elseif startsWith(trialType,'Full Familarization 3back') %full trial familarization
+    nOrders = {'stand3-rep1','walk3-rep1'}
     nbackSeqRowIdx = 1; %All the n-back sequence is trial x stimuli matrix, this is the index to use for the current trial. Familiarization use row 1.
 
 else %normal trial
@@ -152,7 +164,7 @@ if twoClikerMode == 2 %2 clickers
     audioids = {'walk','walk0RightBtn','walk1','walk2','stand0RightBtn','stand1','stand2',...
         'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
 elseif twoClikerMode == 1 %1 clicker 2 button
-    audioids = {'walk','walk0Thumb','walk1','walk2','stand0Thumb','stand1','stand2',...
+    audioids = {'walk','walk0Thumb','walk1','walk2','walk3','stand0Thumb','stand1','stand2','stand3',...
         'relax','rest','stopAndRest','0','1','2','3','4','5','6','7','8','9'};
 else
     audioids = {'walk','walk0','walk1','walk2','stand0','stand1','stand2',...
@@ -179,7 +191,7 @@ audioids = strrep(audioids,'Thumb','');
 
 % Load pre-generated task order, load the n-back sequences to use later, save them in key-value maps.
 n_back_sequences = containers.Map();
-for i = 2:7 %walk0-2, stand0-2
+for i = 2:9 %walk0-2, stand0-2
     fullSeq = load([char(randMtd) '-' audioids{i} '-backSequences.mat']);
     %optimize storage to save only the relevant rows and save effort for
     %indexing later.

@@ -12,11 +12,11 @@ ramp2Split = false; % SAH1-16 ramp2Split= true, also there was an coding error s
 speedRatio = 0.7; %slow/fast, SAH 1-16 did speedRatio = 0.5; %starting 7/8/2024, try ratio 1:0.7
 
 % for stroke participant use SAS01V01 (Sub##V## format)
-subjectID = 'SABH06';    % SAH01 for young, SAS01V01 for stroke
+subjectID = 'SABH08';    % SAH01 for young, SAS01V01 for stroke
 % To use the GUI to automatically compute the 6MWT speed, call
 %   utils.extractSpeedsNMWT();
 % and update the 'fast' speed below with output value
-fast = 1.3963;     % speed m/s
+fast = 1.1216;     % speed m/s
 %if 2:1 ratio, slow=0.5*fast, if 70%, slow = 0.7*fast
 slow = fast * speedRatio;
 
@@ -30,7 +30,7 @@ threshTime = datetime('now','InputFormat','dd-MMM-yyyy HH:mm:ss');
 
 %% Generate Baseline or Adaptation Speed Profiles from Experimenter Input
 dirProfile = ['C:\Users\Public\Documents\MATLAB\ExperimentalGUI\' ...
-    'profiles\SpinalAdaptNirsStudy\' subjectID];
+    'profiles\SpinalAdaptNirsStudy\' subjectID filesep];
 answer = 'Yes';                     % default to 'yes', don't check it
 if contains(subjectID,'V01')        % 2 visits detected, this is visit 1
     answer = questdlg(['Stroke Session 1: Fast leg should be ' ...
@@ -57,9 +57,9 @@ switch profileToGen
             return;     % abort starting the trial
         end
         % generate baseline speed profiles only
-        GenerateProfileSpinalBoutStudy(slow, fast, true, dirProfile);
+        generateProfiles_SpinalAdaptBouts(slow, fast, true, dirProfile);
         % generate rest of profiles after determining dominant leg & ramp
-        GenerateProfileSpinalBoutStudy(slow, fast, false, dirProfile, ...
+        generateProfiles_SpinalAdaptBouts(slow, fast, false, dirProfile, ...
             fastLeg, ramp2Split);
     case 'No, I generated them already'
         % continue
@@ -253,7 +253,7 @@ isCalibration = runWalkingCalibrations(handles,dirProfile);
 % pause for one minute to allow Vicon Nexus to stop and save last trial
 pause(60);
 tic;
-transferData_SpinalAdapt(subjectID,threshTime);
+transferData_SpinalAdaptBouts(subjectID,threshTime);
 toc;
 
 %% Run Reconstruct & Label Pipeline & Automatically Fill Marker Gaps

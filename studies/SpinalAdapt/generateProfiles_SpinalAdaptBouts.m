@@ -1,4 +1,4 @@
-function [profileDir] = GenerateProfileSpinalBoutStudy(slow, fast, baseOnly, profileDir, fastLeg, ramp2Split)
+function [profileDir] = generateProfiles_SpinalAdaptBouts(slow, fast, baseOnly, profileDir, fastLeg, ramp2Split)
 %take info from the nirsTrainInfo to generate profiles for other conditions
 %(non-train) in the protocol and save them
 %Input:

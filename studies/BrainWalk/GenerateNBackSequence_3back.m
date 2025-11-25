@@ -12,7 +12,7 @@ close all; clear all; clc
 scriptDir = fileparts(matlab.desktop.editor.getActiveFilename);
 saveDir = [scriptDir filesep 'BrainWalk-n-back-stimulus\' '3-back' filesep];
 
-randMtd = ISIRandMethod.normal;
+randMtd = ISIRandMethod.uniform;
 
 %Optional, add audio to path
 % audioPath = [scriptDir filesep 'AudioInstructionsMP3' filesep];

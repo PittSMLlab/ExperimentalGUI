@@ -24,7 +24,8 @@ classdef NBackHelper
             % Copyright: Sensorimotor Learning Laboratory 2025
             
             %break down into subsections.
-            subSeqLength = floor(numStimulus/numTarget); %if 12 stim, 3 target, subseq length = 4, insert a random target every 4.
+            
+            subSeqLength = floor((numStimulus-nback)/numTarget); %if 12 stim, 3 target, subseq length = 4, insert a random target every 4.
             targetLocs = zeros(1,numTarget)-1; %initialize to default value = -1, so will go into the while loop at least once bc the existing target is defaulted to -1 everywhere too.
             %if using default nan, will not go into the while loop bc nan doesn't
             %equal nan by matlab default, so would think there is no repeat, a new
@@ -40,11 +41,12 @@ classdef NBackHelper
 
                 %if it's 1back, first possible target location is 2 (need to hear 1 stim first); if it's 2-back, first
                 %possible target location is 3
-                targetLocs(1) = randperm(subSeqLength - nback,1) + nback;
-                for i = 2:numTarget
+%                 targetLocs(1) = randperm(subSeqLength - nback,1) + nback;
+                for i = 1:numTarget
                     targetLocs(i) = randperm(subSeqLength,1) + (i-1)*subSeqLength; %random permutations of 1:arg1, no repeat; then offset by the length of prev sequence generated (the 2nd time, would be 4 + new rand location)
                 end
             end
+            targetLocs = targetLocs + nback;
         end
 
         % Helper funciton to set up inter stimulus intervals (ISI) such that they are between [ISIMin, and ISIMax], but also add up to the total left remaining

@@ -8,8 +8,11 @@
 % Adjust these values before running
 namePort    = "COM4";           % "COM4" Windows, "/dev/ttyACM0" Linux/Mac
 baudRate    = 115200;           % must match Arduino's Serial.begin()
-durationLog = 60;               % total logging time in seconds
-outputFile  = "force_data.csv"; % path to CSV output file
+durationLog = 30;               % total logging time in seconds
+dt = datetime('now');
+dt.Format = 'yyyyMMddHHmmss';
+dateString = string(dt);
+outputFile  = "force_data_" + dateString + ".csv"; % path to CSV output file
 durationPlot  = 2;              % seconds of data to display real-time plot
 
 %% INITIALIZE SERIAL CONNECTION
@@ -52,17 +55,23 @@ tStart = tic;
 timeBuf  = [];
 leftBuf  = [];
 rightBuf = [];
+leftStepBuf = [];
+rightStepBuf = [];
+phaseBuf = [];
 
 while toc(tStart) < durationLog
     % read a line from serial device
     rawLine = readline(s);
-    nums = sscanf(rawLine,'%lu,%d,%d');
-    if numel(nums) == 3
+    nums = sscanf(rawLine,'%lu,%d,%d,%d,%d,%d');
+    if numel(nums) == 6
         tNow = toc(tStart);
         % append to buffers
         timeBuf(end+1)  = nums(1);  %#ok<SAGROW>
         leftBuf(end+1)  = nums(2);  %#ok<SAGROW>
         rightBuf(end+1) = nums(3);  %#ok<SAGROW>
+        leftStepBuf(end+1) = nums(4);%#ok<SAGROW>
+        rightStepBuf(end+1) = nums(5);%#ok<SAGROW>
+        phaseBuf(end+1) = nums(6);  %#ok<SAGROW>
         % trim buffers to durationPlot
         idx   = timeBuf >= tNow - durationPlot;
         tPlot = timeBuf(idx);
@@ -84,7 +93,7 @@ while toc(tStart) < durationLog
         ylim(hAx,[yMin - margin yMax + margin]);
         xlim(hAx,[max(0,tNow-durationPlot) tNow]);
         drawnow limitrate;
-        fprintf(fid,'%lu,%d,%d\n',nums(1),nums(2),nums(3)); % write to CSV
+        fprintf(fid,'%lu,%d,%d,%d,%d,%d\n',nums(1),nums(2),nums(3),nums(4),nums(5),nums(6)); % write to CSV
     else
         % optionally, display or log malformed lines
         fprintf('Warning: could not parse data: "%s"\n',rawLine);
