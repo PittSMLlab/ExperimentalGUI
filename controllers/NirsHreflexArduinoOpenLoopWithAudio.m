@@ -30,11 +30,8 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %through the UI flow of using AdaptationGUI, it's only setible via code and
 %setting params to be global.
 
-%% Set up parameters to communication with NIRS and Arduino (for H-reflex)
-% TODO: update input handling using 'inputParser' (chatGPT recommended)
-%These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
-
 %% Input Handling Using 'inputParser'
+% NOTE: ONLY CHANGE THESE PARAMETERS IF YOU KNOW WHAT YOU ARE DOING
 p = inputParser;
 addRequired(p,'velL',@(x) isnumeric(x) && ~isempty(x));
 addRequired(p,'velR',@(x) isnumeric(x) && ~isempty(x));
