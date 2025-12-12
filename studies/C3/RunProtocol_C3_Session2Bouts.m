@@ -143,65 +143,124 @@ while currTrial < maxTrials % while more trials left to collect, ...
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % no fixed break here - proceed immediately in GUI
-        case 3          % OG Baseline Mid
-            % overground controller with audio count down
-            handles.popupmenu2.set('Value',8);
-            profilename = fullfile(dirProfile,'OG_Baseline_Mid.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Overground ' ...
-                'audio speed feedback and profile is OG_Baseline_Mid']);
-            if ~strcmp(answer,'Yes')
-                return;
+        case 3          % OG Baseline Mid (Or TM Short Exposure Negative)
+            % if matched control participant for C3S24-28 (before switch to
+            % overground post-adaptation after final split bout), ...
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                handles.popupmenu2.set('Value',11);
+                profilename = fullfile(dirProfile, ...
+                    'TM_ShortExposure_Neg.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_ShortExposure_Neg']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                numAudioCountDown = [50 100 -1];
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                pause(pauseTime2min);   % break for at least two minutes
+                play(AudioTimeUp);
+            else
+                % overground controller with audio count down
+                handles.popupmenu2.set('Value',8);
+                profilename = fullfile(dirProfile,'OG_Baseline_Mid.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Overground ' ...
+                    'audio speed feedback and profile is ' ...
+                    'OG_Baseline_Mid']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                % no fixed break here - proceed immediately in GUI
             end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            % no fixed break here - proceed immediately in GUI
-        case 4          % TM Short Exposure Negative
+        case 4          % TM Short Exposure Negative (Or Positive)
             handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'TM_ShortExposure_Neg.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open Loop ' ...
-                'Controller with Audio Countdown and profile is ' ...
-                'TM_ShortExposure_Neg']);
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                profilename = fullfile(dirProfile, ...
+                    'TM_ShortExposure_Pos.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_ShortExposure_Pos']);
+            else
+                profilename = fullfile(dirProfile, ...
+                    'TM_ShortExposure_Neg.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_ShortExposure_Neg']);
+            end
             if ~strcmp(answer,'Yes')
                 return;
             end
             numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            pause(pauseTime2min);       % break for at least two minutes
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                pause(pauseTime3min20sec);  % BP/HR break
+            else
+                pause(pauseTime2min);   % break for at least two minutes
+            end
             play(AudioTimeUp);
-        case 5          % TM Short Exposure Positive
+        case 5          % TM Short Exposure Positive (Or TM Baseline Mid)
             handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'TM_ShortExposure_Pos.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open Loop ' ...
-                'Controller with Audio Countdown and profile is ' ...
-                'TM_ShortExposure_Pos']);
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_Baseline_Mid2']);
+                numAudioCountDown = -1;
+            else
+                profilename = fullfile(dirProfile, ...
+                    'TM_ShortExposure_Pos.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_ShortExposure_Pos']);
+                numAudioCountDown = [50 100 -1];
+            end
             if ~strcmp(answer,'Yes')
                 return;
             end
-            numAudioCountDown = [50 100 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min);
             play(AudioTimeUp);
-        case 6          % TM Baseline Mid Full (Tied)
+        case 6          % TM Baseline Mid Full (Tied) (Or TM Split Bout 1)
             handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open Loop ' ...
-                'Controller with Audio Countdown and profile is ' ...
-                'TM_Baseline_Mid2']);
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                profilename = fullfile(dirProfile,'TM_SplitBout.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_SplitBout']);
+                numAudioCountDown = [25 125 -1];
+            else
+                profilename = fullfile(dirProfile,'TM_Baseline_Mid2.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_Baseline_Mid2']);
+                numAudioCountDown = -1;
+            end
             if ~strcmp(answer,'Yes')
                 return;
             end
-            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min);
             play(AudioTimeUp);
-        case {7,8,9,10,11,12,13,14}      % TM Split Walking Bouts
+        case {7,8,9,10,11,12,13,14} % TM Split Walking Bouts
             handles.popupmenu2.set('Value',11);
             profilename = fullfile(dirProfile,'TM_SplitBout.mat');
             manualLoadProfile([],[],handles,profilename);
@@ -214,51 +273,112 @@ while currTrial < maxTrials % while more trials left to collect, ...
             numAudioCountDown = [25 125 -1];
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
-            if currTrial == 11              % if trial 11, ...
-                pause(pauseTime3min20sec);  % need more time for BP/HR
-            else                            % otherwise, ...
-                pause(pauseTime2min);       % default to two minutes
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                if currTrial == 9               % if trial 9, ...
+                    pause(pauseTime3min20sec);  % need more time for BP/HR
+                else                            % otherwise, ...
+                    pause(pauseTime2min);       % default to two minutes
+                end
+            else
+                if currTrial == 11              % if trial 11, ...
+                    pause(pauseTime3min20sec);  % need more time for BP/HR
+                else                            % otherwise, ...
+                    pause(pauseTime2min);       % default to two minutes
+                end
             end
             play(AudioTimeUp);
-        case 15                             % Final TM Split Bout
+        case 15         % Final TM Split Bout (Or TM Post-Adaptation)
             handles.popupmenu2.set('Value',11);
-            profilename = fullfile(dirProfile,'TM_SplitBout_Short.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Open Loop ' ...
-                'Controller with Audio Countdown and profile is ' ...
-                'TM_SplitBout_Short']);
-            if ~strcmp(answer,'Yes')
-                return;
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'PostAdaptation']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                numAudioCountDown = -1;
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                pause(pauseTime3min20sec);
+            else
+                profilename = fullfile(dirProfile, ...
+                    'TM_SplitBout_Short.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'TM_SplitBout_Short']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                numAudioCountDown = [25 -1];
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                pause(pauseTime1min);       % short before post-adaptation
             end
-            numAudioCountDown = [25 -1];
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            pause(pauseTime1min);           % short before post-adaptation
             play(AudioTimeUp);
-        case 16                             % OG Post-Adaptation Long
-            handles.popupmenu2.set('Value',8);
-            profilename = fullfile(dirProfile,'PostAdaptation_Long.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Overground ' ...
-                'audio speed feedback and profile is PostAdaptation_Long']);
-            if ~strcmp(answer,'Yes')
-                return;
+        case 16         % OG Post-Adaptation Long (Or TM Post-Adaptation)
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                handles.popupmenu2.set('Value',11);
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'PostAdaptation']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                numAudioCountDown = -1;
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                pause(pauseTime2min);
+            else
+                handles.popupmenu2.set('Value',8);
+                profilename = fullfile(dirProfile, ...
+                    'PostAdaptation_Long.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Overground ' ...
+                    'audio speed feedback and profile is ' ...
+                    'PostAdaptation_Long']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+                pause(pauseTime3min20sec);      % need more time for BP/HR
             end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            pause(pauseTime3min20sec);      % need more time for BP/HR
             play(AudioTimeUp);
-        case 17                             % OG Post-Adaptation
-            handles.popupmenu2.set('Value',8);
-            profilename = fullfile(dirProfile,'PostAdaptation.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Overground ' ...
-                'audio speed feedback and profile is PostAdaptation']);
-            if ~strcmp(answer,'Yes')
-                return;
+        case 17         % OG Post-Adaptation (Or TM Post-Adaptation)
+            if isCtrl && any(strcmpi(participantID_Stroke, ...
+                    {'C3S24','C3S25','C3S26','C3S27','C3S28'}))
+                handles.popupmenu2.set('Value',11);
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Open Loop ' ...
+                    'Controller with Audio Countdown and profile is ' ...
+                    'PostAdaptation']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                numAudioCountDown = -1;
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
+            else
+                handles.popupmenu2.set('Value',8);
+                profilename = fullfile(dirProfile,'PostAdaptation.mat');
+                manualLoadProfile([],[],handles,profilename);
+                answer = questdlg(['Confirm controller is Overground ' ...
+                    'audio speed feedback and profile is PostAdaptation']);
+                if ~strcmp(answer,'Yes')
+                    return;
+                end
+                AdaptationGUI('Execute_button_Callback', ...
+                    handles.Execute_button,[],handles);
             end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
     end
 end
 
