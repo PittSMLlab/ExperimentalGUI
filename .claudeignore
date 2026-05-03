@@ -2,10 +2,12 @@
 *.mat
 *.fig
 *.mexa64
+*.mexw64
 *.so
 *.pdf
 *.gif
 *.png
+*.mp3
 
 # MATLAB auto-save
 *.asv
