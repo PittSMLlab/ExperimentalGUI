@@ -1,7 +1,4 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working
-with code in this repository.
+# CLAUDE.md — ExperimentalGUI Repository Instructions
 
 ## Repository Overview
 ExperimentalGUI is a MATLAB framework for running real-time split-belt
@@ -139,9 +136,7 @@ AdaptationGUI (GUI init, global state, audio setup)
 All code must be compatible with MATLAB R2021a through the current
 release. Do not use language features, functions, or syntaxes
 introduced after R2021a without an explicit compatibility note.
-Similarly, do not use functions removed before R2021a. A common
-example in older lab code: `findstr` was removed in R2014b and must
-be replaced with `strfind`.
+Similarly, do not use functions removed before R2021a.
 
 ## Code Style Requirements
 - Wrap lines at 76 characters (the MATLAB editor default)
@@ -273,40 +268,23 @@ function definition and adds no information.
   the 76-character line-wrap rule
 
 ### Writing Comments
-Write comments to help a future reader (including yourself) understand
-purposes and decisions that are not obvious from the code itself.
+Write comments to help a future reader understand purposes and
+decisions not obvious from the code itself.
 
 **Write a comment when:**
-- Starting a new `%%` section — the header *is* the comment; make it
-  descriptive (see section header guidance above).
-- A group of statements implements a non-obvious algorithm or
-  multi-step procedure — add a short block comment above the group
-  summarizing what it does and, if non-obvious, why that approach
-  was chosen.
-- A single line encodes a domain-specific rule, constraint, or
-  formula — add an end-of-line comment explaining its meaning:
-  ```matlab
-  bias = mean(stepAsym(end-39:end));  % mean of last 40 non-bad strides
-  pval = results.pValue(2);           % LRT p-value (second row = complex model)
-  ```
+- Starting a new `%%` section — make the header descriptive.
+- A group of statements implements a non-obvious algorithm — add a
+  short block comment summarizing what it does and why.
+- A single line encodes a domain-specific rule or formula — add an
+  end-of-line comment explaining its meaning.
 - A value is a magic number whose meaning would not be obvious to
-  a reader unfamiliar with the study protocol:
-  ```matlab
-  numBase = 40;   % strides used to estimate baseline bias
-  alpha   = 0.05; % significance threshold for likelihood ratio test
-  ```
+  a reader unfamiliar with the study protocol.
 - A decision could reasonably have been made differently — explain
-  why this choice was made:
-  ```matlab
-  % must use ML (not REML) for valid likelihood ratio test
-  lme = fitlme(tbl, formula, 'FitMethod', 'ML');
-  ```
+  why this choice was made.
 
-**Omit a comment when:**
-- The identifier names already make the purpose completely clear.
-  `participantIDs = unique(tbl.Participant)` needs no comment.
-- The comment would merely restate the code in English
-  (`% increment counter` above `ii = ii + 1`).
+**Omit a comment when** the identifier names already make the purpose
+completely clear, or the comment would merely restate the code in
+English.
 
 **Special prefixes:**
 - `% TODO:` — known incomplete work or a known limitation to
@@ -316,22 +294,9 @@ purposes and decisions that are not obvious from the code itself.
   remove.
 
 ### Comment Preservation
-
-When editing existing files, preserve all of the following:
-
-- **Step-labeling comments** — short inline or block comments that
-  label distinct steps in a multi-step algorithm (e.g., `% round to
-  integer and canonicalize by sorting for the cache key`). These are
-  navigation aids for readers of complex code.
-- **WHY comments** — comments explaining a non-obvious decision, a
-  hidden constraint, or a subtle invariant (e.g., `% must use ML for
-  valid likelihood ratio test`).
-- **Commented-out code** — alternative implementations or temporarily
-  disabled code that the author hasn't decided to delete (e.g., an
-  `% alternatively:` block). These represent work in progress.
-- **End-of-line clarifications** — inline comments on assignment lines
-  that clarify units, roles, or non-obvious behavior (e.g.,
-  `% Lower bound`, `% safety limit to prevent infinite loops`).
-
-Remove only comments that redundantly restate what the adjacent code
-already makes obvious from its identifier names alone.
+When editing existing files, preserve: step-labeling comments (navigation
+aids for multi-step algorithms), WHY comments (non-obvious decisions or
+constraints), commented-out code (alternative implementations or
+work-in-progress), and end-of-line clarifications (units, roles, or
+non-obvious behavior). Remove only comments that redundantly restate what
+the adjacent code already makes obvious from its identifier names alone.
