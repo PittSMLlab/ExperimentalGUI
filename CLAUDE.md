@@ -198,6 +198,16 @@ Similarly, do not use functions removed before R2021a.
   `min(x, [], 'omitnan')` / `max(x, [], 'omitnan')`. Writing
   `min(x, 'omitnan')` invokes the element-wise two-array form and
   returns an array, not a scalar.
+  - Define unexplained numeric literals as named constants at the top of
+  the function (or at the top of the `%%` section where they are first
+  used). Give each a descriptive name and add an end-of-line comment
+  documenting the value's source or rationale (e.g., anthropometric
+  table, protocol specification, or empirical threshold):
+  ```matlab
+  shoeWeightKg  = 3.4;   % Nimbus shoe pair mass (two shoes; update if shoes change)
+  gravityAcc    = 9.81;  % gravitational acceleration (m/s^2)
+  impactWinFrac = 0.15;  % impact-peak search window: first 15% of stance
+  ```
 
 ## Documentation Comments
 Every function requires a standard doc block after the definition line.
