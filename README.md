@@ -75,3 +75,10 @@ HreflexStimArduino/         Arduino H-reflex stimulation interface
    toe-off), and updating treadmill belt speeds each stride.
 4. All event timestamps and kinematics are logged to a `datlog` struct and
    saved as a timestamped `.mat` file at trial end.
+
+---
+
+## Development
+
+For coding conventions, documentation standards, and architectural
+guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
