@@ -7,7 +7,8 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 %
 % input(s):
 %   participantID: string or character array of the ID (e.g., 'C3S15')
-%   visitNum: integer representing visit number, allowed values 1-4
+%   visitNum: full string representing the viist name (e.g., V02, V03, or
+%   Y2V02, etc.)
 %   StudyName: string of study name (e.g., YANirsAutomatiictyStudy), this is
 %        typically where the vicon data are collected under and the server
 %        folder name where all data will be saved.
@@ -20,17 +21,19 @@ function transferDataAndSaveC3D_BrainWalk(participantID,visitNum, PCNum, studyNa
 
 %% Gather user input on session info, what data to trasnfer, whether or not they want to just batch process the data, etc.
 if nargin == 0 %no input, ask user
-    answer = inputdlg({'SubjectID (e.g., BW01)','VisitNum (2, 3, 4 (for TMPost + Alphabet day), or 5 (for Nback day), or 0 (for trial run to familarize with TM))',...
+    answer = inputdlg({'SubjectID (e.g., BW01)',...
+        'VisitNum (V02, V03, V04 (for TMPost + Alphabet day), OR Y2V02 (for year 2 returning viists) or V05 (for Nback day), or V00 (for trial run to familarize with TM))',...
         'PCNum (1 or 2)',...
         'StudyName (e.g.,BrainWalk)','Trials to copy (default empty, integer vector, e.g., [1,3,5]))',...
         'Process data only? (default N, copy first and then you can choose if you want to process. Set to Y if you only want to run the auto-processing pipeline.'},...
         'Copy Data to Server And/Or Process Data',[1 45; 1 45; 1 45; 1 45; 1 45; 1 45],...
         {'BW01','2','1','BrainWalk','[ ]','N'});
     participantID = answer{1};
-    if ~isa(eval(answer{2}),'double') %input format check, something that's not a number was inputed, throw an error
-        error('Invalid input given, visit number should be a single digit number')
-    end
-    visitNum = sprintf('V0%d',eval(answer{2}));
+%     if ~isa(eval(answer{2}),'double') %input format check, something that's not a number was inputed, throw an error
+%         error('Invalid input given, visit number should be a single digit number')
+%     end
+%     visitNum = sprintf('V0%d',eval(answer{2}));
+    visitNum = answer{2};
     
     if ~isa(eval(answer{3}),'double') %input format check, something that's not a number was inputed, throw an error
         error('Invalid input given, PC number should a single digit number, 1 or 2')
@@ -42,7 +45,7 @@ if nargin == 0 %no input, ask user
     processOnly = strcmpi(answer{6},'Y');
 else
     narginchk(4,5); %min3, max 4 inputs needed.
-    visitNum = sprintf('V0%d',visitNum);
+%     visitNum = sprintf('V0%d',visitNum);
 
     % set default for indsTrials if not provided
     if nargin < 5
