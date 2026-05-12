@@ -134,179 +134,99 @@ AdaptationGUI (GUI init, global state, audio setup)
 
 ## MATLAB Version Compatibility
 All code must be compatible with MATLAB R2021a through the current
-release. Do not use language features, functions, or syntaxes
-introduced after R2021a without an explicit compatibility note.
-Similarly, do not use functions removed before R2021a.
+release.
 
 ## Code Style Requirements
-- Wrap lines at 76 characters (the MATLAB editor default)
-- Use spaces around `=` and binary comparison operators (`~=`, `==`,
-  `<`, `>`, `<=`, `>=`)
-- Do not use brackets around a single output argument: write
-  `out = func()` not `[out] = func()`
-- Suffix no-argument method calls with `()` to distinguish them from
-  property access: write `obj.method()` not `obj.method`
-- Include a MATLAB `arguments` block immediately after the documentation
-  comment for all functions that accept inputs; declare input sizes,
-  types, and default values there rather than using `nargin` checks.
-  When adding an `arguments` block to an existing function, verify all
-  callers supply the now-required arguments. Place multiline validators
-  on the line(s) following the argument name, indented to align with
-  the argument name:
+- Wrap lines at 76 characters
+- Use spaces around `=` and binary comparison operators
+- No brackets around a single output: `out = func()` not `[out] = func()`
+- Suffix no-argument method calls with `()`: `obj.method()` not
+  `obj.method`
+- Use an `arguments` block when it meaningfully constrains input type/
+  size or replaces a `nargin` check with a declared default. Place it
+  immediately after the documentation comment. Default values must be
+  compile-time constants — compute argument-dependent defaults in the
+  function body. Multiline validators indent to align with the argument:
   ```matlab
   options.Colors (:,3) double ...
       {mustBeInRange(options.Colors, 0, 1)} = []
   ```
-- Use camelCase for function file names and PascalCase for script
-  file names (not underscore-separated). Do not rename existing files
-  unless explicitly instructed — file renaming can complicate git
-  version history. Use camelCase or PascalCase for variable names.
-  Choose names that make their purpose clear without a comment —
-  prefer `participantCount` over `n`, `knotLocations` over `kl`.
-  Abbreviations are acceptable when they are unambiguous in context
-  (e.g., `tbl`, `fig`, `lme`, `pval`).
-- Do not use `i` or `j` as loop index variables (reserved for the
-  imaginary unit in MATLAB). For stride loops use `st`; for generic
-  enumeration use `ii`, `jj`, or `kk`. When iterating over a named
-  collection and a terse abbreviation adds unambiguous clarity, prefer
-  it over `ii`: `mscl` (muscles), `mrkr` (markers), `lbl` (labels),
-  `fld` (fields), `tr` (trials), `con` (conditions), `fp` (force
-  plates), `fi` (files), `stp` (steps), `lg` (legs), `sd` (sides),
-  `ord` (order), `ch` (channels), `stat` (statistics), `hrm`
-  (harmonics). Use `ii` when no short name adds clarity or when a
-  terse name would introduce ambiguity. Never use verbose `i`-prefix
-  names (e.g., `iMuscle`, `iMarker`) — these conflict with the
-  imaginary-unit prohibition.
-- Do not indent the base level of code inside functions, as the MATLAB
-  IDE autoformatter removes this indentation
-- Align `=` signs within a group of closely related assignments to make
-  differences between variable names visually apparent:
+- camelCase for function files, PascalCase for scripts. Do not rename
+  existing files. Choose descriptive variable names; abbreviations are
+  acceptable when unambiguous (`tbl`, `fig`, `lme`, `pval`).
+- Do not use `i` or `j` as loop indices (reserved for imaginary unit).
+  For stride loops use `st`; for generic enumeration use `ii`, `jj`,
+  `kk`. Preferred short names: `mscl` (muscles), `mrkr` (markers),
+  `lbl` (labels), `tr` (trials), `con` (conditions), `fp` (force
+  plates), `ch` (channels). Never use `iMuscle`-style names.
+- Do not indent the base level of code inside functions
+- Align `=` within a group of closely related assignments:
   ```matlab
   minSpacing  = max(1, round(options.MinSpacing));
   optimizeFor = upper(options.OptimizeFor);
   maxEvals    = round(options.MaxEvals);
   ```
-  Apply this within a logical group; do not force alignment across
-  unrelated statements separated by blank lines.
-- Write decimal numbers with an explicit leading zero: use `0.5`
-  not `.5`.
-- Use modern NaN-omitting aggregation functions rather than the
-  deprecated `nan*` family: write `mean(x, 'omitnan')` instead of
-  `nanmean(x)`, and equivalently for `median`, `std`, and `sum`.
-  For `min` and `max`, the `'omitnan'` flag requires an explicit
-  empty placeholder for the second argument:
-  `min(x, [], 'omitnan')` / `max(x, [], 'omitnan')`. Writing
-  `min(x, 'omitnan')` invokes the element-wise two-array form and
-  returns an array, not a scalar.
-  - Define unexplained numeric literals as named constants at the top of
-  the function (or at the top of the `%%` section where they are first
-  used). Give each a descriptive name and add an end-of-line comment
-  documenting the value's source or rationale (e.g., anthropometric
-  table, protocol specification, or empirical threshold):
+- Write `0.5` not `.5`
+- Use `mean(x, 'omitnan')` not `nanmean(x)` (similarly for `median`,
+  `std`, `sum`). For `min`/`max`: `min(x, [], 'omitnan')`.
+- Define unexplained numeric literals as named constants with an
+  end-of-line comment giving their source or rationale:
   ```matlab
-  shoeWeightKg  = 3.4;   % Nimbus shoe pair mass (two shoes; update if shoes change)
   gravityAcc    = 9.81;  % gravitational acceleration (m/s^2)
-  impactWinFrac = 0.15;  % impact-peak search window: first 15% of stance
+  impactWinFrac = 0.15;  % first 15% of stance (protocol spec)
   ```
 
 ## Documentation Comments
 Every function requires a standard doc block after the definition line.
 
-**H1 line** — the first comment line, on the line immediately after
-`function`. No space between `%` and the function name; the name is
-in ALL CAPS, followed by a brief one-line description. This is the
-only place in a comment block where there is no space after `%`:
+**H1 line** — immediately after `function`, no space between `%` and
+the function name; name in ALL CAPS:
 ```matlab
 %MYFUNCTION Compute stride-by-stride parameters from GRF data.
 ```
 
-**Description** — follows the H1 line with exactly one blank comment
-line (`%`) between them. No section header. Use paragraph
-indentation: the first line of each paragraph is indented three
-spaces after `%`; all continuation lines in the same paragraph use
-one space after `%`:
+**Description** — one blank comment line after H1, then paragraphs
+with first line indented three spaces, continuation lines one space:
 ```matlab
 %
-%   First sentence of description, indented.
-% Continuation lines use one space after %.
-%
-%   A second paragraph, again indented on its first line.
-% Continuation lines use one space here too.
+%   First sentence of description.
+% Continuation line uses one space after %.
 ```
 
-**Inputs / Outputs** — labeled section headers (`% Inputs:`,
-`% Outputs:`), with each argument indented three spaces:
+**Inputs / Outputs**:
 ```matlab
 % Inputs:
-%   argName - description of the argument
+%   argName - description
 %
 % Outputs:
-%   out - description of the output
+%   out - description
 ```
 
-**Examples** (optional) — include after Outputs when it would
-clarify how the function is used within the labTools pipeline.
+**Toolbox Dependencies** — list required toolboxes; `None` if only
+core MATLAB.
 
-**Toolbox Dependencies** — list any required MATLAB toolboxes;
-state `None` if only core MATLAB is required.
-
-**See Also** — function names must be ALL CAPS so that MATLAB
-renders them as clickable hyperlinks in the Command Window:
+**See Also** — ALL CAPS for clickable hyperlinks:
 ```matlab
 % See also RELATEDFUNCTION, ANOTHERFUNCTION.
 ```
 
-Do not include a `Syntax` section — it redundantly restates the
-function definition and adds no information.
-
 ## Code Organization
-- Use `%%` section headers to divide every script and function into
-  named logical phases. The header text should name the phase, not
-  describe the code:
-  ```matlab
-  %% Validate Input Arguments
-  %% Fit Zero-Knot Linear Mixed-Effects Model (ML)
-  %% Prepare Output Data Structure
-  ```
-- Separate sections with a single blank line before the `%%` header.
-  Separate logically distinct groups of statements within a section
-  with a single blank line.
-- Maintain consistent whitespace and indentation throughout.
-- In the 'Labels and Descriptions' `aux` block found in parameter
-  computation functions, keep each parameter name and its description
-  on a single line regardless of length — this block is exempt from
-  the 76-character line-wrap rule
+- Use `%%` section headers for all named logical phases; header text
+  names the phase, not the code.
+- Separate sections with a single blank line before `%%`. Separate
+  logically distinct statement groups within a section with a blank
+  line.
 
 ### Writing Comments
-Write comments to help a future reader understand purposes and
-decisions not obvious from the code itself.
+**Write a comment when:** starting a new `%%` section; a non-obvious
+algorithm needs a block summary; a line encodes a domain rule or
+formula; a magic number needs a source; a decision could have gone
+another way. **Omit** when identifiers already make the purpose clear.
 
-**Write a comment when:**
-- Starting a new `%%` section — make the header descriptive.
-- A group of statements implements a non-obvious algorithm — add a
-  short block comment summarizing what it does and why.
-- A single line encodes a domain-specific rule or formula — add an
-  end-of-line comment explaining its meaning.
-- A value is a magic number whose meaning would not be obvious to
-  a reader unfamiliar with the study protocol.
-- A decision could reasonably have been made differently — explain
-  why this choice was made.
+Special prefixes: `% TODO:` for known incomplete work; `% NOTE:` for
+important caveats or non-obvious constraints.
 
-**Omit a comment when** the identifier names already make the purpose
-completely clear, or the comment would merely restate the code in
-English.
-
-**Special prefixes:**
-- `% TODO:` — known incomplete work or a known limitation to
-  revisit later.
-- `% NOTE:` — an important caveat, subtle invariant, or
-  non-obvious constraint that future editors must not accidentally
-  remove.
-
-### Comment Preservation
-When editing existing files, preserve: step-labeling comments (navigation
-aids for multi-step algorithms), WHY comments (non-obvious decisions or
-constraints), commented-out code (alternative implementations or
-work-in-progress), and end-of-line clarifications (units, roles, or
-non-obvious behavior). Remove only comments that redundantly restate what
-the adjacent code already makes obvious from its identifier names alone.
+When editing existing files, preserve: step-labeling comments,
+WHY comments, commented-out alternative code, and end-of-line
+clarifications (units, roles). Remove only comments that restate what
+identifiers already make obvious.
