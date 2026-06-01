@@ -63,6 +63,7 @@ studies/                    Protocol scripts for individual experiments
   Weber Perception/         Weber's law perceptual discrimination
 +utils/                     Utility functions (data transfer, speed extraction)
 HreflexStimArduino/         Arduino H-reflex stimulation interface
+assets/                     Audio and data assets loaded by AdaptationGUI at startup
 archive/                    Inactive / legacy files (old GUI snapshots,
                             unused scripts, MEX build sources)
 ```

@@ -79,7 +79,7 @@ firstPress=false;
 global feedbackFlag
 feedbackFlag=0;
 global tone
-load('click.mat')
+load(fullfile('assets', 'click.mat'))
 tone=y;
 global lastKeyPress
 lastKeyPress=now;
@@ -91,10 +91,10 @@ global rclicksound
 global lclicksound
 global rFrequency
 global lFrequency
-[rclicksound,rFrequency]=audioread('RightClick.mp3');
-[lclicksound,lFrequency]=audioread('LeftClick.mp3');
+[rclicksound,rFrequency]=audioread(fullfile('assets','RightClick.mp3'));
+[lclicksound,lFrequency]=audioread(fullfile('assets','LeftClick.mp3'));
 global fastbeep
-[fastbeeps,fastbeepf]=audioread('FastBeep.mp3');
+[fastbeeps,fastbeepf]=audioread(fullfile('assets','FastBeep.mp3'));
 fastbeep=audioplayer(fastbeeps,fastbeepf);
 
 % Added by Shuqi 01/19/2022
