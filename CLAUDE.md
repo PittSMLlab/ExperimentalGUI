@@ -23,11 +23,6 @@ file must remain in the same directory.
 it as a MATLAB script. Protocol scripts call `AdaptationGUI` and the
 controller functions internally.
 
-**MEX binary:** `mexKbhit.mexw64` (Windows) is a pre-compiled keyboard
-polling utility. The C source is `mexKbhit.c`/`.h`. Recompile with
-`mex mexKbhit.c` only if the binary stops working after a MATLAB
-upgrade.
-
 ## Architecture
 
 ### Layer Overview
@@ -72,7 +67,7 @@ Every controller function follows the same template:
      limb angle); toe-off via vertical marker velocity / force-plate Fz
      threshold.
    - On ipsilateral toe-off: advance the profile index, call
-     `getPayload_wda` to format the 64-byte treadmill packet, send via
+     `getPayload` to format the 64-byte treadmill packet, send via
      `sendTreadmillPacket`.
    - Append event timestamps and kinematic parameters to log arrays.
 3. **Teardown** — on STOP: save `datlog` as a timestamped `.mat` file
@@ -86,12 +81,12 @@ each loop iteration. Set `STOP = true` from the GUI or keyboard to end
 the trial cleanly. Other globals (`SSspeed`, `SSstdev`, `addLog`, etc.)
 carry state shared between the GUI and running controllers.
 
-**Treadmill communication** — `getPayload_wda` formats a 64-byte packet:
-1 format byte, 9 int16 values (speedR, speedL, speedRR, speedLL, accR,
-accL, accRR, accLL, incline), a checksum byte (255 − data), and 27
-padding bytes. Hard limits: speed ±6500 mm/s, acceleration ≤ 3000 mm/s².
-`sendTreadmillPacket` sends over a UDP/serial connection initialized
-once at the start of each trial.
+**Treadmill communication** — `getPayload` (external, provided by
+labTools) formats a 64-byte packet: 1 format byte, 9 int16 values
+(speedR, speedL, speedRR, speedLL, accR, accL, accRR, accLL, incline),
+a checksum byte (255 − data), and 27 padding bytes. Hard limits: speed
+±6500 mm/s, acceleration ≤ 3000 mm/s². `sendTreadmillPacket` sends
+over a UDP/serial connection initialized once at the start of each trial.
 
 **Gait detection** — `FindKinHS` finds local maxima in a limb-angle
 trace (uses `>=`/`<=` to handle plateaus). `FindKinTO` finds local
@@ -108,13 +103,12 @@ communication diagnostics. Saved as `datlogs/<timestamp>_<profile>.mat`.
 
 | Function | Purpose |
 |---|---|
-| `getPayload_wda` | Format 64-byte treadmill control packet |
+| `getPayload` | Format 64-byte treadmill control packet (external, labTools) |
 | `sendTreadmillPacket` | Transmit packet to Bertec treadmill |
 | `FindKinHS` / `FindKinTO` | Heel-strike / toe-off detection from kinematics |
 | `parseEventsFromSpeeds` | Classify stride phases from speed profile vectors |
 | `utils.transferData` | Recursively archive datlogs to server |
 | `smoothStop` | Ramp both belts to zero safely |
-| `getkeywait` / `kbhit` | Non-blocking keyboard polling during trials |
 
 ### Full Call Chain
 
@@ -125,7 +119,7 @@ AdaptationGUI (GUI init, global state, audio setup)
        └─ calls controllerFunction(velL, velR, ...)
             ├─ NexusGetFrame (Vicon polling)
             ├─ FindKinHS / FindKinTO (gait events)
-            ├─ getPayload_wda → sendTreadmillPacket (belt update)
+            ├─ getPayload → sendTreadmillPacket (belt update)
             ├─ append to datlog arrays (each stride)
             └─ on STOP: save datlog .mat → utils.transferData
 ```
