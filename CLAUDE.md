@@ -146,11 +146,8 @@ release.
   size or replaces a `nargin` check with a declared default. Place it
   immediately after the documentation comment. Default values must be
   compile-time constants — compute argument-dependent defaults in the
-  function body. Multiline validators indent to align with the argument:
-  ```matlab
-  options.Colors (:,3) double ...
-      {mustBeInRange(options.Colors, 0, 1)} = []
-  ```
+  function body. Multiline validators indent to align with the argument
+  name (see CONTRIBUTING.md for full examples).
 - camelCase for function files, PascalCase for scripts. Do not rename
   existing files. Choose descriptive variable names; abbreviations are
   acceptable when unambiguous (`tbl`, `fig`, `lme`, `pval`).
@@ -160,21 +157,14 @@ release.
   `lbl` (labels), `tr` (trials), `con` (conditions), `fp` (force
   plates), `ch` (channels). Never use `iMuscle`-style names.
 - Do not indent the base level of code inside functions
-- Align `=` within a group of closely related assignments:
-  ```matlab
-  minSpacing  = max(1, round(options.MinSpacing));
-  optimizeFor = upper(options.OptimizeFor);
-  maxEvals    = round(options.MaxEvals);
-  ```
+- Align `=` within a group of closely related assignments
 - Write `0.5` not `.5`
 - Use `mean(x, 'omitnan')` not `nanmean(x)` (similarly for `median`,
   `std`, `sum`). For `min`/`max`: `min(x, [], 'omitnan')`.
 - Define unexplained numeric literals as named constants with an
-  end-of-line comment giving their source or rationale:
-  ```matlab
-  gravityAcc    = 9.81;  % gravitational acceleration (m/s^2)
-  impactWinFrac = 0.15;  % first 15% of stance (protocol spec)
-  ```
+  end-of-line comment giving their source or rationale.
+- Prefer `fullfile(...)` over string concatenation with `filesep`:
+  `fullfile(dir, 'file.mat')` not `[dir filesep 'file.mat']`
 
 ## Documentation Comments
 Every function requires a standard doc block after the definition line.
@@ -185,30 +175,18 @@ the function name; name in ALL CAPS:
 %MYFUNCTION Compute stride-by-stride parameters from GRF data.
 ```
 
-**Description** — one blank comment line after H1, then paragraphs
-with first line indented three spaces, continuation lines one space:
-```matlab
-%
-%   First sentence of description.
-% Continuation line uses one space after %.
-```
+**Description** — one blank comment line after H1; first line indented
+three spaces, continuation lines one space.
 
-**Inputs / Outputs**:
-```matlab
-% Inputs:
-%   argName - description
-%
-% Outputs:
-%   out - description
-```
+**Inputs / Outputs** — use separate `% Inputs:` and `% Outputs:`
+headers; list each argument as `%   argName - description`; blank
+comment line between the two headers.
 
 **Toolbox Dependencies** — list required toolboxes; `None` if only
 core MATLAB.
 
 **See Also** — ALL CAPS for clickable hyperlinks:
-```matlab
-% See also RELATEDFUNCTION, ANOTHERFUNCTION.
-```
+`% See also RELATEDFUNCTION, ANOTHERFUNCTION.`
 
 ## Code Organization
 - Use `%%` section headers for all named logical phases; header text
