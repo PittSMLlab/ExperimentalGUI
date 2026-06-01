@@ -27,6 +27,11 @@ ExperimentalGUI separates concerns across three layers:
 
 | Layer | Location | Purpose |
 |---|---|---|
+| GUI | `AdaptationGUI.m/.fig` | Experimenter interface |
+| Controllers | `controllers/` | Real-time speed-control variants |
+| Studies | `studies/` | Experiment-specific protocol scripts |
+| Utilities | `+utils/` | Packet formatting, gait detection, archival |
+| Diagnostics | `diagnostics/` | One-off hardware and system diagnostic scripts |
 
 ---
 

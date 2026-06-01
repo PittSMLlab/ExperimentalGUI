@@ -35,6 +35,8 @@ The codebase has four layers:
    that generate speed profiles and sequence trials
 4. **Utilities** (`+utils/`, root-level helpers) — packet formatting,
    gait detection, data archival
+5. **Diagnostics** (`diagnostics/`) — one-off hardware and system
+   diagnostic analysis scripts
 
 ### Entry Point & User Input
 `AdaptationGUI.m` is a MATLAB GUIDE GUI (requires its companion `.fig`).
