@@ -1,4 +1,4 @@
-function HS = FindKinHS(start,stop,ankdata,n)
+function HS = FindKinHS(start, stop, ankdata, n)
 %FINDKINHS Find heel-strike index as the local maximum of a limb-angle trace.
 %
 %   Scans from start to stop and returns the first index ii such that
@@ -20,25 +20,24 @@ function HS = FindKinHS(start,stop,ankdata,n)
 %
 % See also FINDKINTO.
 
-for i = start:stop
-    if i == 1
+for ii = start:stop
+    if ii == 1
         a = 1;
-    elseif (i-n) < 1
-        a = 1:i-1;
+    elseif (ii - n) < 1
+        a = 1:ii - 1;
     else
-        a = i-n:i-1;
+        a = ii - n:ii - 1;
     end
-    if i == stop
+    if ii == stop
         b = stop;
-    elseif (i+n) > stop
-        b = i+1:stop;
+    elseif (ii + n) > stop
+        b = ii + 1:stop;
     else
-        b = i+1:i+n;
+        b = ii + 1:ii + n;
     end
-    if all(ankdata(i)>=ankdata(a)) && all(ankdata(i)>=ankdata(b)) %HH added "=" for the very rare case where the two max/min are the same value.
+    if all(ankdata(ii) >= ankdata(a)) && all(ankdata(ii) >= ankdata(b))
         break;
     end
 end
-HS = i;
+HS = ii;
 end
-
