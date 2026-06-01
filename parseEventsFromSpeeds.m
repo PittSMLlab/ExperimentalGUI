@@ -1,22 +1,28 @@
 function [eventSteps, eventNames] = parseEventsFromSpeeds(velL, velR)
-% Parase speeds and generate 2 arrays of the same size, 1st one is steps where an event
-% occurs and should be logged, 2nd is a cell array with the corresponding
-% evenet names (Rest, Split, PostTied, Mid, or AccRamp).
-% both leg 0 = Rest
-% leg speed different btw L and R, and btw previous step: ramp
-% leg speed diff btw L and R but same as previous step: split
-% leg speed same and !=0: mid or post depending on previous cnodition.
+%PARSEEVENTSFROMSPEEDS Parse speed vectors to identify trial phase boundaries.
 %
-%Input:
-%   velL: column double vector of the left belt speed
-%   velR: column double vector of the right belt speed. 
-%Output:
-%   eventSteps: number array, steps where an event occurs and should be
-%           logged.
-%   eventName: cell array with the corresponding evenet names (Rest, Split, PostTied, Mid, or AccRamp).
-%       both arrays have the same size.
-    
     accramp = [0;diff(velR) > 0]; 
+%   Returns the stride indices where a phase transition occurs and a
+%   label for each transition. Detects Rest, tied walking, acceleration
+%   ramps, split-belt phases, post-split tied phases, and deceleration
+%   events.
+%
+% Inputs:
+%   velL - left-belt speed profile, Nx1 column vector (mm/s)
+%   velR - right-belt speed profile, Nx1 column vector (mm/s)
+%
+% Outputs:
+%   eventSteps - numeric column vector of stride indices where a phase
+%                transition occurs
+%   eventNames - cell array of strings (same length as eventSteps) with
+%                one of: 'Rest', 'Mid', 'AccRamp', 'Split', 'PostTied',
+%                'DccRamp2Split', 'ChangeSpeedToSlow'
+%
+% Toolbox Dependencies:
+%   None
+%
+% See also NIRSAUTOMATICITYASSESSMENT, NIRSHREREFLEXOPENLOOPWITHAUDIO.
+
     moving = ~(velL == 0 | velR == 0);
     split = (velL - velR)~=0;
     splitramp = [0;diff(abs(velR - velL)) > 0];

@@ -1,14 +1,28 @@
-% Adapted from AdaptationGUI > profilebrowse_Callback --- Executes on button press in profilebrowse.
 function manualLoadProfile(hObject, eventdata, handles, profileNameStr, velR, velL)
-% hObject    handle to profilebrowse (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-%           -- these inputs are kept the same as in AdaptationGUI, matlab
-%           needs it. 
-%profileNameStr:    profile to load
-%velR:       vector of right belt speeds. OPTIONAL. if this arg exist, will
-%            ignore the profileNameStr
-%velL:       vector of left belt speeds. OPTIONA.
+%MANUALLOADPROFILE Load and plot a treadmill speed profile in the GUI axes.
+%
+%   Adapted from AdaptationGUI > profilebrowse_Callback. When velR and
+%   velL are not supplied, loads them from the .mat file named by
+%   profileNameStr. Plots both belts on handles.profileaxes.
+%
+% Inputs:
+%   hObject        - handle to the GUI object (required by GUIDE)
+%   eventdata      - reserved for future MATLAB versions (required by GUIDE)
+%   handles        - GUI handles struct (required by GUIDE)
+%   profileNameStr - path to a .mat file containing velL and velR
+%   velR           - right-belt speed vector (mm/s); optional, overrides
+%                    profileNameStr when provided
+%   velL           - left-belt speed vector (mm/s); optional, overrides
+%                    profileNameStr when provided
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies:
+%   None
+%
+% See also ADAPTATIONGUI.
+
 try
     if nargin == 4 %if no velL and no velR provided
         load(profileNameStr);

@@ -39,5 +39,7 @@ for ii = start:stop
         break;
     end
 end
+
 HS = ii;
+
 end
