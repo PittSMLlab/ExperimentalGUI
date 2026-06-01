@@ -8,15 +8,15 @@
 %% Identify All CSV Files to Process & Analyze
 cd(['Z:\Nathan\BertecTreadmillAndForcePlates\' ...
     '20250510_BertecTreadmillForcePlatesTest\Vicon']);
-filesCSV = dir('*.csv');            % all CSV files in current directory
+filesCSV    = dir('*.csv');          % all CSV files in current directory
 numFilesCSV = numel(filesCSV);      % number of CSV files
 
 %% Extract Quality Metrics from CSV Files
 % time of the recording from the start of the treadmill in minutes
 timeFromTMStartMin = [5 6 187 244 310 367 380 423 481 484];
 numNonZeroesPerSecond = nan(2,numFilesCSV);
-voltMean = nan(2,numFilesCSV);              % in mV
-voltStd = nan(2,numFilesCSV);
+voltMean              = nan(2,numFilesCSV); % in mV
+voltStd               = nan(2,numFilesCSV);
 conditions = {'Baseline','No Arduino Power','No Scale', ...
     'No Pin 10 Breakout','No Pin 3 Breakout','No Pins 10, 3 Breakout', ...
     'No Pin 60 BNC','No Pin 61 BNC','No Pins 53, 54 BNC', ...
@@ -25,16 +25,18 @@ conditions = {'Baseline','No Arduino Power','No Scale', ...
 % column 14: Pin 10
 % column 20: RFz
 % column 29: Pin 3
+SAMPLE_RATE_HZ = 1000; % Vicon Nexus recording rate (Hz)
+NUM_HDR_LINES  = 5;    % number of header lines in Vicon CSV export
 for fi = 1:numFilesCSV              % for each CSV file, ...
     nameFile = fullfile(fullfile(filesCSV(fi).folder,filesCSV(fi).name));
-    csv = readmatrix(nameFile,'NumHeaderLines',5);
-    dur = size(csv,1) / 1000;       % duration in seconds of trial
+    csv = readmatrix(nameFile,'NumHeaderLines',NUM_HDR_LINES);
+    dur = size(csv,1) / SAMPLE_RATE_HZ; % duration in seconds of trial
     numNonZeroesPerSecond(1,fi) = numel(find(csv(:,5))) / dur;
     numNonZeroesPerSecond(2,fi) = numel(find(csv(:,20))) / dur;
-    voltMean(1,fi) = mean(csv(:,14),'omitnan').*1000;
-    voltMean(2,fi) = mean(csv(:,29),'omitnan').*1000;
-    voltStd(1,fi) = std(csv(:,14),'omitnan').*1000;
-    voltStd(2,fi) = std(csv(:,29),'omitnan').*1000;
+    voltMean(1,fi)  = mean(csv(:,14),'omitnan') .* 1000;
+    voltMean(2,fi)  = mean(csv(:,29),'omitnan') .* 1000;
+    voltStd(1,fi)   = std(csv(:,14),'omitnan')  .* 1000;
+    voltStd(2,fi)   = std(csv(:,29),'omitnan')  .* 1000;
 
     figure;
     histogram(csv(:,5),'BinEdges',-7.5:0.5:7.5, ...
