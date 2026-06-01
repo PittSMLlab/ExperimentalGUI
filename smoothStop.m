@@ -1,4 +1,21 @@
 function smoothStop(t)
+%SMOOTHSTOP Ramp both treadmill belts to zero speed safely.
+%
+%   Reads the current belt speeds, first matches the faster belt to the
+%   slower one, then decelerates both to zero. Acceleration rates are set
+%   proportionally so both belts stop at the same time.
+%
+% Inputs:
+%   t - treadmill connection handle
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies:
+%   None
+%
+% See also SENDTREADMILLPACKET, READTREADMILLPACKET, GETPAYLOAD.
+
     %NEW SMOOTH STOP ATTEMPT: (comment to revert)
 %     [cur_speedR,cur_speedL,cur_incl] = getCurrentData(t); %Read treadmill speed
     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
