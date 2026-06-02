@@ -10,6 +10,7 @@ submitting changes.
 ## Table of Contents
 
 1. [Where to Put New Code](#where-to-put-new-code)
+   - [Active Study Constraints](#active-study-constraints)
 2. [MATLAB Version Compatibility](#matlab-version-compatibility)
 3. [Code Style](#code-style)
 4. [Naming Conventions](#naming-conventions)
@@ -32,6 +33,21 @@ ExperimentalGUI separates concerns across three layers:
 | Studies | `studies/` | Experiment-specific protocol scripts |
 | Utilities | `+utils/` | Packet formatting, gait detection, archival |
 | Diagnostics | `diagnostics/` | One-off hardware and system diagnostic scripts |
+
+For guidance on creating a new experimental protocol, see
+[EXPERIMENT_SETUP.md](EXPERIMENT_SETUP.md).
+
+### Active Study Constraints
+
+**BrainWalk** is a longitudinal study (participants return one year
+apart). Do not make functional changes to
+`studies/BrainWalk/BrainWalkProtocol.m` or to the controllers it
+calls: `OGNBackTask`, `NirsAutomaticityAssessment`,
+`controlSpeedWithSteps_edit1_AudioCountDown`, `HreflexOGWithAudio`.
+Style/formatting edits are acceptable; logic changes are not.
+
+**C3** (~3 participants remaining) is also active. Consult the PI
+before making functional changes to scripts in `studies/C3/`.
 
 ---
 
