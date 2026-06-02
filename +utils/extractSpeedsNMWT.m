@@ -29,6 +29,15 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 % Toolbox Dependencies: None
 
 narginchk(0,6);                 % verify correct number of input arguments
+arguments
+    numLaps     double                   = []
+    distInches  double                   = []
+    shouldAdd   {mustBeNumericOrLogical} = []
+    distWalkway (1,1) double             = 12.2 % default: Schenley gym (m)
+    duration    (1,1) double             = 6    % default: 6MWT
+    times_10MWT double                   = NaN  % default: not computed
+end
+
 inch2Meter = 0.0254;            % conversion factor from inches to meters
 secsPerMin = 60;                % seconds per minute (unit conversion)
 dist10MWT  = 10;                % 10-Meter Walk Test distance (m)
