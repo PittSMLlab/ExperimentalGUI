@@ -29,7 +29,9 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 % Toolbox Dependencies: None
 
 narginchk(0,6);                 % verify correct number of input arguments
-INCH2METER = 0.0254;            % conversion factor from inches to meters
+INCH2METER   = 0.0254;          % conversion factor from inches to meters
+SECS_PER_MIN = 60;              % seconds per minute (unit conversion)
+DIST_10MWT_M = 10;              % 10-Meter Walk Test distance (m)
 
 % TODO: if want to get really fancy, handle other numbers of input
 % arguments or passing arguments in different order using 'varargin'
@@ -61,11 +63,11 @@ if nargin == 0                  % if no input arguments, ...
     answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
 
     % extract NMWT/10MWT experimental parameters
-    numLaps = str2double(answer{1});            % number of NMWT laps
-    distInches = str2double(answer{2});         % measure distance (inches)
-    shouldAdd = logical(str2double(answer{3})); % should + or - distance?
+    numLaps     = str2double(answer{1});        % number of NMWT laps
+    distInches  = str2double(answer{2});        % measure distance (inches)
+    shouldAdd   = logical(str2double(answer{3})); % should + or - distance?
     distWalkway = str2double(answer{4});        % walkway distance (meters)
-    duration = str2double(answer{5});           % walk test duration (min.)
+    duration    = str2double(answer{5});        % walk test duration (min.)
     times_10MWT = strsplit(answer{6},' ');      % list 10MWT times (secs)
     if strcmp(times_10MWT{1},'NA')              % if no lap times, ...
         times_10MWT = nan;                      % set to NaN
@@ -76,14 +78,14 @@ else                                            % otherwise, ...
     % set default values for missing inputs
     switch nargin
         case 3
-            distWalkway = 12.2;     % default to 12.2 meters (Schenley gym)
-            duration = 6;           % default to 6MWT
-            times_10MWT = NaN;      % assume user does not care about 10MWT
+            distWalkway = 12.2; % default to 12.2 meters (Schenley gym)
+            duration    = 6;    % default to 6MWT
+            times_10MWT = NaN;  % assume user does not care about 10MWT
         case 4
-            duration = 6;           % default to 6MWT
-            times_10MWT = NaN;      % assume user does not care about 10MWT
+            duration    = 6;    % default to 6MWT
+            times_10MWT = NaN;  % assume user does not care about 10MWT
         case 5
-            times_10MWT = nan;          % assume user does not care about 10MWT
+            times_10MWT = NaN;  % assume user does not care about 10MWT
     end
 end
 
@@ -96,11 +98,11 @@ else                                    % otherwise, subtract distance
     dist_NMWT = (numLaps * distWalkway) - (distInches * INCH2METER);
 end
 % convert walk test duration to seconds for speed in meters per second
-speedNMWT = dist_NMWT / (duration * 60);% NMWT (OG) speed (comfortable)
+speedNMWT = dist_NMWT / (duration * SECS_PER_MIN); % NMWT speed (comfortable)
 
 if nargout == 2                         % if user requests both speeds, ...
     if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
-        speed10MWT = 10 / mean(times_10MWT);    % compute fast OG speed
+        speed10MWT = DIST_10MWT_M / mean(times_10MWT); % fast OG speed
     else
         speed10MWT = nan;               % default to 'NaN'
     end
