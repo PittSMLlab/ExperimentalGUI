@@ -1,15 +1,26 @@
 function transferData(src,dest,threshTime)
-%TRANSFERFILES Recursively transfer all files and subfolders
-%   This function transfers files from the source directory, 'src', to
-% the corresponding destination directory, 'dest', optionally filtering by
-% a threshold time for recent files. If the source directory contains
-% 'datlogs', only files modified after `threshTime` will be transferred.
+%TRANSFERDATA Recursively transfer all files and subfolders
 %
-% input(s):
-%   src: string or character array of the full path to the source directory
-%       to be transferred
-%   dest: string or character array of the full path to the destination
+%   This function transfers files from the source directory, src, to
+% the corresponding destination directory, dest, optionally filtering
+% by a threshold time for recent files. If the source directory
+% contains 'datlogs', only files modified after threshTime will be
+% transferred.
+%
+% Inputs:
+%   src        - string or character array; full path to the source
+%       directory to be transferred
+%   dest       - string or character array; full path to the destination
 %       directory where the data is to be transferred
+%   threshTime - datetime (optional); only files modified after this
+%       time are copied. Pass [] or omit to copy all files.
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies: None
+%
+% See also TRANSFERDATASESS.
 %
 % Example:
 %   utils.transferData('C:\SourceFolder','C:\DestinationFolder', ...

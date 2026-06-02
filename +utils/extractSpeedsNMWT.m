@@ -1,26 +1,32 @@
 function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
     shouldAdd,distWalkway,duration,times_10MWT)
 %EXTRACTSPEEDSNMWT Extracts the speed(s) from an NMWT (with 10MWT embedded)
-%   This function accepts as input (via GUI if no arguments are provided)
-% the raw NMWT (with optional 10MWT embedded) measurements (number of laps,
-% final distance measurement, whether that measurement should be added) and
-% parameters (walkway distance, walk test duration) and optional 10MWT
-% times if embedded in the trial and computes as output the OG walking
-% speed and optional fast (10MWT) speed.
 %
-% input(s):
-%   numLaps: the number of laps to be computed for the participant
-%   distInches: the final distance measurement (in inches) taken by the
-%       yellow tape measure (TODO: if SML has a long tape measure in the
-%       future that is metric can change this to distance in m or cm)
-%   shouldAdd: logical 'true' or 'false' indicating whether the above
+%   This function accepts as input (via GUI if no arguments are provided)
+% the raw NMWT (with optional 10MWT embedded) measurements (number of
+% laps, final distance measurement, whether that measurement should be
+% added) and parameters (walkway distance, walk test duration) and
+% optional 10MWT times if embedded in the trial and computes as output
+% the OG walking speed and optional fast (10MWT) speed.
+%
+% Inputs:
+%   numLaps     - the number of laps to be computed for the participant
+%   distInches  - the final distance measurement (in inches) taken by
+%       the yellow tape measure (TODO: if SML has a long tape measure in
+%       the future that is metric can change this to distance in m or cm)
+%   shouldAdd   - logical true or false indicating whether the above
 %       distance should be added or subtracted from the computed laps
-%   duration: length of time of the NMWT (default: six minutes)
-%   times_10MWT: 1 x N array of 10MWT times to be averaged to compute a
-%       fast OG walking speed (default: NaN, speed not computed)
-% output(s):
-%   speedNMWT: the (comfortable) OG walking speed (in meters / second)
-%   speed10MWT: (optional) the fast OG walking speed (in meters / second)
+%   distWalkway - walkway distance in meters (default: 12.2 for
+%       Schenley Place gym)
+%   duration    - length of time of the NMWT in minutes (default: 6)
+%   times_10MWT - 1 x N array of 10MWT times to be averaged to compute
+%       a fast OG walking speed (default: NaN, speed not computed)
+%
+% Outputs:
+%   speedNMWT  - the (comfortable) OG walking speed (in meters / second)
+%   speed10MWT - (optional) the fast OG walking speed (in m / second)
+%
+% Toolbox Dependencies: None
 
 narginchk(0,6);                 % verify correct number of input arguments
 INCH2METER = 0.0254;            % conversion factor from inches to meters
