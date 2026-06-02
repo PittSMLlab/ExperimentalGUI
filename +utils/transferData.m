@@ -1,4 +1,4 @@
-function transferData(src,dest,threshTime)
+function transferData(src, dest, threshTime)
 %TRANSFERDATA Recursively transfer all files and subfolders
 %
 %   Transfers files from src to dest, optionally filtering by a
@@ -46,36 +46,36 @@ if ~isfolder(dest)              % if destination folder does not exist, ...
         mkdir(dest);            % create it
     catch ME
         error('Failed to create destination directory "%s": %s', ...
-            dest,ME.message);
+            dest, ME.message);
     end
 end
 
 srcContents = dir(src);         % list of all files and folders in source
 
-for k = 1:length(srcContents)   % for each item in source directory, ...
+for k = 1:length(srcContents)  % for each item in source directory, ...
     itemName = srcContents(k).name;
 
     % if current (i.e., working) or parent directory, ...
-    if any(strcmp(itemName,{'.','..'}))
+    if any(strcmp(itemName, {'.', '..'}))
         continue;               % continue to next item (loop iteration)
     end
 
-    srcItem  = fullfile(src,itemName);  % full path of the source item
-    destItem = fullfile(dest,itemName); % full path of the destination item
+    srcItem  = fullfile(src, itemName);  % full path of the source item
+    destItem = fullfile(dest, itemName); % full path of the destination item
 
-    if srcContents(k).isdir             % if item is a directory, ...
-        utils.transferData(srcItem,destItem,threshTime);
-    else                                % otherwise, item is a file
         % if no threshold time provided or file time exceeds threshold, ...
         if isempty(threshTime) || (datetime(srcContents(k).date, ...
                 'InputFormat','dd-MMM-yyyy HH:mm:ss') > threshTime)
+    if srcContents(k).isdir              % if item is a directory, ...
+        utils.transferData(srcItem, destItem, threshTime);
+    else                                 % otherwise, item is a file
             % if item does not exist in destination, ...
             if ~isfile(destItem) % || ~areFilesIdentical(srcItem,destItem)
                 try
-                    copyfile(srcItem,destItem);
+                    copyfile(srcItem, destItem);
                 catch ME
                     warning('Failed to copy file "%s": %s', ...
-                        srcItem,ME.message);
+                        srcItem, ME.message);
                 end
             end
         end
@@ -93,4 +93,3 @@ end
 %     (fileInfo1.datenum == fileInfo2.datenum);
 %
 % end
-

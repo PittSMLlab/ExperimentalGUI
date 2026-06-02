@@ -1,4 +1,4 @@
-function status = transferDataSess(srcs,dests,threshTime)
+function status = transferDataSess(srcs, dests, threshTime)
 %TRANSFERDATASESS Transfers files between multiple source-destination pairs
 %
 %   Transfers files from each source in srcs to the corresponding
@@ -54,9 +54,8 @@ for p = 1:numel(srcs)               % for each source-destination pair, ...
         status(p) = true;           % mark successful if no errors occurred
     catch ME
         warning('Failed to transfer from %s to %s: %s', ...
-            src,dest,ME.message);
+            src, dest, ME.message);
     end
 end
 
 end
-
