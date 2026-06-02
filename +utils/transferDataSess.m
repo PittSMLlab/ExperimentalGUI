@@ -34,13 +34,13 @@ end
 status = false(size(srcs));         % success or failure for each transfer
 
 for p = 1:numel(srcs)               % for each source-destination pair, ...
-    src = srcs{p};                  % current source directory
+    src  = srcs{p};                 % current source directory
     dest = dests{p};                % corresponding destination directory
     try
         % determine if threshold time should be used based on folder name
         if contains(src,'datlogs')  % if data logs, ...
             fprintf('Transferring recent files from %s to %s\n',src,dest);
-            utils.transferData(src,dest,threshTime);% call transfer fxn
+            utils.transferData(src,dest,threshTime); % call transfer fxn
         else
             fprintf('Transferring from %s to %s\n',src,dest);
             utils.transferData(src,dest);       % call data transfer fxn

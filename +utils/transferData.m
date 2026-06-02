@@ -51,8 +51,8 @@ for k = 1:length(srcContents)   % for each item in source directory, ...
         continue;               % continue to next item (loop iteration)
     end
 
-    srcItem = fullfile(src,itemName);   % Full path of the source item
-    destItem = fullfile(dest,itemName); % Full path of the destination item
+    srcItem  = fullfile(src,itemName);  % full path of the source item
+    destItem = fullfile(dest,itemName); % full path of the destination item
 
     if srcContents(k).isdir             % if item is a directory, ...
         utils.transferData(srcItem,destItem,threshTime);
