@@ -79,9 +79,22 @@ archive/                    Inactive / legacy files (old GUI snapshots,
 4. All event timestamps and kinematics are logged to a `datlog` struct and
    saved as a timestamped `.mat` file at trial end.
 
+### Key Functions
+
+| Function | Purpose |
+|---|---|
+| `getPayload` | Format 64-byte treadmill control packet (external, labTools) |
+| `sendTreadmillPacket` | Transmit packet to Bertec treadmill |
+| `FindKinHS` / `FindKinTO` | Heel-strike / toe-off detection from kinematics |
+| `parseEventsFromSpeeds` | Classify stride phases from speed profile vectors |
+| `utils.transferData` | Recursively archive datlogs to server |
+| `smoothStop` | Ramp both belts to zero safely |
+
 ---
 
 ## Development
 
-For coding conventions, documentation standards, and architectural
-guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+For coding conventions and documentation standards, see
+[CONTRIBUTING.md](CONTRIBUTING.md). For hardware setup, active study
+protocols, controller descriptions, and how to create a new protocol,
+see [EXPERIMENT_SETUP.md](EXPERIMENT_SETUP.md).
