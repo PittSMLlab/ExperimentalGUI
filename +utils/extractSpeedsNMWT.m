@@ -28,7 +28,6 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 %
 % Toolbox Dependencies: None
 
-narginchk(0,6);                 % verify correct number of input arguments
 arguments
     numLaps     double                   = []
     distInches  double                   = []
@@ -46,7 +45,7 @@ dist10MWT  = 10;                % 10-Meter Walk Test distance (m)
 % arguments or passing arguments in different order using 'varargin'
 % TODO: is there a way to make this work for Marcela's experiment also
 % (where they only collect 10MWT trials)?
-if nargin == 0                  % if no input arguments, ...
+if isempty(numLaps)             % if no input arguments, ...
     % retrieve N-Minute/10-Meter Walk Test data from experimenter via GUI
     prompt = { ...
         'How many N-Minute Walk Test laps?', ...
@@ -83,24 +82,9 @@ if nargin == 0                  % if no input arguments, ...
     else                                        % otherwise, extract times
         times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
     end
-else                                            % otherwise, ...
-    % set default values for missing inputs
-    switch nargin
-        case 3
-            distWalkway = 12.2; % default to 12.2 meters (Schenley gym)
-            duration    = 6;    % default to 6MWT
-            times_10MWT = NaN;  % assume user does not care about 10MWT
-        case 4
-            duration    = 6;    % default to 6MWT
-            times_10MWT = NaN;  % assume user does not care about 10MWT
-        case 5
-            times_10MWT = NaN;  % assume user does not care about 10MWT
-        otherwise
-            if nargin < 3
-                error(['extractSpeedsNMWT: provide 0 or at ' ...
-                    'least 3 arguments.']);
-            end
-    end
+elseif isempty(distInches) || isempty(shouldAdd)
+    error(['extractSpeedsNMWT: provide 0 or at ' ...
+        'least 3 arguments.']);
 end
 
 % compute NMWT speed
