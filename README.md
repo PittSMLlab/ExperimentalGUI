@@ -53,7 +53,8 @@ For study-specific protocols, run the corresponding script in the
 
 ```
 AdaptationGUI.m/.fig        Main experimenter GUI (entry point)
-controllers/                ~40 real-time speed-controller variants
+controllers/                Active real-time speed controllers and utilities
+  Deprecated/               Inactive backup variants (preserved for history)
 studies/                    Protocol scripts for individual experiments
   BrainWalk/                Cognitive dual-task walking (N-back)
   C3/                       Clinical stroke protocol

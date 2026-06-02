@@ -46,11 +46,11 @@ acceptable; logic changes are not.
 
 ## Controller Reference
 
-The `controllers/` folder contains ~44 `.m` files. Most are inactive
-backups identifiable by suffixes such as `_Backup`, `_bak`,
-`_edit1_old`, or a date (e.g., `_01082016`, `_backup3-06-24`). The
-table below lists the **active controllers** that `AdaptationGUI`
-actually calls.
+The `controllers/` folder contains the active controllers listed below
+plus three supporting utility functions (`generateNbackRestEventString`,
+`generateNirsRestEventString`, `nirsEvent`). Inactive backup variants
+have been moved to `controllers/Deprecated/` and are preserved there
+for reference.
 
 **Recommended starting point for new treadmill protocols:**
 `controlSpeedWithSteps_selfSelect.m`.
@@ -60,6 +60,7 @@ GUI menu slot numbers correspond to `case` labels in
 
 | Menu Slot | Controller | Description | Used By |
 |---|---|---|---|
+| 1 | `controlSpeedWithSteps_edit1` | Basic split-belt controller; fixed speed profile without self-selected speed calibration phase. | General / standalone use |
 | 2–4 | `controlSpeedWithSteps_selfSelect` | Primary split-belt treadmill controller. Stride-synchronized belt updates; establishes self-selected speed baseline. Slot 2 = signed, 3 = unsigned, 4 = closed-loop. | General treadmill adaptation protocols |
 | 7 | `controlSpeedWithSteps_selfSelect_OneClick` | One-click-start variant; trial ends on single response. Used for stride-length based perceptual trials. | Perceptual Adaptation (stride-based) |
 | 9 | `controlSpeedWithSteps_PercAdap` | Perceptual adaptation variant; trial ends on click response, task length is time-based. | Perceptual Adaptation |
@@ -69,6 +70,7 @@ GUI menu slot numbers correspond to `case` labels in
 | 16 | `HreflexOGWithAudio` | Same controller, second menu entry; used for H-reflex OG trials with audio in SpinalAdapt. | SpinalAdapt |
 | 14 | `NirsHreflexOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback. | NirsAutomaticityProtocol, SpinalAdapt (calibration) |
 | 10 | `NirsAutomaticityAssessment` | Overground alphabet dual-task assessment. Records responses and logs events. | BrainWalk, NirsAutomaticityProtocol |
+| 12 | `Dulce_grad_betarev2` | H-reflex gradient computation tool (grad project). | Standalone H-reflex analysis |
 | 13 | `OGNBackTask` | Overground N-back cognitive dual-task; plays audio stimuli and records Wii-remote responses. | BrainWalk |
 | 5 | `SelfSelectedSpeed` | Overground controller for self-selected walking speed calibration. | General calibration |
 | 6 | `SelfSelectedSpeed_NumPad` | NumPad-input variant of self-selected speed calibration. | General calibration |
