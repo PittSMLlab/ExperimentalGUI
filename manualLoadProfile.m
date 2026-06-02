@@ -25,13 +25,13 @@ function manualLoadProfile(hObject, eventdata, handles, profileNameStr, velR, ve
 
 try
     if nargin == 4 % if no velL and no velR provided
-        load(profileNameStr);
+        load(profileNameStr, 'velL', 'velR');
     else
-        disp('Skipping profile, loading velL and velR directly')
+        disp('Skipping profile, loading velL and velR directly');
     end
 
     t = 0:length(velL) - 1;
-    set(handles.profileaxes, 'NextPlot', 'replace')
+    set(handles.profileaxes, 'NextPlot', 'replace');
     plot(handles.profileaxes, t, velL, 'b', t, velR, 'r', 'LineWidth', 2);
     if isrow(velL) && isrow(velR)
         set(handles.profileaxes, 'ylim', ...
@@ -53,7 +53,8 @@ try
         'AutoUpdate', 'off');
     set(handles.profileaxes, 'NextPlot', 'add');
     pause(0.1); % give time for the plot to show up
-catch
+catch ME
+    warning('manualLoadProfile:loadFailed', '%s', ME.message);
 end
 
 end
