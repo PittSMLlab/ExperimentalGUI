@@ -1,42 +1,6 @@
 # CLAUDE.md — ExperimentalGUI Repository Instructions
 
-## Repository Overview
-ExperimentalGUI is a MATLAB framework for running real-time split-belt
-treadmill experiments that study sensorimotor adaptation and biomechanics.
-It interfaces with Vicon motion capture, Bertec treadmills, force plates,
-and optionally Arduino-based H-reflex stimulators.
-
-## How to Run Code
-No build system. All workflows are MATLAB-based.
-
-**Required MATLAB path additions** (see ReadMe.txt for exact paths):
-- `C:\Program Files\Vicon\` — Vicon Nexus SDK
-- `C:\Users\Public\Documents\MATLAB\` — shared lab utilities
-- `C:\Users\cntctsml\Documents\GitHub\labTools\` — labTools package
-
-**Running an experiment:** type `AdaptationGUI` in the MATLAB Command
-Window, or open `AdaptationGUI.m` and press Run. The companion `.fig`
-file must remain in the same directory.
-
-**Running a study protocol:** open the relevant script in `studies/`
-(e.g., `studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`) and run
-it as a MATLAB script. Protocol scripts call `AdaptationGUI` and the
-controller functions internally.
-
 ## Architecture
-
-### Layer Overview
-The codebase has four layers:
-
-1. **GUI** (`AdaptationGUI.m/.fig`) — experimenter interface
-2. **Controllers** (`controllers/`) — ~40 real-time speed-control
-   variants for different protocol needs
-3. **Studies** (`studies/`) — six experiment-specific protocol scripts
-   that generate speed profiles and sequence trials
-4. **Utilities** (`+utils/`, root-level helpers) — packet formatting,
-   gait detection, data archival
-5. **Diagnostics** (`diagnostics/`) — one-off hardware and system
-   diagnostic analysis scripts
 
 ### Entry Point & User Input
 `AdaptationGUI.m` is a MATLAB GUIDE GUI (requires its companion `.fig`).
@@ -78,55 +42,34 @@ Every controller function follows the same template:
 
 ### Key Patterns
 
-**Global control flags** — All controllers read `global STOP PAUSE`
-each loop iteration. Set `STOP = true` from the GUI or keyboard to end
-the trial cleanly. Other globals (`SSspeed`, `SSstdev`, `addLog`, etc.)
-carry state shared between the GUI and running controllers.
+**Global flags** — All controllers declare `global STOP PAUSE` at the
+top. Do not shadow these with local variables. Other globals (`SSspeed`,
+`SSstdev`, `addLog`, etc.) carry state shared with the GUI.
 
-**Treadmill communication** — `getPayload` (external, provided by
-labTools) formats a 64-byte packet: 1 format byte, 9 int16 values
-(speedR, speedL, speedRR, speedLL, accR, accL, accRR, accLL, incline),
-a checksum byte (255 − data), and 27 padding bytes. Hard limits: speed
-±6500 mm/s, acceleration ≤ 3000 mm/s². `sendTreadmillPacket` sends
-over a UDP/serial connection initialized once at the start of each trial.
+**Profile index** — advances once per stride (on ipsilateral toe-off).
+A NaN at position k means stride k is self-paced; the controller holds
+or queries treadmill speed rather than commanding a preset value.
 
-**Gait detection** — `FindKinHS` finds local maxima in a limb-angle
-trace (uses `>=`/`<=` to handle plateaus). `FindKinTO` finds local
-minima. Both operate on a small sliding window and are called once per
-suspected event, not continuously.
+**Treadmill hard limits** — enforced by `getPayload` (labTools):
+speed ±6500 mm/s, acceleration ≤ 3000 mm/s².
 
-**datlog structure** — each controller allocates this struct before the
-loop and appends one entry per gait event. Fields include `buildtime`
-(ISO 8601), `profilename`, `mode`, and per-stride event timestamps
-(`RTOTime`, `LTOTime`, `RHSTime`, `LHSTime`) plus `commSendTime` for
-communication diagnostics. Saved as `datlogs/<timestamp>_<profile>.mat`.
+**datlog fields** — `buildtime` (ISO 8601), `profilename`, `mode`,
+`RTOTime`, `LTOTime`, `RHSTime`, `LHSTime`, `commSendTime`. Saved to
+`datlogs/<timestamp>_<profile>.mat` on STOP.
 
-### Key Functions
+See [EXPERIMENT_SETUP.md](EXPERIMENT_SETUP.md) for the controller
+reference table and protocol creation guide.
 
-| Function | Purpose |
-|---|---|
-| `getPayload` | Format 64-byte treadmill control packet (external, labTools) |
-| `sendTreadmillPacket` | Transmit packet to Bertec treadmill |
-| `FindKinHS` / `FindKinTO` | Heel-strike / toe-off detection from kinematics |
-| `parseEventsFromSpeeds` | Classify stride phases from speed profile vectors |
-| `utils.transferData` | Recursively archive datlogs to server |
-| `smoothStop` | Ramp both belts to zero safely |
+## Active Studies
 
-### Full Call Chain
+**BrainWalk** — longitudinal (visits 1 year apart). Do not make
+functional changes to `studies/BrainWalk/BrainWalkProtocol.m` or
+the controllers it calls: `OGNBackTask`, `NirsAutomaticityAssessment`,
+`controlSpeedWithSteps_edit1_AudioCountDown`, `HreflexOGWithAudio`.
+Style/formatting edits are acceptable; logic changes are not.
 
-```
-AdaptationGUI (GUI init, global state, audio setup)
-  └─ Execute_button_Callback
-       ├─ loads velL, velR from generateProfiles_* output
-       └─ calls controllerFunction(velL, velR, ...)
-            ├─ NexusGetFrame (Vicon polling)
-            ├─ FindKinHS / FindKinTO (gait events)
-            ├─ getPayload → sendTreadmillPacket (belt update)
-            ├─ append to datlog arrays (each stride)
-            └─ on STOP: save datlog .mat → utils.transferData
-```
-
----
+**C3** — active (~3 participants remaining). Functional changes require
+care; consult the user before modifying protocol scripts.
 
 ## MATLAB Version Compatibility
 All code must be compatible with MATLAB R2021a through the current
