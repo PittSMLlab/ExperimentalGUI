@@ -29,9 +29,9 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 % Toolbox Dependencies: None
 
 narginchk(0,6);                 % verify correct number of input arguments
-INCH2METER   = 0.0254;          % conversion factor from inches to meters
-SECS_PER_MIN = 60;              % seconds per minute (unit conversion)
-DIST_10MWT_M = 10;              % 10-Meter Walk Test distance (m)
+inch2Meter = 0.0254;            % conversion factor from inches to meters
+secsPerMin = 60;                % seconds per minute (unit conversion)
+dist10MWT  = 10;                % 10-Meter Walk Test distance (m)
 
 % TODO: if want to get really fancy, handle other numbers of input
 % arguments or passing arguments in different order using 'varargin'
@@ -70,7 +70,7 @@ if nargin == 0                  % if no input arguments, ...
     duration    = str2double(answer{5});        % walk test duration (min.)
     times_10MWT = strsplit(answer{6},' ');      % list 10MWT times (secs)
     if strcmp(times_10MWT{1},'NA')              % if no lap times, ...
-        times_10MWT = nan;                      % set to NaN
+        times_10MWT = NaN;                      % set to NaN
     else                                        % otherwise, extract times
         times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
     end
@@ -93,18 +93,18 @@ end
 if shouldAdd                            % if should add distance, ...
     % compute NMWT distance as sum of # of laps times walkway distance plus
     % remainder distance in inches converted to meters
-    dist_NMWT = (numLaps * distWalkway) + (distInches * INCH2METER);
+    dist_NMWT = (numLaps * distWalkway) + (distInches * inch2Meter);
 else                                    % otherwise, subtract distance
-    dist_NMWT = (numLaps * distWalkway) - (distInches * INCH2METER);
+    dist_NMWT = (numLaps * distWalkway) - (distInches * inch2Meter);
 end
 % convert walk test duration to seconds for speed in meters per second
-speedNMWT = dist_NMWT / (duration * SECS_PER_MIN); % NMWT speed (comfortable)
+speedNMWT = dist_NMWT / (duration * secsPerMin); % NMWT speed (comfortable)
 
 if nargout == 2                         % if user requests both speeds, ...
     if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
-        speed10MWT = DIST_10MWT_M / mean(times_10MWT); % fast OG speed
+        speed10MWT = dist10MWT / mean(times_10MWT); % fast OG speed
     else
-        speed10MWT = nan;               % default to 'NaN'
+        speed10MWT = NaN;               % default to 'NaN'
     end
 end
 

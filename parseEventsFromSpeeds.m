@@ -30,20 +30,20 @@ accramp = accramp & (~splitramp);
 % here 0 = rest, 1 = tied, 1.5 = ramp to tied, 2 = split, 3 = ramp to split
 speedState = moving + splitramp + split + accramp * 0.5;
 dcc = [0; diff(velR) < 0 & diff(velL) < 0 & moving(2:end)];
-%if it's an abrupt protocol will treat the 1st split strides as ramp
-%and the next split stride as full split --> technically correct,
-%1stride ramp. Leave as is. Later has options to analyze start from
-%ramp or 1 stride later.
-%If a protocol starts walking right away with no rest, the first
-%walking start will not also be an event, that needs to be logged
-%manually (stride 1 is not a speed change, which makes sense)
-%steady state/regular walking start at step n bc n-1 and n+1 have the
-%same speed (i.e,. velL=velR = veln = vel_n-1=vel_n+1)
+% if it's an abrupt protocol will treat the 1st split strides as ramp
+% and the next split stride as full split --> technically correct,
+% 1stride ramp. Leave as is. Later has options to analyze start from
+% ramp or 1 stride later.
+% If a protocol starts walking right away with no rest, the first
+% walking start will not also be an event, that needs to be logged
+% manually (stride 1 is not a speed change, which makes sense)
+% steady state/regular walking start at step n bc n-1 and n+1 have the
+% same speed (i.e,. velL=velR = veln = vel_n-1=vel_n+1)
 speedChanges = diff(speedState);
 eventSteps = find(speedChanges) + 1;
-%TODO: need to check compatability
-if speedState(1) == 0 && speedChanges(1) == 0 %start with at least 2 stride of rest
-    %assume if first 2 strides are rest, it's a full on/long rest.
+% TODO: need to check compatability
+if speedState(1) == 0 && speedChanges(1) == 0 % start with at least 2 stride of rest
+    % assume if first 2 strides are rest, it's a full on/long rest.
     eventSteps = [1; eventSteps]; %include 1st rest event.
 end
 eventType = speedState(eventSteps);
@@ -58,7 +58,7 @@ for ii = 1:numel(eventType)
     en = eventType(ii);
     if en == 0
         eventNames{ii} = 'Rest';
-    elseif en == 1 %this could be pre or post tied
+    elseif en == 1 % this could be pre or post tied
         if ii >= 2 && strcmp(eventNames{ii - 1}, 'Split') %previously split
             eventNames{ii} = 'PostTied';
         else
@@ -73,9 +73,9 @@ for ii = 1:numel(eventType)
     elseif en == 100
         eventNames{ii} = 'ChangeSpeedToSlow';
     end
-    %the event words are chosen such that the first letters are
-    %different bc the letters will be used as event codes (1 digit) in
-    %NIRS.
+    % the event words are chosen such that the first letters are
+    % different bc the letters will be used as event codes (1 digit) in
+    % NIRS.
 end
 
 end

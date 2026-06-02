@@ -24,7 +24,7 @@ function manualLoadProfile(hObject, eventdata, handles, profileNameStr, velR, ve
 % See also ADAPTATIONGUI.
 
 try
-    if nargin == 4 %if no velL and no velR provided
+    if nargin == 4 % if no velL and no velR provided
         load(profileNameStr);
     else
         disp('Skipping profile, loading velL and velR directly')
