@@ -157,8 +157,8 @@ release.
 - Write `0.5` not `.5`
 - Use `mean(x, 'omitnan')` not `nanmean(x)` (similarly for `median`,
   `std`, `sum`). For `min`/`max`: `min(x, [], 'omitnan')`.
-- Define unexplained numeric literals as named constants with an
-  end-of-line comment giving their source or rationale.
+- Define unexplained numeric literals as named constants (camelCase)
+  with an end-of-line comment giving their source or rationale.
 - Prefer `fullfile(...)` over string concatenation with `filesep`:
   `fullfile(dir, 'file.mat')` not `[dir filesep 'file.mat']`
 
@@ -183,6 +183,25 @@ core MATLAB.
 
 **See Also** — ALL CAPS for clickable hyperlinks:
 `% See also RELATEDFUNCTION, ANOTHERFUNCTION.`
+
+### GUI Code (GUIDE-Generated Files)
+GUIDE-generated GUI files are exempt from:
+- The `end` keyword after each function definition (GUIDE omits it).
+- H1 comment format for auto-generated stub callbacks (empty
+  `_Callback` / `_CreateFcn` bodies with no logic).
+- The 76-character line limit inside `% Begin/End initialization
+  code - DO NOT EDIT` blocks.
+
+All other style rules apply, including:
+- Loop variables: no `i`/`j`; use `ii`, `jj`, or named vars
+  (`con`, `tr`, `gg` for groups).
+- Property strings: PascalCase (`'Enable'`, `'String'`, `'Value'`,
+  `'BackgroundColor'`, `'ForegroundColor'`); value strings also
+  PascalCase (`'On'`, `'Off'`, `'White'`, etc.). MATLAB is
+  case-insensitive for property values — this is a style convention.
+- Spaces around `=` and after `,`.
+- Full doc blocks on all meaningful callbacks (`OpeningFcn`,
+  `OutputFcn`, and any callback containing substantive logic).
 
 ## Code Organization
 - Use `%%` section headers for all named logical phases; header text
