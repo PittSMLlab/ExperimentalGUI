@@ -86,6 +86,11 @@ else                                            % otherwise, ...
             times_10MWT = NaN;  % assume user does not care about 10MWT
         case 5
             times_10MWT = NaN;  % assume user does not care about 10MWT
+        otherwise
+            if nargin < 3
+                error(['extractSpeedsNMWT: provide 0 or at ' ...
+                    'least 3 arguments.']);
+            end
     end
 end
 
