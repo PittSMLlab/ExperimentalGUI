@@ -24,20 +24,17 @@ function transferData(src, dest, threshTime)
 %   utils.transferData('C:\SourceFolder', 'C:\DestinationFolder', ...
 %       datetime('now') - days(1))
 
-narginchk(2,3);                 % verify correct number of input arguments
+arguments
+    src        {mustBeTextScalar}
+    dest       {mustBeTextScalar}
+    threshTime = []
+end
 
-% validate input paths
 if ~isfolder(src)               % if source folder does not exist, ...
-    error('Source directory "%s" does not exist.',src);
+    error('Source directory "%s" does not exist.', src);
 end
 
-if ~(ischar(dest) || isstring(dest))
-    error('Destination directory must be a string or character array.');
-end
-
-if nargin < 3                   % if no third 'threshTime' input, ...
-    threshTime = [];            % set to empty by default if not provided
-elseif ~isempty(threshTime) && ~isa(threshTime,'datetime')
+if ~isempty(threshTime) && ~isa(threshTime, 'datetime')
     error('Threshold time must be a ''datetime'' object if provided.');
 end
 
