@@ -1,18 +1,16 @@
 function status = transferDataSess(srcs,dests,threshTime)
 %TRANSFERDATASESS Transfers files between multiple source-destination pairs
 %
-%   This function transfers files from each source directory in srcs to
-% the corresponding destination directory in dests, optionally filtering
-% by a threshold time for recent files. If the source directory contains
-% 'datlogs', only files modified after threshTime will be transferred.
+%   Transfers files from each source in srcs to the corresponding
+% destination in dests. Passes threshTime to transferData for each
+% pair; transferData copies all files when threshTime is empty.
 %
 % Inputs:
 %   srcs       - cell array of source directory paths
 %   dests      - cell array of destination directory paths (same size
 %       as srcs)
 %   threshTime - datetime (optional); if provided, only files modified
-%       after this time are transferred for directories containing
-%       'datlogs'
+%       after this time are transferred
 %
 % Outputs:
 %   status - logical array indicating successful transfer (1) or
@@ -23,7 +21,7 @@ function status = transferDataSess(srcs,dests,threshTime)
 % See also TRANSFERDATA.
 %
 % Example:
-%   status = transferDataSess({'src1','src2'},{'dest1','dest2'}, ...
+%   status = transferDataSess({'src1', 'src2'}, {'dest1', 'dest2'}, ...
 %       datetime('now') - days(1));
 
 narginchk(2,3);                     % verify correct number input arguments
