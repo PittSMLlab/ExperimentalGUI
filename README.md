@@ -32,7 +32,8 @@ addpath(genpath('C:\Users\cntctsml\Documents\GitHub\labTools\'));
 - Bertec split-belt instrumented treadmill
 - Vicon motion capture system
 - Force plates (integrated with treadmill or standalone)
-- Arduino (optional, for H-reflex stimulation)
+- Arduino Uno + Digitimer DS8R stimulators (optional, for H-reflex
+  stimulation; see `HreflexStimArduino/README.md`)
 
 ## Getting Started
 
