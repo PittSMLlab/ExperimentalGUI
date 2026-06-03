@@ -30,7 +30,7 @@ requirements, see [README.md](README.md).
 | `C3/` | **Active** (~3 participants remaining) | Stroke rehabilitation split-belt | `RunProtocol_C3.m`, `RunProtocol_C3_Session2Bouts.m` |
 | `NirsAutomaticityProtocol/` | Unknown — verify before any functional change | fNIRS + H-reflex + split-belt treadmill | `NirsAutomaticityStudyTMProtocol.m` |
 | `Perceptual Adaptation/` | Unknown — verify before any functional change | Weber fraction perception during walking | `GeneratePartialProfile.m` |
-| `SpinalAdapt/` | Unknown — verify before any functional change | H-reflex spinal adaptation to split-belt | `RunProtocol_SpinalAdaptBouts.m` |
+| `SpinalAdapt/` | **Paused** — data collection planned to resume | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` |
 | `Weber Perception/` | Unknown — verify before any functional change | Perceptual discrimination thresholds | `GeneratePartialProfile.m` |
 
 ### BrainWalk — Stability Notice
@@ -41,6 +41,25 @@ visits and across all participants. **Do not make functional changes**
 to `BrainWalkProtocol.m` or to the controllers it invokes
 (`OGNBackTask`, `NirsAutomaticityAssessment`). Formatting changes are
 acceptable; logic changes are not.
+
+### SpinalAdapt — Protocol Notes
+
+Subject ID formats: `SABH##` (healthy controls), `SAS##V##` (stroke,
+two visits). Speed parameters default to a fast:slow ratio of 0.7
+(i.e., slow = 0.7 × fast speed) with an abrupt split (no ramp); this
+was changed from a 0.5 ratio and gradual ramp after participant SABH16
+(July 2024).
+
+H-reflex stimulation requires an Arduino Uno running the firmware in
+`HreflexStimArduino/`. See `HreflexStimArduino/README.md` for the
+complete upload procedure, hardware wiring, and pre-experiment
+checklist.
+
+Overground (OG) baseline trials use `HreflexOGWithAudio` (menu slot
+16). The speed feedback range in that controller must be adjusted
+manually between participants because the comfortable overground
+walking speed varies. Calibration trials use `NirsHreflexOpenLoopWithAudio`
+(menu slot 14).
 
 ---
 
@@ -232,6 +251,23 @@ interface is in `HreflexStimArduino/`. Stimulation timing is triggered
 by the `NirsHreflexOpenLoopWithAudio` and `HreflexOGWithAudio`
 controllers.
 
-> [TODO: Document the Arduino sketch that must be uploaded, the
-> serial port settings, and the calibration procedure for stimulus
-> intensity.]
+**Hardware:** Arduino Uno + two Digitimer DS8R constant-current
+stimulators. The Arduino reads force-plate Fz voltage on analog pins
+A0 (left) and A1 (right) to detect heel strikes and toe-offs, and
+delivers 20 ms trigger pulses on digital pins 8 (right stim) and 9
+(left stim). Vicon sync outputs are on pins 11 (right) and 12 (left).
+
+**Firmware:** Upload
+`triggerStimWithGaitStateMachine_SpeedIndependent.ino` from the
+`HreflexStimArduino/` folder. See `HreflexStimArduino/README.md` for
+the complete step-by-step upload procedure (board: Arduino Uno;
+baud rate: 115200).
+
+**Stimulus intensity calibration:** Performed at the start of each
+session using the calibration trials in `RunProtocol_SpinalAdaptBouts.m`
+(`runWalkingCalibrations.m`). The experimenter adjusts DS8R output
+current until H-reflex responses of approximately 10–20% of maximum
+M-wave are observed in the EMG signal.
+
+> [TODO: Document the detailed DS8R current ramp procedure and the
+> Delsys EMG channels used for H-reflex response monitoring.]
