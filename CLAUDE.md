@@ -71,6 +71,16 @@ Style/formatting edits are acceptable; logic changes are not.
 **C3** — active (~3 participants remaining). Functional changes require
 care; consult the user before modifying protocol scripts.
 
+**SpinalAdapt** — currently paused; data collection planned to resume.
+Measures fNIRS and H-reflex in addition to Vicon motion capture and
+Delsys EMG. Primary protocol:
+`studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. H-reflex
+stimulation timing is controlled by an Arduino Uno running
+`HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
+(see `HreflexStimArduino/README.md` for upload and wiring details). Do
+not change the serial command protocol in MATLAB controllers without
+re-uploading compatible Arduino firmware.
+
 ## MATLAB Version Compatibility
 All code must be compatible with MATLAB R2021a through the current
 release.
