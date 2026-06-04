@@ -4,6 +4,29 @@ Active real-time speed controllers called by `AdaptationGUI` and the utility
 functions they depend on. See [EXPERIMENT_SETUP.md](../EXPERIMENT_SETUP.md)
 for full descriptions, study-usage details, and protocol-creation guidance.
 
+## Key Controllers for New Development
+
+**Primary starting points** for new experimental protocols:
+
+- `controlSpeedWithSteps_edit1_AudioCountDown` (slot 11) — split-belt
+  treadmill with audio countdown; recommended base for new treadmill
+  protocols
+- `HreflexOGWithAudio` (slots 8/16) — overground walking with H-reflex
+  triggers and audio speed feedback; recommended base for new overground
+  protocols
+
+**Use-case-specific** key controllers:
+
+| Controller | Slot | Use when the protocol needs |
+|---|---|---|
+| `NirsHreflexOpenLoopWithAudio` | 14 | fNIRS event markers + H-reflex stimulation |
+| `NirsAutomaticityAssessment` | 10 | Overground fNIRS dual-task assessment |
+| `OGNBackTask` | 13 | Overground N-back cognitive dual-task |
+
+All other controllers in the [Active Controllers](#active-controllers)
+table below are study-specific or legacy variants and are not
+recommended as starting points for new protocols.
+
 ## Active Controllers
 
 | GUI Slot(s) | File | Summary |
