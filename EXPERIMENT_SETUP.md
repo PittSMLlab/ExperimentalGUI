@@ -24,16 +24,18 @@ requirements, see [README.md](README.md).
 
 ## Active Experimental Studies
 
-| Study Folder | Status | Study Type | Primary Protocol Script |
-|---|---|---|---|
-| `BrainWalk/` | **Active — longitudinal** | Cognitive dual-task walking (N-back) | `BrainWalkProtocol.m` |
-| `C3/` | **Active** (~3 participants remaining) | Stroke rehabilitation split-belt | `RunProtocol_C3.m`, `RunProtocol_C3_Session2Bouts.m` |
-| `NirsAutomaticityProtocol/` | Unknown — verify before any functional change | fNIRS + H-reflex + split-belt treadmill | `NirsAutomaticityStudyTMProtocol.m` |
-| `Perceptual Adaptation/` | Unknown — verify before any functional change | Weber fraction perception during walking | `GeneratePartialProfile.m` |
-| `SpinalAdapt/` | **Paused** — data collection planned to resume | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` |
-| `Weber Perception/` | Unknown — verify before any functional change | Perceptual discrimination thresholds | `GeneratePartialProfile.m` |
+| Study Folder | Status | Lead Experimenter(s) | Study Type | Primary Protocol Script |
+|---|---|---|---|---|
+| [`BrainWalk/`](studies/BrainWalk/README.md) | **Active — longitudinal** | Shuqi Liu, Jiwon Choi | Cognitive dual-task walking (N-back) | `BrainWalkProtocol.m` |
+| [`C3/`](studies/C3/README.md) | **Active** (~3 remaining; est. July 2026) | Nate Brantly | Stroke rehabilitation split-belt | `RunProtocol_C3.m`, `RunProtocol_C3_Session2Bouts.m` |
+| [`NirsAutomaticityProtocol/`](studies/NirsAutomaticityProtocol/README.md) | **Completed** | Shuqi Liu | fNIRS + H-reflex + split-belt treadmill | `NirsAutomaticityStudyTMProtocol.m` |
+| [`Perceptual Adaptation/`](<studies/Perceptual Adaptation/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Two-alternative forced choice perceptual adaptation | `GeneratePartialProfile.m` |
+| [`SpinalAdapt/`](studies/SpinalAdapt/README.md) | **Rebooting** (~July 2026) | Chase Rock | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` |
+| [`Weber Perception/`](<studies/Weber Perception/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Perceptual discrimination thresholds | `GeneratePartialProfile.m` |
 
 ### BrainWalk — Stability Notice
+
+**Lead experimenters:** Shuqi Liu, Jiwon Choi.
 
 BrainWalk is a multi-year longitudinal study. Participants return for
 visits one year apart, and all procedures must be identical across
@@ -43,6 +45,12 @@ to `BrainWalkProtocol.m` or to the controllers it invokes
 acceptable; logic changes are not.
 
 ### SpinalAdapt — Protocol Notes
+
+**Lead experimenter:** Chase Rock (post-doctoral fellow).
+**Key experimenters:** Shuqi Liu, Nate Brantly. Data collection is
+planned to resume approximately July 2026; protocol software updates
+may be required before collection resumes. See
+[studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
 Subject ID formats: `SABH##` (healthy controls), `SAS##V##` (stroke,
 two visits). Speed parameters default to a fast:slow ratio of 0.7
@@ -71,8 +79,27 @@ plus three supporting utility functions (`generateNbackRestEventString`,
 have been moved to `controllers/Deprecated/` and are preserved there
 for reference.
 
-**Recommended starting point for new treadmill protocols:**
-`controlSpeedWithSteps_selfSelect.m`.
+### Key Controllers for New Development
+
+**Primary starting points** for new experimental protocols:
+
+- `controlSpeedWithSteps_edit1_AudioCountDown` (slot 11) — split-belt
+  treadmill with audio countdown; recommended base for new treadmill
+  protocols
+- `HreflexOGWithAudio` (slots 8/16) — overground walking with H-reflex
+  triggers and audio speed feedback; recommended base for new overground
+  protocols
+
+**Use-case-specific** key controllers:
+
+| Controller | Slot | Use when the protocol needs |
+|---|---|---|
+| `NirsHreflexOpenLoopWithAudio` | 14 | fNIRS event markers + H-reflex |
+| `NirsAutomaticityAssessment` | 10 | Overground fNIRS dual-task |
+| `OGNBackTask` | 13 | Overground N-back cognitive dual-task |
+
+All other controllers in the table below are study-specific or legacy
+variants and are not recommended as starting points for new protocols.
 
 GUI menu slot numbers correspond to `case` labels in
 `Execute_button_Callback` (AdaptationGUI.m lines 374–544).
