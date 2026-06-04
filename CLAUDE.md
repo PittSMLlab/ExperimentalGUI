@@ -62,24 +62,34 @@ reference table and protocol creation guide.
 
 ## Active Studies
 
-**BrainWalk** — longitudinal (visits 1 year apart). Do not make
-functional changes to `studies/BrainWalk/BrainWalkProtocol.m` or
-the controllers it calls: `OGNBackTask`, `NirsAutomaticityAssessment`,
+**BrainWalk** — longitudinal (visits 1 year apart); lead
+experimenters: Shuqi Liu, Jiwon Choi. Do not make functional changes
+to `studies/BrainWalk/BrainWalkProtocol.m` or the controllers it
+calls: `OGNBackTask`, `NirsAutomaticityAssessment`,
 `controlSpeedWithSteps_edit1_AudioCountDown`, `HreflexOGWithAudio`.
 Style/formatting edits are acceptable; logic changes are not.
 
-**C3** — active (~3 participants remaining). Functional changes require
-care; consult the user before modifying protocol scripts.
+**C3** — active (~3 participants remaining; est. completion July 2026).
+Lead: Nate Brantly (doctoral thesis); co-experimenter: Anna Annello.
+Functional changes require care; consult the user before modifying
+protocol scripts.
 
-**SpinalAdapt** — currently paused; data collection planned to resume.
-Measures fNIRS and H-reflex in addition to Vicon motion capture and
-Delsys EMG. Primary protocol:
+**SpinalAdapt** — rebooting; data collection planned to resume ~July
+2026. Lead: Chase Rock (post-doctoral fellow); key experimenters:
+Shuqi Liu, Nate Brantly. Measures fNIRS and H-reflex in addition to
+Vicon motion capture and Delsys EMG. Primary protocol:
 `studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. H-reflex
 stimulation timing is controlled by an Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
 (see `HreflexStimArduino/README.md` for upload and wiring details). Do
 not change the serial command protocol in MATLAB controllers without
 re-uploading compatible Arduino firmware.
+
+**NirsAutomaticityProtocol**, **Perceptual Adaptation**, and **Weber
+Perception** — completed; data collection and processing finished.
+Shuqi Liu led NirsAutomaticityProtocol; Marcela Gonzalez-Rubio led
+Perceptual Adaptation and Weber Perception. Consult the lead
+experimenter before modifying scripts in these folders.
 
 ## MATLAB Version Compatibility
 All code must be compatible with MATLAB R2021a through the current
