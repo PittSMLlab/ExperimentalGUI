@@ -57,12 +57,13 @@ AdaptationGUI.m/.fig        Main experimenter GUI (entry point)
 controllers/                Active real-time speed controllers and utilities
   Deprecated/               Inactive backup variants (preserved for history)
 studies/                    Protocol scripts for individual experiments
-  BrainWalk/                Cognitive dual-task walking (N-back)
-  C3/                       Clinical stroke protocol
-  NirsAutomaticityProtocol/ fNIRS + H-reflex + treadmill
-  Perceptual Adaptation/    Weber perception thresholds during walking
-  SpinalAdapt/              Spinal H-reflex adaptation to split-belt walking
-  Weber Perception/         Weber's law perceptual discrimination
+  README.md                 Study index
+  BrainWalk/                Active — longitudinal (N-back dual-task)
+  C3/                       Active — stroke rehabilitation (~3 remaining)
+  NirsAutomaticityProtocol/ Completed — fNIRS + H-reflex automaticity
+  Perceptual Adaptation/    Completed — forced choice perceptual adaptation
+  SpinalAdapt/              Rebooting (~July 2026) — H-reflex adaptation
+  Weber Perception/         Completed — perceptual discrimination thresholds
 +utils/                     Utility functions (data transfer, speed extraction)
 HreflexStimArduino/         Arduino H-reflex stimulation interface
 assets/                     Audio and data assets loaded by AdaptationGUI at startup
