@@ -166,10 +166,10 @@ velR = [repmat(800, 50, 1);  repmat(1600, 100, 1); repmat(800, 50, 1)];
 
 Consult the [Controller Reference](#controller-reference) table. For a
 standard split-belt adaptation paradigm, start with
-`controlSpeedWithSteps_selfSelect`. If you need features not present in
-any existing controller (e.g., a new peripheral, a novel feedback
-signal), copy the closest existing controller, rename it following
-camelCase convention, and modify it.
+`controlSpeedWithSteps_edit1_AudioCountDown`. If you need features not
+present in any existing controller (e.g., a new peripheral, a novel
+feedback signal), copy the closest existing controller, rename it
+following camelCase convention, and modify it.
 
 **Step 4 — Add a new controller to the GUI (if needed)**
 
