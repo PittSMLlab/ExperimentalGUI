@@ -259,8 +259,39 @@ during cognitive dual-task walking. The headband is synchronized with
 the treadmill trial via event markers inserted by
 `NirsAutomaticityAssessment` and `OGNBackTask` controllers.
 
-> [TODO: Document headband placement, channel configuration, and
-> synchronization procedure with Nexus.]
+> A.	Take head measurements using a tape measure in the third drawer under the computer desk.
+B.	Set up the Oxysoft software.
+  1.	Retrieve the big yellow briefcase next to the breakroom and plug in the red flash drive (usually already plugged in).
+  2.	Open the Oxysoft application.
+  3.	Go to File > New Project > Save Project. Navigate to Documents > Oxysoft Data > BrainWalk, create a new subject folder (e.g., BW0#), create a new visit folder (e.g., V0#), and save the file as BW0#V0#Oxyproj (e.g., BW002V04Oxyproj).
+  4.	Select File > Create a new measurement.
+  5.	Go to Measurement > Create New Measurement > Browse.
+  6.	Select the current subject’s folder and save the measurement file as BW0#V0#M0# (e.g., BW002V01M01).
+  7.	Copy the measurement file name (BW0#V0#M0#), paste it into the Data Name field, and click Next.
+  8.	Add device 16704, select the Opt-temp setting 2x4, and continue clicking Next until prompted to Start Measurement — do not start yet.
+C.	Fit the fNIRS band on the participant.
+  1.	Ensure the band is loose before placing it.
+  2.	Hold the front portion in one hand and the back in the other. Bring the back to the front and place the front section on the participant's forehead.
+  3.	Align the two center sensors with the center of the eyebrows.
+  4.	Tighten the side bands and confirm the front center is properly aligned.
+  5.	Use the comb to take out any hair between the band and the forehead.
+  6.	Measure the distance from the eyebrows to the bottom edge of the band.
+D.	Start the measurement once the band is securely in place.
+E.	Place the battery in the backpack and put the backpack on the participant.
+F.	Verify signal quality.
+  1.	In the Data Acquisition panel at the bottom, confirm that numbers appear in all 16 channels (channels 1–8 = right; channels 9–16 = left).
+G.	Recording procedure.
+  	NOTE: Oxysoft recording must be started and stopped manually for every trial.
+  1.	To start recording, press the green button in the top panel.
+  2.	Enter the correct recording number for the trial (e.g., BW002V01M01 for Trial 1, BW002V01M02 for Trial 2, and so on).
+  	The Oxysoft trial number is independent from Vicon trial number and both of them should be tracked in the datasheet.
+  3.	Select Connect Device. If Oxysoft does not recognize the device, ensure the participant is close enough to the computer – Bluetooth connection can be lost if too far.
+  4.	Press Next until the recording begins (red and blue lines will fluctuate regularly).
+    a.	Red = Oxygenated, Blue = Deoxygenated
+  5.	Wait at least 20 seconds before starting the trial in Vicon or MATLAB.
+  6.	To stop recording, press the red button.
+  7.	Confirm that green lines are visible throughout the recording — these indicate event time points.
+
 
 ### Wii Remote
 
