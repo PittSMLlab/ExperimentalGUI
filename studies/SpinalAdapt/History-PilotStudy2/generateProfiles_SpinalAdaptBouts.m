@@ -3,10 +3,6 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 %GENERATEPROFILES_SPINALADAPTBOUTS Generate speed and stim profiles for
 % the SpinalAdapt protocol and save them to disk.
 %
-%   TEMPLATE — Pilot Study 2 structure preserved as the starting point for
-%   the next protocol. New-protocol conditions and ramp logic have not yet
-%   been designed. See History-PilotStudy2/ for the archived original.
-%
 %   Generates speed (velL, velR) and H-reflex stimulus (stimL, stimR)
 %   profiles for each condition in the SpinalAdapt bout-based protocol.
 %   Call twice per session: once with baseOnly = true to produce baseline

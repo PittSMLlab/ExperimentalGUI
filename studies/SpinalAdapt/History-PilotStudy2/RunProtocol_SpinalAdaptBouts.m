@@ -1,9 +1,5 @@
 %RUNPROTOCOL_SPINALADAPTBOUTS Automate the SpinalAdapt experimental session.
 %
-%   TEMPLATE — Pilot Study 2 structure preserved as the starting point for
-%   the next protocol. New-protocol conditions and ramp logic have not yet
-%   been designed. See History-PilotStudy2/ for the archived original.
-%
 %   Guides the experimenter through profile generation, pre- and post-
 %   session H-reflex calibration trials, all conditions in sequence, and
 %   post-session data transfer to the server. Edit the EXPERIMENTER
