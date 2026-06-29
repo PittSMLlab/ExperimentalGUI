@@ -5,11 +5,8 @@
 % and profiles.
 
 %% EXPERIMENTER: Before each experiment, ENTER subject-specific speed and leg info
-ramp2Split = false; % SAH1-16 ramp2Split= true, also there was an coding error such that
-% 1st train 1st tied-split only has 10 strides tied before split instead of 20 tied as planned in the protocol,
-% Starting 7/8/2024 try the non-ramp version and also corrected the mistake
-% so 1st train has 20 strides tied before split.
-speedRatio = 0.7; %slow/fast, SAH 1-16 did speedRatio = 0.5; %starting 7/8/2024, try ratio 1:0.7
+ramp2Split = true; 
+speedRatio = 0.5; %slow/fast
 
 % for stroke participant use SAS01V01 (Sub##V## format)
 subjectID = 'SABH08';    % SAH01 for young, SAS01V01 for stroke
@@ -131,6 +128,13 @@ while currCon < maxCon      % while more conditions left to collect, ...
     end
 
     switch currCon
+        % Edit conditions to match proposed protocol
+        %1 = Familiarization Block - Slow
+        %2 = Familiarization Block - Faster than SSWS
+        %3 = Familiarization Block - Fast
+        %4 = Pre-Adaptation Block
+        %5-9 = Adaptation Blocks
+        %10-14 = Post-Adaptation Blocks
         case 1          % TM Baseline Fast (Tied)
             % fNIRS, H-reflex, open-loop controller with audio count down
             handles.popupmenu2.set('Value',14);
