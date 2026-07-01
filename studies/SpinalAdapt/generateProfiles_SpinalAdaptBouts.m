@@ -69,60 +69,112 @@ function [profileDir] = generateProfiles_SpinalAdaptBouts(slow, fast, baseOnly, 
         save([profileDir 'CalibrationSlow.mat'],'velL' ,'velR','stimL','stimR')
 
     else
-        if ramp2Split %20 steps gradual from fast to slow
-            ramp2SplitSteps = linspace(fast,slow,20)';
-            ramp2SplitStims = zeros(20,1);
+        if ramp2Split %10 steps gradual from fast to slow
+            ramp2SlowSteps = linspace(0.1*slow,slow,11)';
+            ramp2SlowSteps = ramp2SlowSteps(1:end-1);
+            
+            ramp2FastSteps = linspace(0.1*fast,fast,11)';
+            ramp2FastSteps = ramp2FastSteps(1:end-1);
+
+            rampStims = zeros(10,1);
         else %if no ramp, give empty to build an abrupt transition.
             ramp2SplitSteps = [];
             ramp2SplitStims = [];
         end
                 
         rng(100);
-        repPerTrain = 4; %hard coded for now, always do 6 trains.
+        repPerTrainBase = 5; %Five repetitions in each baseline blcok.
+        repPerTrain = 10;    %Ten repetitions in every non-baseline block
+        totalSlowBaselineTrains = 1;
+        totalFastBaselineTrains = 1;
+        totalCtrTrains = 1;
         totalSplitTrains = 5; 
-        totalCtrTrains = 2;
+        totalPostTrains = 5
         randTiedStepsSplit = randi([50,60],totalSplitTrains, repPerTrain);
         randTiedStepsSplit(1,1) = 20; %hard-code, first train first tied to 20
         randTiedStepsCtr = randi([50,60],totalCtrTrains, repPerTrain);
         
-        restPadSteps = zeros(50,1); %always pad 50 steps of zero to represent rest.
+        restPadSteps = zeros(30,1); %always pad 30 steps of zero to represent rest: allows 10 sec stand and count plus time for countdown to begin walking again.
         ramp2Tied = linspace(0.1*fast,fast,11); %ramp is always 10 strides from 10% (at stride 1) to fast speed (at stride 11)
         ramp2Tied = ramp2Tied(1:end-1)'; %exclude the last in the end so that stride 1-10 are all moving and ramping
         ramp2TiedStim = zeros(size(ramp2Tied));
 
-        %build control train (always tied walking)
-        for ctTrain = 1:totalCtrTrains
+        %build slow baseline (familiarization) train (always tied walking)
+        
             velL = [];  stimL = []; %initialize to empty
-            for i = 1:repPerTrain
-                velL = [velL;restPadSteps;ramp2Tied;ones(randTiedStepsCtr(ctTrain,i),1)*fast; ramp2SplitSteps; ones(20,1)*slow]; %default left slow
-                stimL = [stimL; restPadSteps; ramp2TiedStim; ones(randTiedStepsCtr(ctTrain,i),1); ramp2SplitStims; ones(20,1)];
+            for i = 1:repPerTrainBase
+                velL = [velL;restPadSteps;ramp2SlowSteps; ones(10,1)*slow]; %default left slow
+                stimL = [stimL; restPadSteps; rampStims; ones(10,1)];
             end
             velL = [velL; restPadSteps];
             stimL = [stimL; restPadSteps];
             velR = velL;
             stimR = stimL;
 
-            save([profileDir 'CtrlTrain_' mat2str(ctTrain) '.mat'],'velL','velR','stimL','stimR');
+            save([profileDir 'SlowBaseTrain_1.mat'],'velL','velR','stimL','stimR');
+        
+        %build fast baseline (familiarization) train (always tied walking)
+        
+            velL = [];  stimL = []; %initialize to empty
+            for i = 1:repPerTrainBase
+                velL = [velL;restPadSteps;ramp2FastSteps; ones(10,1)*fast]; 
+                stimL = [stimL; restPadSteps; rampStims; ones(10,1)];
+            end
+            velL = [velL; restPadSteps];
+            stimL = [stimL; restPadSteps];
+            velR = velL;
+            stimR = stimL;
+
+            save([profileDir 'FastBaseTrain_1.mat'],'velL','velR','stimL','stimR');
+
+        %build control train (always tied walking; used for pre-adaptation block)
+        for ctTrain = 1:totalCtrTrains
+            velL = [];  stimL = []; %initialize to empty
+            for i = 1:repPerTrain
+                velL = [velL;restPadSteps;ramp2FastSteps; ones(10,1)*fast]; %default left slow
+                stimL = [stimL; restPadSteps; rampStims; ones(10,1)];
+            end
+            velL = [velL; restPadSteps];
+            stimL = [stimL; restPadSteps];
+            velR = velL;
+            stimR = stimL;
+
+            save([profileDir 'CtrlTrain_1.mat'],'velL','velR','stimL','stimR');
         end
         
+        %build post train (always tied walking; used for post-adaptation blocks)
+        for ctTrain = 1:totalPostTrains
+            velL = [];  stimL = []; %initialize to empty
+            for i = 1:repPerTrain
+                velL = [velL;restPadSteps;ramp2FastSteps; ones(10,1)*fast]; %default left slow
+                stimL = [stimL; restPadSteps; rampStims; ones(10,1)];
+            end
+            velL = [velL; restPadSteps];
+            stimL = [stimL; restPadSteps];
+            velR = velL;
+            stimR = stimL;
+
+            save([profileDir 'PostTrain_' mat2str(ctTrain) '.mat'],'velL','velR','stimL','stimR');
+        end
+
         %build split trains
         for splitTrain = 1:totalSplitTrains
             velL = [];  velR = []; stimL = []; %initialize to empty
             for i = 1:repPerTrain
-                velL = [velL;restPadSteps;ramp2Tied;ones(randTiedStepsSplit(splitTrain,i),1)*fast; ramp2SplitSteps; ones(20,1)*slow]; %default left slow
-                velR = [velR;restPadSteps;ramp2Tied;ones(randTiedStepsSplit(splitTrain,i),1)*fast; ramp2SplitSteps; ones(20,1)*fast]; 
+                velL = [velL;restPadSteps;ramp2SlowSteps; ones(10,1)*slow]; %default left slow
+                velR = [velR;restPadSteps;ramp2FastSteps; ones(10,1)*fast]; 
                 
-                stimL = [stimL; restPadSteps; ramp2TiedStim; ones(randTiedStepsSplit(splitTrain,i),1); ramp2SplitStims; ones(20,1)];
+                stimL = [stimL; restPadSteps; rampStims; ones(10,1)];
             end
             velL = [velL; restPadSteps];
             velR = [velR; restPadSteps];
             stimL = [stimL; restPadSteps];
             
-            if splitTrain == totalSplitTrains %last split train (add 100 post-adapt)
-                velL = [velL; ones(150,1)*fast];
-                velR = [velR; ones(150,1)*fast];
-                stimL = [stimL; repmat([1 0 0 0 0]',30,1)]; %every 5 stimulate
-            end
+            %if splitTrain == totalSplitTrains %last split train (add 100 post-adapt)
+            %    velL = [velL; ones(150,1)*fast];
+            %    velR = [velR; ones(150,1)*fast];
+            %    stimL = [stimL; repmat([1 0 0 0 0]',30,1)]; %every 5 stimulate
+            %end
             
             stimR = stimL;
             
@@ -131,27 +183,27 @@ function [profileDir] = generateProfiles_SpinalAdaptBouts(slow, fast, baseOnly, 
                 velR = velL; 
                 velL = temp;
             end
-            save([profileDir 'PreSplitTrain_' num2str(splitTrain) '.mat'],'velL' ,'velR','stimL','stimR');
+            save([profileDir 'SplitTrain_' num2str(splitTrain) '.mat'],'velL' ,'velR','stimL','stimR');
         end
         
-        %post1, default right fast (so neg short is left fast), and with a neg short in between
-        velR = [repmat(fast,50,1); ones(30, 1) * slow; ones(100,1) * fast];
-        velL = [repmat(fast,50,1); ones(30, 1) * fast; ones(100,1) * fast];
-        stimL = [repmat([0 0 0 0 1]',10,1); zeros(30,1); repmat([0 0 0 0 1]',20,1)];
-        stimR = stimL;
-        if strcmp(fastLeg, 'L') %if left is fast in regular intervals, swap legs.
-            temp = velR;
-            velR = velL; 
-            velL = temp;
-        end
-        save([profileDir 'Post1WtNegShort.mat'],'velL' ,'velR','stimL','stimR')
+        %%post1, default right fast (so neg short is left fast), and with a neg short in between
+        %velR = [repmat(fast,50,1); ones(30, 1) * slow; ones(100,1) * fast];
+        %velL = [repmat(fast,50,1); ones(30, 1) * fast; ones(100,1) * fast];
+        %stimL = [repmat([0 0 0 0 1]',10,1); zeros(30,1); repmat([0 0 0 0 1]',20,1)];
+        %timR = stimL;
+        %if strcmp(fastLeg, 'L') %if left is fast in regular intervals, swap legs.
+        %    temp = velR;
+        %    velR = velL; 
+        %    velL = temp;
+        %end
+        %save([profileDir 'Post1WtNegShort.mat'],'velL' ,'velR','stimL','stimR')
 
-        %post2, default right fast.
-        velL = repmat(fast,200,1);
-        velR = repmat(fast,200,1);
-        stimR = repmat([1 0 0 0 0]',40,1);
-        stimL = stimR;
-        save([profileDir 'Post2.mat'],'velL' ,'velR','stimL','stimR')
+        %%post2, default right fast.
+        %velL = repmat(fast,200,1);
+        %velR = repmat(fast,200,1);
+        %stimR = repmat([1 0 0 0 0]',40,1);
+        %stimL = stimR;
+        %save([profileDir 'Post2.mat'],'velL' ,'velR','stimL','stimR')
      
     end %end if-else loop for base vs adapt protocol
 end
