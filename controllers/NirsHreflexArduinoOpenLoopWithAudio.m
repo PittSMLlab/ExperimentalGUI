@@ -105,6 +105,11 @@ percentSS2Stim = 0.50; % target fraction of single stance for the stim (diagnost
 alpha          = 0.7;  % MATLAB-side smoothing factor for estSSL/R (diagnostic only, 0 < alpha <= 1); matches the Arduino firmware's alpha so the logged estSS mirrors the device
 estSSLInit     = 396.6; % initial single-stance duration estimate (ms); from Liu et al. 2014 normative gait data, see Arduino sketch header for derivation
 estSSRInit     = 396.6;
+% physiologic single-stance duration window (ms) for the EWMA outlier
+% clamp; mirrors the Arduino durSSMinValid/durSSMaxValid so the logged
+% estSS keeps tracking the device. Tunable starting values (see sketch).
+durSSMinValidMs = 100;  % reject < 100 ms (double-detect / debounce floor)
+durSSMaxValidMs = 1000; % reject > 1000 ms (missed event / rest artifact)
 
 if hreflex_present
     try
@@ -597,10 +602,18 @@ try     % so that if something fails, communications are closed properly
                     % compute duration of left leg single stance phase
                     % (RHSTime/RTOTime are datenums in days; convert to ms
                     % so durSSL/estSSL stay in ms like the Arduino's copy)
-                    durSSL = (RHSTime(RstepCount) - RTOTime(RstepCount)) ...
-                        * 86400000; % days -> ms
-                    % estimate single stance duration using exponential updating factor
-                    estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
+                    % reject implausible durations before they corrupt the
+                    % estimate (mirrors the Arduino clamp); keep the
+                    % previous durSSL/estSSL on rejection so stimDelayL and
+                    % the pctSS denominator stay valid
+                    durSSLcand = (RHSTime(RstepCount) - ...
+                        RTOTime(RstepCount)) * 86400000; % days -> ms
+                    if durSSLcand >= durSSMinValidMs ...
+                            && durSSLcand <= durSSMaxValidMs
+                        durSSL = durSSLcand;
+                        % estimate single stance duration using exponential updating factor
+                        estSSL = alpha * durSSL + (1.0 - alpha) * estSSL;
+                    end
                     stimDelayL = estSSL * percentSS2Stim;
                     set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                     % plot cursor
@@ -623,10 +636,18 @@ try     % so that if something fails, communications are closed properly
                     % compute duration of right leg single stance phase
                     % (LHSTime/LTOTime are datenums in days; convert to ms
                     % so durSSR/estSSR stay in ms like the Arduino's copy)
-                    durSSR = (LHSTime(LstepCount) - LTOTime(LstepCount)) ...
-                        * 86400000; % days -> ms
-                    % estimate single stance duration using exponential updating factor
-                    estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
+                    % reject implausible durations before they corrupt the
+                    % estimate (mirrors the Arduino clamp); keep the
+                    % previous durSSR/estSSR on rejection so stimDelayR and
+                    % the pctSS denominator stay valid
+                    durSSRcand = (LHSTime(LstepCount) - ...
+                        LTOTime(LstepCount)) * 86400000; % days -> ms
+                    if durSSRcand >= durSSMinValidMs ...
+                            && durSSRcand <= durSSMaxValidMs
+                        durSSR = durSSRcand;
+                        % estimate single stance duration using exponential updating factor
+                        estSSR = alpha * durSSR + (1.0 - alpha) * estSSR;
+                    end
                     stimDelayR = estSSR * percentSS2Stim;
                     set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                     % plot cursor
