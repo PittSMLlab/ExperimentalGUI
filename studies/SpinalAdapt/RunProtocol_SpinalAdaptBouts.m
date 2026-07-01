@@ -120,7 +120,7 @@ while currCon < maxCon      % while more conditions left to collect, ...
     else                    % otherwise, ...
         isFirstCon = false;             % no longer first condition after
         currCon = inputdlg(['Which condition do you want to start ' ...
-            'from (1 = baseline, 5 = control train, 7 = 1st split ' ...
+            'from (1 = baseline, 3 = control train, 4 = 1st split ' ...
             'train, enter the number from the 1st col on the data ' ...
             'sheet)?']);
         disp(['Starting from condition #' currCon{1}]);
@@ -130,29 +130,14 @@ while currCon < maxCon      % while more conditions left to collect, ...
     switch currCon
         % Edit conditions to match proposed protocol
         %1 = Familiarization Block - Slow
-        %2 = Familiarization Block - Faster than SSWS
-        %3 = Familiarization Block - Fast
-        %4 = Pre-Adaptation Block
-        %5-9 = Adaptation Blocks
-        %10-14 = Post-Adaptation Blocks
-        case 1          % TM Baseline Fast (Tied)
-            % fNIRS, H-reflex, open-loop controller with audio count down
+        %%2 = Familiarization Block - Faster than SSWS -- Add in only if needed
+        %2 = Familiarization Block - Fast
+        %3 = Pre-Adaptation Block
+        %4-8 = Adaptation Blocks
+        %9-13 = Post-Adaptation Blocks
+        case 1          % TM Baseline Bouts Slow (Tied)
             handles.popupmenu2.set('Value',14);
-            profilename = fullfile(dirProfile,'TMBaseFast.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop controller with audio countdown and profile' ...
-                ' is TMBaseFast']);
-            if ~strcmp(answer,'Yes')% if incorrect controller/profile, ...
-                return;             % abort starting experiment
-            end
-            numAudioCountDown = -1; % include final audio countdown
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            % no fixed break here - proceed immediately in GUI
-        case 2          % TM Baseline Slow (Tied)
-            handles.popupmenu2.set('Value',14);
-            profilename = fullfile(dirProfile,'TMBaseSlow.mat');
+            profilename = fullfile(dirProfile,'SlowBaseTrain_1.mat');
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
                 'Open loop controller with audio countdown and profile' ...
@@ -164,38 +149,26 @@ while currCon < maxCon      % while more conditions left to collect, ...
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button,[],handles);
             % no fixed break here - proceed immediately in GUI
-        case 3          % OG Baseline Fast
-            % OG audio with H-reflex controller
-            handles.popupmenu2.set('Value',16);
-            profilename = fullfile(dirProfile,'OGBaseFast.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is ' ...
-                'HreflexOGWithAudio and speed profile is fast']);
-            if ~strcmp(answer,'Yes')
-                return;
-            end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            % no fixed break here - proceed immediately in GUI
-        case 4          % OG Baseline Slow
-            handles.popupmenu2.set('Value',16);
-            profilename = fullfile(dirProfile,'OGBaseSlow.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm controller is ' ...
-                'HreflexOGWithAudio and speed profile is slow']);
-            if ~strcmp(answer,'Yes')
-                return;
-            end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
-            % no fixed break here - proceed immediately in GUI
-        case {5,6}      % Control Train Bouts (Tied)
+
+        case 2          % TM Baseline Bouts Fast (Tied)
+            % fNIRS, H-reflex, open-loop controller with audio count down
             handles.popupmenu2.set('Value',14);
-            if currCon == 5        % first control train trial
-                profilename = fullfile(dirProfile,'CtrlTrain_1.mat');
-            elseif currCon == 6    % second control train trial
-                profilename = fullfile(dirProfile,'CtrlTrain_2.mat');
+            profilename = fullfile(dirProfile,'FastBaseTrain_1.mat');
+            manualLoadProfile([],[],handles,profilename);
+            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
+                'Open loop controller with audio countdown and profile' ...
+                ' is TMBaseFast']);
+            if ~strcmp(answer,'Yes')% if incorrect controller/profile, ...
+                return;             % abort starting experiment
             end
+            numAudioCountDown = -1; % include final audio countdown
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button,[],handles);
+            % no fixed break here - proceed immediately in GUI
+        
+        case 3      % Pre-adaptation Bouts (Tied)
+            handles.popupmenu2.set('Value',14);
+                profilename = fullfile(dirProfile,'CtrlTrain_1.mat');
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm the trial information: Nirs ' ...
                 'Train Control?']);
@@ -207,10 +180,10 @@ while currCon < maxCon      % while more conditions left to collect, ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min30);     % break for at least 2.5 minutes
             play(AudioTimeUp);
-        case {7,8,9,10,11}  % Split Train Bouts
+        case {4,5,6,7,8}  % Split Train Bouts
             handles.popupmenu2.set('Value',14);
             profilename = fullfile(dirProfile, ...
-                ['PreSplitTrain_' num2str(currCon-6) '.mat']);
+                ['SplitTrain_' num2str(currCon-3) '.mat']);
             manualLoadProfile([],[],handles,profilename);
             answer = questdlg(['Confirm the trial information: Nirs ' ...
                 'Split Train?']);
@@ -221,12 +194,12 @@ while currCon < maxCon      % while more conditions left to collect, ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min30);     % break for at least 2.5 minutes
             play(AudioTimeUp);
-        case 12             % Post-Train with Negative Short Split
+        case {9,10,11,12,13}             % Post-Train Bouts
             handles.popupmenu2.set('Value',14);
-            profilename = fullfile(dirProfile,'Post1WtNegShort.mat');
+            profilename = fullfile(dirProfile,...
+                '[PostTrain num2str(currCon-8) '.mat']);
             manualLoadProfile([],[],handles,profilename)
-            answer = questdlg(['Confirm the trial information: post 1 ' ...
-                '(50 tied fast, 30 negshort, 100 tied fast)?']);
+            answer = questdlg(['Confirm the trial information: post adaptation?']);
             if ~strcmp(answer,'Yes')
                 return;
             end
@@ -235,18 +208,7 @@ while currCon < maxCon      % while more conditions left to collect, ...
                 handles.Execute_button,[],handles);
             pause(pauseTime2min30);     % break for at least 2.5 minutes
             play(AudioTimeUp);
-        case 13             % Final Post-Train (Tied)
-            handles.popupmenu2.set('Value',14);
-            profilename = fullfile(dirProfile,'Post2.mat');
-            manualLoadProfile([],[],handles,profilename);
-            answer = questdlg(['Confirm trial and profile is Post 2 ' ...
-                '(tied for 200)']);
-            if ~strcmp(answer,'Yes')
-                return;
-            end
-            numAudioCountDown = -1;
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button,[],handles);
+        
     end
 end
 
