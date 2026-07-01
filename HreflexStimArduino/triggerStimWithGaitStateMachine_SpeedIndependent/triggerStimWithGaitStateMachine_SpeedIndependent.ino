@@ -6,7 +6,9 @@
 // Runs an on-board gait event detection state machine so that stim
 // timing is independent of MATLAB loop rate. Uses an exponentially
 // updated single-stance duration estimate to target 50% of single
-// stance. A median filter reduces noise on the analog force signal.
+// stance. A median filter reduces noise on the analog force signal, and
+// an outlier clamp rejects physiologically implausible single-stance
+// durations before they corrupt the estimate.
 //
 // Date started: 26 Mar. 2024
 // Authors: SL, NWB
@@ -35,6 +37,14 @@ const int durStimPulse = 20;  // stimulation pulse duration (ms)
 const unsigned long timeDebounce   = 100;
 const float percentSS2Stim = 0.5;  // 50% of single stance phase
 const float alpha    = 0.7;  // smoothing factor (0 < alpha <= 1)
+// physiologic single-stance duration window (ms) for the EWMA outlier
+// clamp. Anchored on Liu et al. 2014 normative single stance (363-426 ms
+// across speeds) and deliberately widened for slow ramp strides and for
+// slower / more asymmetric clinical gait (chronic stroke, older adults).
+// STARTING VALUES: re-check against pilot data and broaden if real
+// strides are rejected for clinical populations.
+const unsigned long durSSMinValid = 100;  // ms; reject double-detects
+const unsigned long durSSMaxValid = 1000; // ms; reject missed/rest events
 const float alphaLPF = 0.02; // low-pass filter smoothing (0 < alpha << 1)
 const unsigned long intervalLog = 5; // ms between CSV logs
 unsigned long timeLastLog = 0;
@@ -303,9 +313,18 @@ void updateGaitEventStateMachine()
       timeRHS = millis(); // update current RHS time
       // RHS marks the end of single stance L
       // compute duration of left leg single stance phase
-      durSSL = timeRHS - timeRTO;
-      // estimate single stance duration using exponential updating factor
-      estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
+      // reject physiologically implausible durations before they corrupt
+      // the estimate (mis-detected toe-off, spurious rest-time stance
+      // change, or a doubled detection); keep the previous durSSL / estSSL
+      // on rejection
+      unsigned long durSSLcandidate = timeRHS - timeRTO;
+      if (durSSLcandidate >= durSSMinValid
+          && durSSLcandidate <= durSSMaxValid)
+      {
+        durSSL = durSSLcandidate;
+        // estimate single stance duration using exponential updating factor
+        estSSL = alpha * float(durSSL) + (1.0 - alpha) * estSSL;
+      }
       // canStimL = true; // enable stimulation
     }
     break;
@@ -324,9 +343,18 @@ void updateGaitEventStateMachine()
       timeLHS = millis(); // update current LHS time
       // LHS marks the end of single stance R
       // compute duration of right leg single stance phase
-      durSSR = timeLHS - timeLTO;
-      // estimate single stance duration using exponential updating factor
-      estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
+      // reject physiologically implausible durations before they corrupt
+      // the estimate (mis-detected toe-off, spurious rest-time stance
+      // change, or a doubled detection); keep the previous durSSR / estSSR
+      // on rejection
+      unsigned long durSSRcandidate = timeLHS - timeLTO;
+      if (durSSRcandidate >= durSSMinValid
+          && durSSRcandidate <= durSSMaxValid)
+      {
+        durSSR = durSSRcandidate;
+        // estimate single stance duration using exponential updating factor
+        estSSR = alpha * float(durSSR) + (1.0 - alpha) * estSSR;
+      }
       // canStimR = true; // enable stimulation
     }
     break;
