@@ -43,8 +43,16 @@ wrong firmware):
    and A1 (right). It detects heel strikes and toe-offs by threshold-crossing on
    the filtered force signal.
 3. After each toe-off the Arduino updates an exponentially smoothed estimate of
-   single-stance duration (α = 0.7) for that leg. It then schedules the stimulus
-   at 50% of the estimated single-stance phase.
+   single-stance duration (α = 0.7) for that leg. An **outlier clamp** rejects
+   physiologically implausible single-stance durations (outside
+   `durSSMinValid`–`durSSMaxValid`, currently 100–1000 ms) before the update,
+   so a single mis-detected gait event (a missed toe-off, a spurious
+   stance change during a rest, or a doubled detection) cannot pull the
+   α = 0.7 estimate by ~70% in one stride; rejected strides keep the previous
+   estimate. It then schedules the stimulus at 50% of the estimated
+   single-stance phase. The bounds are starting values anchored on normative
+   gait data and widened for clinical populations — re-check against pilot data
+   (see Future Improvements).
 4. Each stride, MATLAB sends command `1` (stimulate left) or `2` (stimulate
    right) to gate whether stimulation is delivered on that stride. If no command
    is sent, the Arduino does not stimulate even if the timing condition is met.
@@ -125,7 +133,11 @@ ground truth for the ±5% acceptance criterion.
    at 115200, send `0`, then `2` (or `1`), and confirm a `S,R,...`/`S,L,...`
    line appears per gated stride while you hand-press the force plates. Close
    the Serial Monitor before running MATLAB (only one process can hold the
-   port).
+   port). **Also bench-check the outlier clamp:** hand-press several normal-
+   cadence stances and confirm the echoed `estSS` settles to a stable value;
+   then deliberately produce a too-short tap (< 100 ms) and a multi-second hold
+   (> 1000 ms) and confirm the echoed `estSS` does **not** move across those
+   bad "strides" (the clamp rejected them and kept the previous estimate).
 3. **MATLAB dry run (no participant):** run a short dummy profile with
    `hreflex_present = true` and the Arduino reading bench force input. Confirm
    the console prints `Stim L/R step N: ...% SS` lines, that
@@ -268,9 +280,23 @@ The following enhancements are recommended for future development. None are
 implemented yet; this section is for planning purposes.
 
 1. **Configurable thresholds via serial** — Force thresholds (`threshFzUp`,
-   `threshFzDown`) and the exponential smoothing factor (α) are currently
-   hard-coded constants. Exposing them as serial-configurable parameters would
-   allow MATLAB to tune them per participant without re-uploading firmware.
+   `threshFzDown`), the exponential smoothing factor (α), and the single-stance
+   outlier-clamp bounds (`durSSMinValid`, `durSSMaxValid`) are currently
+   hard-coded constants. The clamp bounds in particular (100–1000 ms) are
+   starting values anchored on healthy-adult normative data and widened for
+   slower / asymmetric clinical gait (chronic stroke, older adults); they
+   should be re-checked against pilot data and may need broadening for those
+   populations. The **upper** bound (`durSSMaxValid`) is the operative one to
+   verify: it is the only bound that could clip a real *steady-state* single
+   stance and thus affect a stim. Rejection of the very slow early *ramp*
+   strides is harmless because stims fire only in steady state (the estimate
+   for the first steady-state stim is inherited from the late ramp strides,
+   which are well under the bound, and re-converges via α within ~2 strides).
+   Exposing all of these as serial-configurable parameters would
+   allow MATLAB to tune them per participant without re-uploading firmware. The
+   matching MATLAB controller mirrors α and the clamp bounds
+   (`durSSMinValidMs`, `durSSMaxValidMs`) for its diagnostic estimate, so both
+   sides must be kept in sync.
 
 2. **~~Two-way serial protocol with event echo~~ (implemented)** — On each
    delivered pulse the SpeedIndependent firmware now echoes a tagged record
@@ -294,7 +320,8 @@ implemented yet; this section is for planning purposes.
    detected gait-event markers on the force trace plot.
 
 6. **Inline documentation in the sketch** — The timing algorithm (how single-
-   stance duration is estimated via exponential smoothing and how 50% is used
-   as the delay target) is not explained in comments. Adding block comments at
-   the key calculation steps would make the sketch auditable without needing to
-   refer back to design discussions.
+   stance duration is estimated via exponential smoothing, how the outlier
+   clamp rejects implausible durations, and how 50% is used as the delay
+   target) is only partially explained in comments. Expanding the block
+   comments at the key calculation steps would make the sketch auditable
+   without needing to refer back to design discussions.
