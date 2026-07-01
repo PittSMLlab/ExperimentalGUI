@@ -18,10 +18,10 @@
 %   TRANSFERDATA_SPINALADAPTBOUTS.
 
 %% EXPERIMENTER: Enter Subject-Specific Parameters Before Each Session
-speedProportion = 0.7;  % slow / fast speed ratio; 0.7 since July 2024
+speedProportion = 0.5;  % slow / fast speed ratio
 
-% for stroke participants use SAS01V01 (Sub##V## format)
-subjectID = 'SABH08';   % SABH## for young, SAS##V## for stroke
+% for stroke participants use SASS01V01 (Sub##V## format)
+subjectID = 'SAYA01';   % SAYA##V## for young, SASS##V## for stroke, SAMC
 
 fastLeg = 'R'; % 'R' or 'L'; for healthy: dominant leg; for stroke:
 % non-paretic (session 1) or paretic (session 2).
@@ -40,12 +40,12 @@ dirProfile = fullfile( ...
     'C:\Users\Public\Documents\MATLAB\ExperimentalGUI', ...
     'profiles', 'SpinalAdaptNirsStudy', subjectID);
 answer = 'Yes';                     % default to 'yes', don't check it
-if contains(subjectID, 'V01')       % 2 visits detected, this is visit 1
-    answer = questdlg(['Stroke Session 1: Fast leg should be ' ...
-        'NON-paretic leg, which is ' fastLeg ' Is that correct?']);
-elseif contains(subjectID, 'V02')   % 2 visits detected, this is visit 2
-    answer = questdlg(['Stroke Session 2: Fast leg should be paretic ' ...
-        'leg, which is ' fastLeg ' Is that correct?']);
+if contains(subjectID, 'V01')
+    answer = questdlg(['Visit 1: Fast leg should be NON-paretic / ' ...
+        'Dominant leg, which is ' fastLeg ' Is that correct?']);
+elseif contains(subjectID, 'V02')
+    answer = questdlg(['Visit 2: Fast leg should be paretic / ' ...
+        'NON-Dominant leg, which is ' fastLeg ' Is that correct?']);
 end
 if ~strcmp(answer, 'Yes')
     return;         % abort: fix the fast leg assignment first
@@ -64,8 +64,8 @@ switch profileToGen
             return;     % abort: fix fast leg assignment
         end
         % generate baseline profiles first (fast leg not yet confirmed)
-        generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
-            true, dirProfile);
+        % generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
+        %     true, dirProfile);
         % generate training profiles after fast leg is confirmed
         generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
             false, dirProfile, fastLeg);
@@ -87,14 +87,11 @@ global profilename
 global numAudioCountDown
 global isCalibration
 
-maxCon              = 16;   % maximum number of conditions
-pauseTime1min       = 40;   % s; accounts for Vicon stop/start delay
+maxCon              = 13;   % maximum number of conditions
 pauseTime2min30     = 115;  % s; accounts for Vicon stop/start delay
 ctrlSlotNirsHreflex = 14;   % GUI slot: NirsHreflexArduinoOpenLoopWithAudio
 ctrlSlotOGHreflex   = 16;   % GUI slot: HreflexOGWithAudio
 pauseTransferSec    = 60;   % s; allows Vicon to stop and save last trial
-
-numAudioCountDown = -1;     % default: include final audio countdown
 
 %% Complete Pre-Session H-Reflex Walking Calibration Trials
 isCalibration = true;   % run at least once (slow & fast speeds)
@@ -113,14 +110,11 @@ while currCon < maxCon
             'continue with the next condition?']);
         if strcmp(nextConButton, 'Yes')
             currCon = currCon + 1;
-            if contains(subjectID, 'SABH') && ismember(currCon, [3 4])
-                currCon = 5;    % skip OG trials for young adults
-            end
         elseif strcmp(nextConButton, 'No')
             currCon = inputdlg(['Which condition do you want to start' ...
-                ' from (1 = TM baseline fast, 5 = control bouts,' ...
-                ' 6 = 1st split trial, enter the number from the' ...
-                ' 1st col on the data sheet)?']);
+                ' from (1 = Familiarization slow, 2 = Familiarization ' ...
+                'fast, 3 = 1st control trial, 4 = 1st split trial, ' ...
+                'enter the number from the 1st col on the data sheet)?']);
             disp(['Starting from condition #' currCon{1}]);
             currCon = str2double(currCon{1});
         else
@@ -128,68 +122,42 @@ while currCon < maxCon
         end
     else
         isFirstCon = false;
-        currCon = inputdlg(['Which condition do you want to start ' ...
-            'from (1 = TM baseline fast, 5 = control bouts, ' ...
-            '6 = 1st split trial, enter the number from the ' ...
-            '1st col on the data sheet)?']);
+        currCon = inputdlg(['Which condition do you want to start' ...
+            ' from (1 = Familiarization slow, 2 = Familiarization ' ...
+            'fast, 3 = 1st control trial, 4 = 1st split trial, ' ...
+            'enter the number from the 1st col on the data sheet)?']);
         disp(['Starting from condition #' currCon{1}]);
         currCon = str2double(currCon{1});
     end
 
     switch currCon
-        case 1          % TM Baseline Fast (Tied)
+        case 1          % Familiarization Slow (Tied)
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'TMBaselineFast.mat');
+            profilename = fullfile(dirProfile, 'FamBoutsSlow.mat');
             manualLoadProfile([], [], handles, profilename);
             answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
                 'Open loop with audio countdown and profile is ' ...
-                'TMBaselineFast']);
+                'FamBoutsSlow']);
             if ~strcmp(answer, 'Yes')
                 return;
             end
-            numAudioCountDown = -1;
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button, [], handles);
             % no fixed break here — proceed immediately in GUI
-        case 2          % TM Baseline Slow (Tied)
+        case 2          % Familiarization Fast (Tied)
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'TMBaselineSlow.mat');
+            profilename = fullfile(dirProfile, 'FamBoutsFast.mat');
             manualLoadProfile([], [], handles, profilename);
             answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
                 'Open loop with audio countdown and profile is ' ...
-                'TMBaselineSlow']);
-            if ~strcmp(answer, 'Yes')
-                return;
-            end
-            numAudioCountDown = -1;
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button, [], handles);
-            % no fixed break here — proceed immediately in GUI
-        case 3          % OG Baseline Fast (optional; skipped for SABH)
-            handles.popupmenu2.set('Value', ctrlSlotOGHreflex);
-            profilename = fullfile(dirProfile, 'OGBaselineFast.mat');
-            manualLoadProfile([], [], handles, profilename);
-            answer = questdlg(['Confirm controller is ' ...
-                'HreflexOGWithAudio and speed profile is fast']);
+                'FamBoutsFast']);
             if ~strcmp(answer, 'Yes')
                 return;
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button, [], handles);
             % no fixed break here — proceed immediately in GUI
-        case 4          % OG Baseline Slow (optional; skipped for SABH)
-            handles.popupmenu2.set('Value', ctrlSlotOGHreflex);
-            profilename = fullfile(dirProfile, 'OGBaselineSlow.mat');
-            manualLoadProfile([], [], handles, profilename);
-            answer = questdlg(['Confirm controller is ' ...
-                'HreflexOGWithAudio and speed profile is slow']);
-            if ~strcmp(answer, 'Yes')
-                return;
-            end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button, [], handles);
-            % no fixed break here — proceed immediately in GUI
-        case {5, 14}    % Control Bouts (Tied; before and after split)
+        case {3, 9, 10, 11, 12, 13} % Control Bouts (Tied)
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
             profilename = fullfile(dirProfile, 'CtrlBouts.mat');
             manualLoadProfile([], [], handles, profilename);
@@ -202,7 +170,7 @@ while currCon < maxCon
                 handles.Execute_button, [], handles);
             pause(pauseTime2min30);     % break for at least 2.5 minutes
             play(AudioTimeUp);
-        case {6, 7, 8, 9, 10, 11, 12, 13}  % Split Bouts Trials 1-8
+        case {4, 5, 6, 7, 8}        % Split Bouts Trials 1-8
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
             profilename = fullfile(dirProfile, 'SplitBouts.mat');
             manualLoadProfile([], [], handles, profilename);
@@ -215,22 +183,6 @@ while currCon < maxCon
                 handles.Execute_button, [], handles);
             pause(pauseTime2min30);     % break for at least 2.5 minutes
             play(AudioTimeUp);
-        case {15, 16}   % Post-Adaptation Trials 1 and 2 (Tied Fast)
-            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'PostAdapt.mat');
-            manualLoadProfile([], [], handles, profilename);
-            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop with audio and profile is PostAdapt']);
-            if ~strcmp(answer, 'Yes')
-                return;
-            end
-            numAudioCountDown = -1;
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button, [], handles);
-            if currCon < maxCon     % brief break unless final condition
-                pause(pauseTime1min);
-                play(AudioTimeUp);
-            end
     end
 end
 
