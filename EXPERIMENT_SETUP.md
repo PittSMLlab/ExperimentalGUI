@@ -66,9 +66,12 @@ checklist.
 
 H-reflex timing is split between MATLAB and the Arduino: the Arduino
 owns the precise 50%-single-stance pulse timing, and
-`NirsHreflexArduinoOpenLoopWithAudio` sends a per-stride gate byte at
-single-stance onset (the previous mid-stance send caused missed/mistimed
-stims and was fixed, MATLAB-only). It also sends the start (`0`)/stop
+`NirsHreflexArduinoOpenLoopWithAudio` sends a per-stride gate byte
+during the double support phase immediately preceding single-stance
+onset (a mid-stance send caused missed/mistimed stims and was fixed to
+send at onset; the send was then moved one phase earlier still, to the
+preceding double support, to further widen the margin — both fixes
+MATLAB-only, no firmware change). It also sends the start (`0`)/stop
 (`3`) handshake that runs the Arduino's state machine. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md) for the
 timing contract and the validation checklist to run before resuming
