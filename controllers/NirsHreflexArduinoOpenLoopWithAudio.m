@@ -19,10 +19,14 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %   its own gait-event state machine and fires the stimulus locally. This
 %   controller sends serial command 0 once (before the main loop) to
 %   start the Arduino's state machine, sends a per-stride gate byte (1 =
-%   stim left, 2 = stim right) at single-stance onset to flag which leg
-%   to stimulate, and sends command 3 (in the closing routine) to stop
-%   the Arduino's state machine. Do not change these command bytes
-%   without re-uploading compatible Arduino firmware.
+%   stim left, 2 = stim right) during the double support phase
+%   immediately preceding single-stance onset to flag which leg to
+%   stimulate, and sends command 3 (in the closing routine) to stop the
+%   Arduino's state machine. Sending during the preceding double support
+%   (rather than at onset) only widens the margin before the Arduino's
+%   50% trigger; the Arduino still owns exactly when the pulse fires. Do
+%   not change these command bytes without re-uploading compatible
+%   Arduino firmware.
 %
 %   --- Doc from the open loop controller (controlSpeedWithSteps_edit1
 %   with audio countdown) ---
