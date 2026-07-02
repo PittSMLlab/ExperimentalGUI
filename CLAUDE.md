@@ -93,9 +93,12 @@ sends serial command `0` once before the main loop to start the
 Arduino's state machine, and command `3` in the closing routine to stop
 it; do not change this handshake without re-uploading compatible Arduino
 firmware. Per stride, MATLAB only sends a gate byte (`1` = stim left,
-`2` = stim right) and must send it at single-stance onset, NOT at
-mid-stance. Sending late leaves too little margin before the Arduino's
-50% trigger and causes missed or mistimed stims. The deprecated
+`2` = stim right) and must send it during the double support phase
+immediately preceding single-stance onset, NOT at onset or mid-stance:
+the Arduino only latches the byte and waits for its own 50% trigger, so
+arriving a full double-support period early is safe and widens the
+margin. Sending late leaves too little margin before the Arduino's 50%
+trigger and causes missed or mistimed stims. The deprecated
 `NirsHreflexOpenLoopWithAudio` (now in `controllers/Deprecated/`) pairs
 with the alternative `Dual_Stim_Matlab.ino` firmware, which has no
 on-board gait detection — keep it only as a fallback for that
