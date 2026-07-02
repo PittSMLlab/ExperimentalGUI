@@ -54,14 +54,17 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
 - H-reflex stimulation timing: the Arduino owns the precise
   50%-single-stance pulse timing; `NirsHreflexArduinoOpenLoopWithAudio`
   sends command `0` once before the main loop to start the Arduino's
-  state machine, a per-stride gate byte (`1`/`2`) at single-stance onset,
-  and command `3` in the closing routine to stop the state machine.
-  Earlier code waited until mid-stance to send the gate, which left too
-  little margin before the Arduino's 50% trigger and caused missed or
-  mistimed stims under control-loop jitter — now fixed (MATLAB-only).
-  Display work was also moved off the control loop's hot path (`drawnow
-  limitrate`, reusable `animatedline` markers, throttled textbox
-  updates). The deprecated `NirsHreflexOpenLoopWithAudio` (now in
+  state machine, a per-stride gate byte (`1`/`2`) during the double
+  support phase immediately preceding single-stance onset, and command
+  `3` in the closing routine to stop the state machine. Earlier code
+  waited until mid-stance to send the gate, which left too little margin
+  before the Arduino's 50% trigger and caused missed or mistimed stims
+  under control-loop jitter; later code moved the send to single-stance
+  onset, and it was moved earlier still, to the preceding double
+  support, to further widen the margin — all MATLAB-only, no firmware
+  change. Display work was also moved off the control loop's hot path
+  (`drawnow limitrate`, reusable `animatedline` markers, throttled
+  textbox updates). The deprecated `NirsHreflexOpenLoopWithAudio` (now in
   `controllers/Deprecated/`) pairs with the alternative
   `Dual_Stim_Matlab.ino` firmware (fully MATLAB-timed, no on-board gait
   detection) and is kept only as a fallback for that mode.
@@ -79,7 +82,8 @@ confirm:
   check the distribution from labTools `computeHreflexParameters`
   (`stimTimeFromSingleStanceSlow/Fast`).
 - **Loop timing** — review `datlog.diagnostics.loopSegMs` (median, p95,
-  max) and `gateLeadMs*` (small, stable lead from single-stance onset).
+  max) and `gateLeadMs*` (positive = gate arrived that many ms *before*
+  single-stance onset; expect roughly a double-support duration of lead).
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
   with a short dummy profile at low treadmill speed and confirm every
   intended stride fires once near mid-single-stance.
