@@ -146,7 +146,9 @@ if hreflex_present
     else
         stimInterval = 10;  % stimulate every 10 strides
     end
-    canStim = false; % latches true at single-stance onset; allows exactly one gate send per stance
+    canStim = false; % latches true at the start of the preceding double support; allows exactly one gate send per stance
+    gateSentTimeR = NaN; % now() when the R gate was sent; pending until single-stance R onset for the lead-time diagnostic
+    gateSentTimeL = NaN;
     estSSL = estSSLInit; % running estimate of left single-stance duration (ms, diagnostic only)
     estSSR = estSSRInit;
     durSSL = estSSLInit; % most recent measured left single-stance duration (ms); seeded with the normative estimate until the first stride completes
@@ -293,7 +295,7 @@ datlog.TreadmillCommands.read = nan(numFramesEst,4);
 datlog.TreadmillCommands.sent = nan(numFramesEst,4);
 datlog.audioCues.start = [];    % initialize audioCue log fields
 datlog.audioCues.audio_instruction_message = {};
-datlog.stim.header = {'Step#','StimDelayTarget(ms)','TimeSinceContraTO(SerialDate#)'};
+datlog.stim.header = {'Step#','StimDelayTarget(ms)','GateSendTime(SerialDate#)'};
 datlog.stim.L = [];
 datlog.stim.R = [];
 % Device stim echo (additive; NOT consumed by labTools/SyncDatalog). One
@@ -318,9 +320,11 @@ datlog.stim.deviceEcho.header = {'leg','ardStep','matStep', ...
 datlog.stim.deviceEcho.data = [];
 % Loop-timing diagnostics (additive; NOT consumed by labTools/SyncDatalog).
 % loopSegMs columns: [iterTotal, drawnow/GUI, Vicon read+interop, control+
-% stim], all in ms. gateLeadMs* record (gate send time - single-stance
-% onset time), i.e., how soon after onset MATLAB flagged the stride to
-% the Arduino, in ms.
+% stim], all in ms. gateLeadMs* record (single-stance onset time - gate
+% send time), in ms: POSITIVE means the gate reached the Arduino that
+% many ms BEFORE onset (the intended, safe margin); a value near zero or
+% negative flags the rare double-support-skip edge case where the gate
+% could only be sent at onset itself.
 datlog.diagnostics.header = {'iterTotalMs','guiMs','viconMs','ctrlMs'};
 datlog.diagnostics.loopSegMs = zeros(numFramesEst,4);
 datlog.diagnostics.gateLeadMsL = [];
@@ -716,8 +720,6 @@ try     % so that if something fails, communications are closed properly
                     ME.message];
             end
 
-            % use contralateral leg (i.e., LHS - LTO) to determine R mid-single stance
-            timeSinceLTO = now() - LTOTime(LstepCount);
             if isnan(stimInterval)
                 shouldStimR = logical(stimR(RstepCount));
                 shouldStimL = logical(stimL(LstepCount));
@@ -726,12 +728,19 @@ try     % so that if something fails, communications are closed properly
                 shouldStimL = mod(LstepCount,stimInterval) == 4;
             end
 
-            % Send the gate at single-stance onset: the Arduino owns the
-            % precise 50%-single-stance timing, so MATLAB only needs to flag
-            % the stride early. Waiting until mid-stance left too little
-            % margin and caused late or missed stims under control-loop
-            % jitter.
-            if (shouldStimR && phase == 2 && canStim)
+            % Send the gate during the double support phase immediately
+            % preceding single-stance onset (phase 3 for R, 4 for L): the
+            % Arduino only latches shouldStimL/R and waits for its own
+            % 50%-single-stance trigger, so arriving a full double-support
+            % period early is safe and strictly widens the margin before
+            % that trigger versus sending at onset. The || phase == 2/1
+            % fallback covers the rare double-support-skip edge (embedded
+            % LTO/RTO below), where canStim was set in the same iteration
+            % phase advanced straight to single stance; RstepCount/
+            % LstepCount are unchanged between the double-support and
+            % single-stance phases (they only advance on the contralateral
+            % toe-off), so shouldStimR/L select the same strides either way.
+            if (shouldStimR && (phase == 3 || phase == 2) && canStim)
                 if isCalibration    % play sound
                     play(CalibAudioR);
                 end
@@ -743,14 +752,14 @@ try     % so that if something fails, communications are closed properly
                         'stimulation command to Arduino: %s'],ME.message);
                 end
                 canStim = false;
-                datlog.stim.R(end+1,:) = [RstepCount stimDelayR timeSinceLTO];
-                datlog.diagnostics.gateLeadMsR(end+1) = ...
-                    timeSinceLTO*86400000;  % gate lead from LTO (ms)
+                % pending; resolved to a lead time once single-stance R
+                % onset (LTO) is observed below
+                gateSentTimeR = now();
+                datlog.stim.R(end+1,:) = ...
+                    [RstepCount stimDelayR gateSentTimeR];
             end
 
-            % use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
-            timeSinceRTO = now() - RTOTime(RstepCount);
-            if (shouldStimL && phase == 1 && canStim)
+            if (shouldStimL && (phase == 4 || phase == 1) && canStim)
                 if isCalibration    % play sound
                     play(CalibAudioL);
                 end
@@ -763,9 +772,26 @@ try     % so that if something fails, communications are closed properly
                 end
 
                 canStim = false;    % prevent immediate re-stimulation
-                datlog.stim.L(end+1,:) = [RstepCount stimDelayL timeSinceRTO];
+                % pending; resolved to a lead time once single-stance L
+                % onset (RTO) is observed below
+                gateSentTimeL = now();
+                datlog.stim.L(end+1,:) = ...
+                    [LstepCount stimDelayL gateSentTimeL];
+            end
+
+            % Resolve any pending gate send into a lead-time diagnostic once
+            % its single-stance onset event has actually been observed
+            % (LTOTime/RTOTime were just updated by the state machine above
+            % this block, in the same loop iteration as the phase change).
+            if ~isnan(gateSentTimeR) && phase == 2
+                datlog.diagnostics.gateLeadMsR(end+1) = ...
+                    (LTOTime(LstepCount) - gateSentTimeR) * 86400000;
+                gateSentTimeR = NaN;
+            end
+            if ~isnan(gateSentTimeL) && phase == 1
                 datlog.diagnostics.gateLeadMsL(end+1) = ...
-                    timeSinceRTO*86400000;  % gate lead from RTO (ms)
+                    (RTOTime(RstepCount) - gateSentTimeL) * 86400000;
+                gateSentTimeL = NaN;
             end
         end
 
