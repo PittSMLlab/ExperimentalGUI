@@ -84,7 +84,13 @@ stimulation timing is controlled by an Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
 (see `HreflexStimArduino/README.md` for upload and wiring details). Do
 not change the serial command protocol in MATLAB controllers without
-re-uploading compatible Arduino firmware.
+re-uploading compatible Arduino firmware. Speed profiles may optionally
+include a per-stride belt-acceleration spec (`accL`/`accR`, see
+`generateProfiles_SpinalAdaptBouts.m`) to smooth the standing-to-walking
+ramp; `NirsHreflexArduinoOpenLoopWithAudio` still guarantees each ramp
+stride reaches its target speed before the next heel strike, raising
+the requested acceleration (up to the 3000 mm/s² `getPayload` hard
+limit) if needed.
 
 **H-reflex timing contract** — the Arduino owns the precise
 50%-single-stance pulse timing: it runs its own gait state machine and
