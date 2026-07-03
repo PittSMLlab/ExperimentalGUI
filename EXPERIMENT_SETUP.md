@@ -187,6 +187,18 @@ velL = [repmat(800, 50, 1);  repmat(800, 100, 1);  repmat(800, 50, 1)];
 velR = [repmat(800, 50, 1);  repmat(1600, 100, 1); repmat(800, 50, 1)];
 ```
 
+Optionally, a generator may also produce `accL`/`accR`: per-stride belt
+acceleration in the same unit convention as `velL`/`velR` (scaled x1000
+in the GUI before reaching the controller). A profile that omits them
+falls back to the controller's own fixed default, so this is purely
+additive — existing generators need no changes. A lower value on ramp
+strides smooths a speed transition (e.g. to avoid an fNIRS "startle"
+artifact from a large single-step jerk); controllers that read
+`accL`/`accR` (currently `NirsHreflexArduinoOpenLoopWithAudio`) still
+guarantee each commanded speed is reached before the next ipsilateral
+heel strike, raising the requested acceleration as needed. See
+`generateProfiles_SpinalAdaptBouts.m` for a worked example.
+
 **Step 3 — Choose a controller**
 
 Consult the [Controller Reference](#controller-reference) table. For a
@@ -297,6 +309,12 @@ toolbox). The exceptions:
   incline), 1 checksum byte (255 − sum of data bytes), 27 padding bytes.
 - **Hard limits enforced by `getPayload`:** speed ±6500 mm/s,
   acceleration ≤ 3000 mm/s². Commands outside these ranges are clipped.
+  Controllers that support per-stride acceleration profiles (see
+  "Creating a New Experimental Protocol" above) must stay within this
+  ceiling; `NirsHreflexArduinoOpenLoopWithAudio` raises a profile's
+  requested acceleration up to this limit, never past it, so a
+  low-acceleration ramp still reaches its target speed before the next
+  heel strike.
 
 ### Bertec Sync Software Settings
 
