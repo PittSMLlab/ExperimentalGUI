@@ -114,6 +114,22 @@ leg (not a new `plot` per stride), and time-throttled textbox/`set`
 updates. Per-iteration loop timing and gate lead time are logged to the
 additive `datlog.diagnostics` field for validation.
 
+**H-reflex M-wave monitor** — a companion tool (in development,
+`studies/SpinalAdapt/`) shows the experimenter each leg's M-wave
+near-real-time so DS8R current can be held within ~±10% of baseline.
+It runs in a **separate MATLAB instance** with its own Vicon
+DataStream client (device data only) so it cannot affect the control
+loop above; it never opens the Arduino serial port and never writes to
+`datlog`. `detectStimArtifactOnline` is a causal *re-implementation* of
+`Hreflex.extractStimArtifactIndsFromTrigger`'s detection logic (not a
+call into it, since that helper is whole-trial/non-causal), so it is
+pinned to the offline function's output by a replay parity test rather
+than by construction. `stepHreflexMonitor` recomputes
+`Hreflex.computeAmplitudes` over the full accumulated snippet set on
+each new stim, not per-stim, because that function's outlier-duration
+correction is a population statistic. See
+`studies/SpinalAdapt/README.md` for phase status and file list.
+
 **NirsAutomaticityProtocol**, **Perceptual Adaptation**, and **Weber
 Perception** — completed; data collection and processing finished.
 Shuqi Liu led NirsAutomaticityProtocol; Marcela Gonzalez-Rubio led
