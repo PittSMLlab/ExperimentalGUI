@@ -2,6 +2,11 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
     NirsHreflexOpenLoopWithAudio(velL,velR,FzThreshold, ...
     profilename,numAudioCountDown,isCalibration,oxysoft_present, ...
     hreflex_present,stimL,stimR)
+%ARCHIVED FALLBACK: MATLAB-timed H-reflex stim, frame-quantized timing.
+%Does not meet the 50%-single-stance +-5% target; emergency/hardware-
+%bench use only. Active path: NirsHreflexArduinoOpenLoopWithAudio +
+%triggerStimWithGaitStateMachine_SpeedIndependent (see CLAUDE.md).
+%
 %This is the adapted from Open loop controller with audio feedback, added
 %NIRS events for tied, ramp, split, rest (optional, if exists, always rest
 %for 20 seconds). Also send H reflex stimulations every 10 strides during

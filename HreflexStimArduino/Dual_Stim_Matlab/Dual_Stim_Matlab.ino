@@ -3,6 +3,11 @@
 // date (started): 20 Mar. 2024
 // author(s): SL, NWB
 
+// ARCHIVED FALLBACK: pairs with MATLAB-timed stim control (no on-board
+// gait detection). Degraded, frame-quantized timing; does not meet the
+// 50%-single-stance +-5% target. Emergency/hardware-bench use only.
+// Active firmware: triggerStimWithGaitStateMachine_SpeedIndependent.
+
 // stimulation pulse duration (ms)
 const int durStimPulse = 20;
 
