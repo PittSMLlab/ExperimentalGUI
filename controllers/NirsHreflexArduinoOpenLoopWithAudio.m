@@ -437,11 +437,25 @@ try     % so that if something fails, communications are closed properly
         datlog = nirsEvent('Mid_noaudio','M',['Mid' num2str(nextRestIdx-1)],instructions,datlog,Oxysoft,oxysoft_present);
     end
 
-    % Send first speed command and log it
+    % Send first speed command and log it. Both belts are stationary
+    % and both feet are planted (no gait cycle running yet) here, so
+    % this is a moment acceleration is felt directly through both legs
+    % -- the same condition recurs whenever a belt resumes from a rest
+    % break mid-trial (see accInitial's other use in the main loop
+    % below). Every other speed change is sent on the ipsilateral
+    % swinging (unloaded) foot instead, where accel magnitude has no
+    % tactile effect as long as target speed is reached before the
+    % next heel strike, so only these from-a-dead-stop commands use
+    % the gentler accInitial.
+    accInitial = 500; % mm/s^2; about 1/3 of acc below, to smooth the
+    % moments both feet are planted on stationary belts
+    % (empirically-tuned starting value)
     acc = 1500; %used to be 3500, made it smaller for start to be more smooth, 1500 would achieve 1.5m/s in 1second, which is beyond the expected max speed we will ever use in this protocol.
-    payload = getPayload(velR(1,1),velL(1,1),acc,acc,cur_incl);
+    payload = getPayload(velR(1,1),velL(1,1),accInitial, ...
+        accInitial,cur_incl);
     sendTreadmillPacket(payload,t);
-    datlog.TreadmillCommands.firstSent = [velR(RstepCount,1) velL(LstepCount,1) acc acc cur_incl now()];
+    datlog.TreadmillCommands.firstSent = [velR(RstepCount,1) ...
+        velL(LstepCount,1) accInitial accInitial cur_incl now()];
     commSendTime(1,:) = clock;
     datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()];
     datlog.messages(end+1,:) = {'First speed command sent',now()};
@@ -899,7 +913,22 @@ try     % so that if something fails, communications are closed properly
             break
             % send treadmill command only if speed changes
         elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
-            payload = getPayload(velR(RstepCount,1),velL(LstepCount,1),acc,acc,cur_incl);
+            % A belt resuming from a genuine stop (old_velR/L.Value == 0,
+            % e.g. right after a mid-trial rest break) is the same both-
+            % feet-planted condition as the pre-loop first command above,
+            % so use accInitial there too instead of the normal acc.
+            if old_velR.Value == 0
+                accSendR = accInitial;
+            else
+                accSendR = acc;
+            end
+            if old_velL.Value == 0
+                accSendL = accInitial;
+            else
+                accSendL = acc;
+            end
+            payload = getPayload(velR(RstepCount,1),velL(LstepCount,1), ...
+                accSendR,accSendL,cur_incl);
             sendTreadmillPacket(payload,t);
             datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()]; % record the command
             disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))]);
