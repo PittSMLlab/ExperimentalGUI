@@ -77,8 +77,7 @@ protocol scripts.
 
 **SpinalAdapt** — rebooting; data collection planned to resume ~July
 2026. Lead: Chase Rock (post-doctoral fellow); key experimenters:
-Shuqi Liu, Nate Brantly. Measures fNIRS and H-reflex in addition to
-Vicon motion capture and Delsys EMG. Primary protocol:
+Shuqi Liu, Nate Brantly. Primary protocol:
 `studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. H-reflex
 stimulation timing is controlled by an Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
@@ -86,49 +85,42 @@ stimulation timing is controlled by an Arduino Uno running
 not change the serial command protocol in MATLAB controllers without
 re-uploading compatible Arduino firmware.
 
-**H-reflex timing contract** — the Arduino owns the precise
-50%-single-stance pulse timing: it runs its own gait state machine and
-fires locally. The MATLAB controller (`NirsHreflexArduinoOpenLoopWithAudio`)
-sends serial command `0` once before the main loop to start the
-Arduino's state machine, and command `3` in the closing routine to stop
-it; do not change this handshake without re-uploading compatible Arduino
-firmware. Per stride, MATLAB only sends a gate byte (`1` = stim left,
-`2` = stim right) and must send it during the double support phase
-immediately preceding single-stance onset, NOT at onset or mid-stance:
-the Arduino only latches the byte and waits for its own 50% trigger, so
-arriving a full double-support period early is safe and widens the
-margin. Sending late leaves too little margin before the Arduino's 50%
-trigger and causes missed or mistimed stims. The deprecated
-`NirsHreflexOpenLoopWithAudio` (now in `controllers/Deprecated/`) pairs
-with the alternative `Dual_Stim_Matlab.ino` firmware, which has no
-on-board gait detection — keep it only as a fallback for that
-fully-MATLAB-timed mode. Keep display work off the control
-loop's hot path: `drawnow limitrate`, one reusable `animatedline` per
-leg (not a new `plot` per stride), and time-throttled textbox/`set`
-updates. Per-iteration loop timing and gate lead time are logged to the
-additive `datlog.diagnostics` field for validation.
+**H-reflex timing contract** — `NirsHreflexArduinoOpenLoopWithAudio`
+paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
+is the authoritative, Arduino-timed path. The deprecated
+`NirsHreflexOpenLoopWithAudio` (`controllers/Deprecated/`, paired with
+`Dual_Stim_Matlab.ino`) is a frozen bench/emergency fallback only — do
+not extend it or treat it as a starting point. The Arduino runs its
+own gait state machine and fires locally at 50% of an EWMA-estimated
+single-stance duration (`alpha = 0.70`, each candidate clamped to
+100-1000 ms before the update to reject doubled/missed detections);
+MATLAB mirrors the same alpha and clamp in its diagnostics EWMA — do
+not change either without re-validating in the lab. Per stride, MATLAB
+sends only a gate byte (`1` = stim left, `2` = stim right) during the
+double support phase immediately preceding single-stance onset (never
+at onset or mid-stance — early is always safe, late risks a missed or
+mistimed stim) and owns the start (`0`)/stop (`3`) handshake; this
+inbound `0`/`1`/`2`/`3` protocol is frozen with the firmware — do not
+change it without re-uploading compatible firmware. The firmware
+additionally echoes each delivered pulse's actual fire time back over
+serial (`echoStimRecord`); MATLAB logs this one-way, informational
+echo to the additive `datlog.stim.deviceEcho` field as a lab
+ground-truth check — it does not feed the firing decision. Keep
+display work off the control loop's hot path. See
+`studies/SpinalAdapt/README.md` for the full timing history,
+display-pattern detail, and the pre-collection validation checklist.
 
 **H-reflex M-wave monitor** — a companion tool (in development,
-`studies/SpinalAdapt/`) shows the experimenter each leg's M-wave
-near-real-time so DS8R current can be held within ~±10% of baseline.
-It runs in a **separate MATLAB instance** with its own Vicon
-DataStream client (device data only) so it cannot affect the control
-loop above; it never opens the Arduino serial port and never writes to
-`datlog`. `detectStimArtifactOnline` is a causal *re-implementation* of
-`Hreflex.extractStimArtifactIndsFromTrigger`'s detection logic (not a
-call into it, since that helper is whole-trial/non-causal), so it is
-pinned to the offline function's output by a replay parity test rather
-than by construction. `stepHreflexMonitor` recomputes
-`Hreflex.computeAmplitudes` over the full accumulated snippet set on
-each new stim, not per-stim, because that function's outlier-duration
-correction is a population statistic. See
+`studies/SpinalAdapt/`) must keep running in its own **separate
+MATLAB instance** with its own Vicon DataStream client (device data
+only): it must never open the Arduino serial port or write to
+`datlog`, since that would perturb the control loop above. See
 `studies/SpinalAdapt/README.md` for phase status and file list.
 
 **NirsAutomaticityProtocol**, **Perceptual Adaptation**, and **Weber
-Perception** — completed; data collection and processing finished.
-Shuqi Liu led NirsAutomaticityProtocol; Marcela Gonzalez-Rubio led
-Perceptual Adaptation and Weber Perception. Consult the lead
-experimenter before modifying scripts in these folders.
+Perception** — completed; consult the lead experimenter (see
+EXPERIMENT_SETUP.md for study leads) before modifying scripts in these
+folders.
 
 ## MATLAB Version Compatibility
 All code must be compatible with MATLAB R2021a through the current
@@ -151,9 +143,9 @@ release.
   acceptable when unambiguous (`tbl`, `fig`, `lme`, `pval`).
 - Do not use `i` or `j` as loop indices (reserved for imaginary unit).
   For stride loops use `st`; for generic enumeration use `ii`, `jj`,
-  `kk`. Preferred short names: `mscl` (muscles), `mrkr` (markers),
-  `lbl` (labels), `tr` (trials), `con` (conditions), `fp` (force
-  plates), `ch` (channels). Never use `iMuscle`-style names.
+  `kk`. Preferred short names: `mscl`, `mrkr`, `lbl`, `tr`, `con`,
+  `fp`, `ch` (see CONTRIBUTING.md's Naming Conventions table for
+  meanings). Never use `iMuscle`-style names.
 - Do not indent the base level of code inside functions
 - Align `=` within a group of closely related assignments
 - Write `0.5` not `.5`
