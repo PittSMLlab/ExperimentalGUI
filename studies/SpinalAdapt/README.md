@@ -51,8 +51,10 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
   The speed feedback range must be adjusted manually between
   participants based on comfortable overground walking speed.
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
-- H-reflex stimulation timing: the Arduino owns the precise
-  50%-single-stance pulse timing; `NirsHreflexArduinoOpenLoopWithAudio`
+- H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
+  paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
+  is the authoritative, Arduino-timed path. The Arduino owns the
+  precise 50%-single-stance pulse timing; `NirsHreflexArduinoOpenLoopWithAudio`
   sends command `0` once before the main loop to start the Arduino's
   state machine, a per-stride gate byte (`1`/`2`) during the double
   support phase immediately preceding single-stance onset, and command
@@ -64,10 +66,19 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
   support, to further widen the margin — all MATLAB-only, no firmware
   change. Display work was also moved off the control loop's hot path
   (`drawnow limitrate`, reusable `animatedline` markers, throttled
-  textbox updates). The deprecated `NirsHreflexOpenLoopWithAudio` (now in
+  textbox updates). Both sides estimate single-stance duration via an
+  EWMA (`alpha = 0.70`), with each candidate duration clamped to
+  100-1000 ms before the update to reject doubled/missed detections
+  and standing rests; MATLAB mirrors the firmware's alpha/clamp in its
+  own diagnostics EWMA. The firmware also echoes each delivered
+  pulse's actual fire time back over serial (`echoStimRecord`), which
+  MATLAB logs to the additive `datlog.stim.deviceEcho` field as a lab
+  ground-truth check (informational only — it does not feed the firing
+  decision). The deprecated `NirsHreflexOpenLoopWithAudio` (now in
   `controllers/Deprecated/`) pairs with the alternative
   `Dual_Stim_Matlab.ino` firmware (fully MATLAB-timed, no on-board gait
-  detection) and is kept only as a fallback for that mode.
+  detection) and is a frozen bench/emergency fallback only — do not
+  extend it or treat it as a starting point.
 
 ## Validation Before Resuming Collection
 
