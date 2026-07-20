@@ -113,6 +113,7 @@ archive/                    Inactive / legacy files (old GUI snapshots,
 | `FindKinHS` / `FindKinTO` | Heel-strike / toe-off detection from kinematics |
 | `parseEventsFromSpeeds` | Classify stride phases from speed profile vectors |
 | `utils.transferData` | Recursively archive datlogs to server |
+| `utils.buildDatlogFrameTable` | Consolidate a datlog's per-frame arrays (forces, belt speeds, gait/stim events) into one timetable, on demand |
 | `smoothStop` | Ramp both belts to zero safely |
 
 ---

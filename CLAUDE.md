@@ -54,9 +54,21 @@ or queries treadmill speed rather than commanding a preset value.
 layer on `C:\Users\Public\Documents\MATLAB\`): speed ±6500 mm/s,
 acceleration ≤ 3000 mm/s².
 
-**datlog fields** — `buildtime` (ISO 8601), `profilename`, `mode`,
-`RTOTime`, `LTOTime`, `RHSTime`, `LHSTime`, `commSendTime`. Saved to
-`datlogs/<timestamp>_<profile>.mat` on STOP.
+**datlog fields** — top-level struct fields (not to be confused with a
+controller's own args/outputs, e.g. `RTOTime`/`commSendTime`, which are
+separate): `buildtime`, `session_name`, `errormsgs`, `messages`,
+`framenumbers.data` (frame #, U Time, Relative Time), `forces.data`
+(frame #, U Time, Rfz, Lfz, Relative Time), `stepdata.{RHS,LHS,RTO,
+LTO}data` (Step#, U Time, frame #, Relative Time), `inclineang`,
+`speedprofile.{velL,velR}`, `TreadmillCommands.{read,sent}` (RBS, LBS,
+angle, U Time, Relative Time) and `.firstSent`, `audioCues`,
+`stim.{L,R}` (Step#, StimDelayTarget(ms), GateSendTime) plus the
+additive `stim.deviceEcho` and `diagnostics` fields (see the H-reflex
+timing contract below). Saved to `datlogs/<timestamp>_<profile>.mat`
+on STOP. For a consolidated per-frame view (belt speeds, gait events,
+stim gate flags joined onto one timetable), see
+`utils.buildDatlogFrameTable` — a read-side helper computed on demand,
+not a field stored in the log.
 
 See [EXPERIMENT_SETUP.md](EXPERIMENT_SETUP.md) for the controller
 reference table and protocol creation guide.

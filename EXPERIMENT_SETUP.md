@@ -297,6 +297,15 @@ toolbox). The exceptions:
   incline), 1 checksum byte (255 − sum of data bytes), 27 padding bytes.
 - **Hard limits enforced by `getPayload`:** speed ±6500 mm/s,
   acceleration ≤ 3000 mm/s². Commands outside these ranges are clipped.
+- **Belt speed logging:** the Bertec's own reported belt speed/incline
+  (not just what was commanded) is already read every ~100 ms via
+  `readTreadmillPacket` and logged per frame to
+  `datlog.TreadmillCommands.read`; commanded values are logged
+  separately to `.sent`. `utils.buildDatlogFrameTable(datlog)` joins
+  these with forces, gait events, and H-reflex stim gate sends onto one
+  per-frame timetable, computed on demand from the saved datlog (not a
+  stored field, so it adds nothing to the `.mat` file or to labTools'
+  in-memory footprint when loading many trials).
 
 ### Bertec Sync Software Settings
 
