@@ -329,6 +329,12 @@ datlog.diagnostics.header = {'iterTotalMs','guiMs','viconMs','ctrlMs'};
 datlog.diagnostics.loopSegMs = zeros(numFramesEst,4);
 datlog.diagnostics.gateLeadMsL = [];
 datlog.diagnostics.gateLeadMsR = [];
+% NOTE: TreadmillCommands.read columns 1-2 (RBS, LBS) are the Bertec's
+% own reported belt speeds (not just what was commanded); .sent holds
+% what was actually commanded. For a consolidated per-frame view joining
+% these with forces, gait events, and stim gate sends, see
+% utils.buildDatlogFrameTable(datlog) -- a read-side helper, not stored
+% here, so it adds nothing to the saved .mat file.
 
 %do initial save
 try
