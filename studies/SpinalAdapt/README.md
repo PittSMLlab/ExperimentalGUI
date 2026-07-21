@@ -51,6 +51,18 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
   The speed feedback range must be adjusted manually between
   participants based on comfortable overground walking speed.
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
+- Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, fixed
+  2026-07): the inter-bout rest is a fixed ~10 s SILENT window
+  (`restSilentSec`, belts stopped, timer padded by the rest cue's own
+  length so it excludes the cue), applied to every run of this
+  controller including fNIRS/H-reflex sessions. Every bout start
+  (tied ramp = `AccRamp`, split ramp = `DccRamp2Split`) announces "TM
+  will start now" exactly once; bout 1 is announced by the pre-loop
+  3-2-1 countdown, and the ramp-event cue is suppressed only for that
+  first bout to avoid a duplicate. The "which bout to start from"
+  dialog range and default are derived from the loaded profile's bout
+  count (5 for familiarization, 10 for Control/Split), not
+  hard-coded.
 - H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
   paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
   is the authoritative, Arduino-timed path. The Arduino owns the
