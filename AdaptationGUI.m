@@ -91,7 +91,7 @@ global tone
 load(fullfile('assets', 'click.mat'));
 tone = y;
 global lastKeyPress
-lastKeyPress = now;
+lastKeyPress = datetime('now'); % write-only; no consumer reads this global
 global keyWasReleased
 keyWasReleased = true;
 
@@ -307,9 +307,9 @@ if get(handles.EMGWorks_checkbox, 'Value') == 1
         %           pause(3);
     end
 
-    disp(['Opening EMGWorks Port ' datestr(datetime('now'))]);
+    disp(['Opening EMGWorks Port ' char(datetime('now'))]);
     pulseSerialPort('COM14');
-    disp(['Done Opening EMGWorks Port ' datestr(datetime('now'))]);
+    disp(['Done Opening EMGWorks Port ' char(datetime('now'))]);
 
     %     %Do something
     %     startedEMG_flag=true;
@@ -357,10 +357,10 @@ if get(handles.Nexus_checkbox, 'Value') == 1
     %      %MOnitor in Nexus watched for pulse to toggle start/stop.
     %      %use orange wire out of serial port to pin 64 on AD board
 
-    disp(['Opening Vicon Port ' datestr(datetime('now'))]);
+    disp(['Opening Vicon Port ' char(datetime('now'))]);
     % pulses the voltage high then low, toggling capture in Nexus
     pulseSerialPort('COM1');
-    disp(['Done Opening Vicon Port ' datestr(datetime('now'))]);
+    disp(['Done Opening Vicon Port ' char(datetime('now'))]);
     %
     if get(handles.waitForNexusChkBox, 'Value') == 1 && ...
             get(handles.EMGWorks_checkbox, 'Value') == 0
@@ -662,9 +662,9 @@ if startedEMG_flag
     %     XServer.AppActivate('EMGworks 4.0.13 - Workflow Environment Pro'); %Get EMG in front
     %     XServer.SendKeys('^s'); %Stop acquisition
     %     XServer.AppActivate('AdaptationGUI'); %This window
-    disp(['Stopping EMG Port ' datestr(datetime('now'))]);
+    disp(['Stopping EMG Port ' char(datetime('now'))]);
     pulseSerialPort('COM14');
-    disp(['Done Stopping EMG Port ' datestr(datetime('now'))]);
+    disp(['Done Stopping EMG Port ' char(datetime('now'))]);
 end
 if startedNexus_flag
     %     XServer.AppActivate('Vicon Nexus 1.8.5');
@@ -679,9 +679,9 @@ if startedNexus_flag
     %       stopmsg=['<?xml version="1.0" encoding="UTF-8" standalone="no" ?><CaptureStop RESULT="SUCCESS"><Name VALUE="Trial' num2str(TrialNum) '"/><DatabasePath VALUE="' nexuspath '\"/><Delay VALUE="0"/><PacketID VALUE="' num2str(TrialNum*10) '"/></CaptureStop>']; %311
     %       step(myudp,int8(stopmsg));
     %
-    disp(['Closing Vicon Port ' datestr(datetime('now'))]);
+    disp(['Closing Vicon Port ' char(datetime('now'))]);
     pulseSerialPort('COM1');
-    disp(['Done Closing Vicon Port ' datestr(datetime('now'))]);
+    disp(['Done Closing Vicon Port ' char(datetime('now'))]);
 end
 
 setStatus(handles, 'Ready', 'Green');
@@ -1095,10 +1095,10 @@ if enableMemory && isAllowed && keyWasReleased
     % Add to counter & record keypress in log
     counter = counter + 1;
     addLog.keypress{counter, 1} = keypress;
-    addLog.keypress{counter, 2} = now;
+    addLog.keypress{counter, 2} = now; %#ok<TNOW1> preserve serial record
     addLog.keypressHeader = {'Choice', 'Time', 'RStepCount', ...
         'LStepCount', 'AddSteps'};
-    addLog.keyTime{counter, 1} = datetime(now, 'ConvertFrom', 'datenum');
+    addLog.keyTime{counter, 1} = datetime('now');
 
     % Take action:
     if ~firstPress
@@ -1166,7 +1166,7 @@ if enableMemory && isAllowed && keyWasReleased
     end
     %   play(fastbeep);
 
-    lastKeyPress = now;
+    lastKeyPress = datetime('now'); % write-only; no consumer reads this global
     keyWasReleased = false;
 end
 

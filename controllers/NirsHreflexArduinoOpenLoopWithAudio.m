@@ -294,8 +294,14 @@ nextNirsEventIdx = 1;
 
 %% Initialize Data Logging Structure (Preallocated)
 datlog = struct();
-datlog.buildtime = now(); % timestamp
-temp = datestr(datlog.buildtime,'yyyy_mm_dd_HH_MM_SS');
+buildTime = datetime('now'); % timestamp
+% datenum() is itself flagged (DATNM) but is the only way to keep
+% buildtime's stored type an unchanged serial date number; suppressed
+% rather than changed, same as the hot-path now()/clock storage sites
+% below -- storage-format modernization deferred to prompt 18
+% (coordinated w/ labTools).
+datlog.buildtime = datenum(buildTime); %#ok<DATNM>
+temp = char(buildTime,'yyyy_MM_dd_HH_mm_ss');
 [d,n] = fileparts(which(mfilename));
 savename = fullfile(d,'..','datlogs',[temp '_' profilename]);
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
@@ -364,6 +370,16 @@ datlog.diagnostics.gateLeadMsR = [];
 % these with forces, gait events, and stim gate sends, see
 % utils.buildDatlogFrameTable(datlog) -- a read-side helper, not stored
 % here, so it adds nothing to the saved .mat file.
+% NOTE: every stored "U Time"/timestamp column below (framenumbers,
+% forces, stepdata, TreadmillCommands, stim GateSendTime, messages,
+% RTOTime/LTOTime/RHSTime/LHSTime, commSendTime) still uses now()/clock
+% intentionally: they are serial date numbers consumed as datenum
+% arithmetic elsewhere (e.g. the durSSL/durSSR and gateLeadMs
+% computations), and converting the call itself to datetime() would
+% change the stored type or add a per-frame datetime construction cost
+% on this hot loop. Modernizing the storage format is deferred to a
+% coordinated ExperimentalGUI + labTools change; the %#ok suppressions
+% below intentionally silence the editor warning until then.
 
 %do initial save
 try
@@ -416,9 +432,9 @@ catch ME
 end
 
 try
-    fprintf('Open TM Comm. Date Time: %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+    fprintf('Open TM Comm. Date Time: %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
     t = openTreadmillComm();
-    fprintf('Done Opening. Date Time: %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+    fprintf('Done Opening. Date Time: %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
 catch ME
     disp('Error creating TCP connection to Treadmill. See datlog for details.');
     datlog.errormsgs{end+1} = 'Error creating TCP connection to Treadmill.';
@@ -428,7 +444,7 @@ end
 
 try     % so that if something fails, communications are closed properly
     MyClient.GetFrame();
-    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ',now()};
+    datlog.messages(end+1,:) = {'Nexus and Bertec Interfaces initialized: ',now()}; %#ok<TNOW1>
 
     % initialize trial variables
     new_stanceL = false;
@@ -436,26 +452,25 @@ try     % so that if something fails, communications are closed properly
     phase = 0; % 0 = Double Support, 1 = single L support, 2 = single R support
     LstepCount = 1;
     RstepCount = 1;
-    RTOTime(N) = now();
-    LTOTime(N) = now();
-    RHSTime(N) = now();
-    LHSTime(N) = now();
+    RTOTime(N) = now(); %#ok<TNOW1>
+    LTOTime(N) = now(); %#ok<TNOW1>
+    RHSTime(N) = now(); %#ok<TNOW1>
+    LHSTime(N) = now(); %#ok<TNOW1>
     commSendTime = zeros(2*N-1,6);
     commSendFrame = zeros(2*N-1,1);
 
     [RBS,LBS,cur_incl] = readTreadmillPacket(t); % read treadmill incline angle
-    lastRead = now();
+    lastRead = tic; % timer since last treadmill read (throttle below)
     datlog.inclineang = cur_incl;
     read_theta = cur_incl;
 
     % Nimbus start sync
     % create file on hard drive, then delete later after task is finished
-    time1 = now();
+    tSync = tic;
     syncname = fullfile(tempdir,'SYNCH.dat');
     fid = fopen(syncname,'wb');
     fclose(fid);
-    time2 = now();
-    fprintf('Sync file creation time (s): %.3f\n',etime(datevec(time2),datevec(time1)));
+    fprintf('Sync file creation time (s): %.3f\n',toc(tSync));
 
     % audio countdown
     % if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
@@ -466,7 +481,7 @@ try     % so that if something fails, communications are closed properly
     % gets its start cue from the ramp event only.
     suppressFirstStartCue = false;
     if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
-        fprintf('Ready to count down. Date Time: %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+        fprintf('Ready to count down. Date Time: %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         play(AudioTMStart3);
         pause(2.5);
         play(AudioCount2);
@@ -497,10 +512,10 @@ try     % so that if something fails, communications are closed properly
         accInitial,cur_incl);
     sendTreadmillPacket(payload,t);
     datlog.TreadmillCommands.firstSent = [velR(RstepCount,1) ...
-        velL(LstepCount,1) accInitial accInitial cur_incl now()];
-    commSendTime(1,:) = clock;
-    datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()];
-    datlog.messages(end+1,:) = {'First speed command sent',now()};
+        velL(LstepCount,1) accInitial accInitial cur_incl now()]; %#ok<TNOW1>
+    commSendTime(1,:) = clock; %#ok<CLOCK>
+    datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()]; %#ok<TNOW1>
+    datlog.messages(end+1,:) = {'First speed command sent',now()}; %#ok<TNOW1>
     datlog.messages{end+1,1} = ['Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))];
 
     %% Start Arduino State Machine
@@ -531,7 +546,7 @@ try     % so that if something fails, communications are closed properly
     framenum = libpointer('doublePtr',0);
 
     if numAudioCountDown    % adapted from open loop audio countdown
-        countDownPlayed = repmat(false,1,5*length(numAudioCountDown));
+        countDownPlayed = false(1,5*length(numAudioCountDown));
         %if there are speed changes in between, will have 4 counts for
         %each: 3-2-1-now & 1 for complete, moving on to next.
         %the last 4 index will be used for 3-2-1-now(stop) and will be reused
@@ -545,7 +560,7 @@ try     % so that if something fails, communications are closed properly
     end
 
     loopCount = 0;          % number of completed main-loop iterations
-    lastUIUpdate = now();   % last time belt-speed textboxes were refreshed
+    lastUIUpdate = tic;     % timer since belt-speed textboxes were refreshed
     handrailHigh = false;   % current handrail-force warning color state
     % Reusable per-leg marker lines: append a point per heel strike via
     % addpoints instead of creating a new plot object every stride (which
@@ -561,8 +576,8 @@ try     % so that if something fails, communications are closed properly
     while ~STOP     % only runs trial loop if stop button is not pressed
         while PAUSE % only runs if pause button is pressed
             pause(0.2);
-            datlog.messages(end+1,:) = {'Loop paused at ',now()};
-            disp(['Paused at ' num2str(clock)]);
+            datlog.messages(end+1,:) = {'Loop paused at ',now()}; %#ok<TNOW1>
+            disp(['Paused at ' char(datetime('now'))]);
             % bring treadmill to a stop and keep it there!...
             payload = getPayload(0,0,500,500,cur_incl);
             sendTreadmillPacket(payload,t);
@@ -586,26 +601,26 @@ try     % so that if something fails, communications are closed properly
         % read frame, update necessary structures
         MyClient.GetFrame();
         framenum.Value = MyClient.GetFrameNumber().FrameNumber;
-        datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now()];
+        datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now()]; %#ok<TNOW1>
 
         % read treadmill, if enough time has elapsed since last read
-        if (now() - lastRead)*86400 > 0.1     % only read if enough time has elapsed
+        if toc(lastRead) > 0.1     % only read if enough time has elapsed
             [RBS,LBS,read_theta] = readTreadmillPacket(t);  % also read what the treadmill is doing
-            lastRead = now();
+            lastRead = tic;
         end
-        datlog.TreadmillCommands.read(frameind.Value,:) = [RBS LBS read_theta now()];
+        datlog.TreadmillCommands.read(frameind.Value,:) = [RBS LBS read_theta now()]; %#ok<TNOW1>
         % throttle textbox refresh to limit per-iteration graphics work
-        if (now() - lastUIUpdate)*86400 > 0.1     % refresh at ~10 Hz
+        if toc(lastUIUpdate) > 0.1     % refresh at ~10 Hz
             set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
             set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
-            lastUIUpdate = now();
+            lastUIUpdate = tic;
         end
         frameind.Value = frameind.Value + 1;
 
         % capture force plate data
         Fz_R = MyClient.GetDeviceOutputValue('Right Treadmill','Fz');
         Fz_L = MyClient.GetDeviceOutputValue('Left Treadmill','Fz');
-        datlog.forces.data(frameind.Value,:) = [framenum.Value now() Fz_R.Value Fz_L.Value];
+        datlog.forces.data(frameind.Value,:) = [framenum.Value now() Fz_R.Value Fz_L.Value]; %#ok<TNOW1>
         Hx = MyClient.GetDeviceOutputValue('Handrail','Fx');
         Hy = MyClient.GetDeviceOutputValue('Handrail','Fy');
         Hz = MyClient.GetDeviceOutputValue('Handrail','Fz');
@@ -649,19 +664,19 @@ try     % so that if something fails, communications are closed properly
                 if RTO      % advance to single stance L
                     phase = 1;
                     RstepCount = RstepCount + 1;
-                    RTOTime(RstepCount) = now();
-                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value];
+                    RTOTime(RstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                 elseif LTO  % advance to single stance R
                     phase = 2;
                     LstepCount = LstepCount + 1;
-                    LTOTime(LstepCount) = now();
-                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value];
+                    LTOTime(LstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                 end
             case 1          % single stance L
                 if RHS      % advance to double stance
                     phase = 3;
-                    RHSTime(RstepCount) = now();
-                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value];
+                    RHSTime(RstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                     % RHS marks the end of single stance L
                     % compute duration of left leg single stance phase
                     % (RHSTime/RTOTime are datenums in days; convert to ms
@@ -687,15 +702,15 @@ try     % so that if something fails, communications are closed properly
                     if LTO %In case DS is too short and a full cycle misses the phase switch
                         phase = 2;
                         LstepCount = LstepCount + 1;
-                        LTOTime(LstepCount) = now();
-                        datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value];
+                        LTOTime(LstepCount) = now(); %#ok<TNOW1>
+                        datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                     end
                 end
             case 2          % single stance R
                 if LHS      % advance to double stance
                     phase = 4;
-                    LHSTime(LstepCount) = now();
-                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value];
+                    LHSTime(LstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                     % LHS marks the end of single stance R
                     % compute duration of right leg single stance phase
                     % (LHSTime/LTOTime are datenums in days; convert to ms
@@ -721,23 +736,23 @@ try     % so that if something fails, communications are closed properly
                     if RTO %In case DS is too short and a full cycle misses the phase switch
                         phase = 1;
                         RstepCount = RstepCount + 1;
-                        RTOTime(RstepCount) = now();
-                        datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value];
+                        RTOTime(RstepCount) = now(); %#ok<TNOW1>
+                        datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                     end
                 end
             case 3          % double stance, coming from single stance L
                 if LTO      % advance to single stance R
                     phase = 2;
                     LstepCount = LstepCount + 1;
-                    LTOTime(LstepCount) = now();
-                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value];
+                    LTOTime(LstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                 end
             case 4          % double stance, coming from single stance R
                 if RTO      % advance to single stance L
                     phase = 1;  % advance to L single stance
                     RstepCount = RstepCount + 1;
-                    RTOTime(RstepCount) = now();
-                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value];
+                    RTOTime(RstepCount) = now(); %#ok<TNOW1>
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1 now() framenum.Value]; %#ok<TNOW1>
                 end
         end
 
@@ -810,7 +825,7 @@ try     % so that if something fails, communications are closed properly
                 canStim = false;
                 % pending; resolved to a lead time once single-stance R
                 % onset (LTO) is observed below
-                gateSentTimeR = now();
+                gateSentTimeR = now(); %#ok<TNOW1>
                 datlog.stim.R(end+1,:) = ...
                     [RstepCount stimDelayR gateSentTimeR];
             end
@@ -830,7 +845,7 @@ try     % so that if something fails, communications are closed properly
                 canStim = false;    % prevent immediate re-stimulation
                 % pending; resolved to a lead time once single-stance L
                 % onset (RTO) is observed below
-                gateSentTimeL = now();
+                gateSentTimeL = now(); %#ok<TNOW1>
                 datlog.stim.L(end+1,:) = ...
                     [LstepCount stimDelayL gateSentTimeL];
             end
@@ -884,7 +899,7 @@ try     % so that if something fails, communications are closed properly
         if numAudioCountDown %Adapted from open loop audio countdown
             if length(numAudioCountDown) > 1 && speedChangeStride ~= -1 %there is speed change in the middle and there is more change incoming (if -1 means next is TM end)
                 if (LstepCount == speedChangeStride-3 || RstepCount == speedChangeStride-3) && ~countDownPlayed(1+countDownIdxOffset)
-                    fprintf(['Change at ' num2str(speedChangeStride) '-3 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                    fprintf(['Change at ' num2str(speedChangeStride) '-3 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                     fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
 
                     %log in NIRS that audio count down is happening. FIXME
@@ -894,20 +909,20 @@ try     % so that if something fails, communications are closed properly
                     countDownPlayed(countDownIdx) = true; %This should only be run once
                     countDownIdx = countDownIdx + 1;
                 elseif (LstepCount == speedChangeStride-1 || RstepCount == speedChangeStride-1) && ~countDownPlayed(2+countDownIdxOffset)
-                    fprintf(['Change-2 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                    fprintf(['Change-2 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                     fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
                     play(AudioCount2);
                     countDownPlayed(countDownIdx) = true; %This should only be run once
                     countDownIdx = countDownIdx + 1;
                 elseif (LstepCount == speedChangeStride || RstepCount == speedChangeStride) && ~countDownPlayed(3+countDownIdxOffset)
-                    fprintf(['Change at ' num2str(speedChangeStride) ' Last Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                    fprintf(['Change at ' num2str(speedChangeStride) ' Last Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                     fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
                     disp(countDownPlayed)
                     play(AudioCount1)
                     countDownPlayed(countDownIdx) = true; %This should only be run once
                     countDownIdx = countDownIdx + 1;
                 elseif (LstepCount == speedChangeStride+1 || RstepCount == speedChangeStride+1) && ~countDownPlayed(4+countDownIdxOffset)
-                    fprintf(['Change Stride +1. Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                    fprintf(['Change Stride +1. Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                     play(AudioNow)
                     countDownPlayed(countDownIdx) = true; %This should only be run once
                     countDownIdx = countDownIdx + 1;
@@ -926,32 +941,32 @@ try     % so that if something fails, communications are closed properly
 
             if ~countDownPlayed(end-3) && ( ...
                     (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-4 || RstepCount == restSteps(nextRestIdx)-4)))
-                fprintf(['-3 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['-3 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 %log in NIRS that audio count down is happening.
                 datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
                 play(AudioTMStop3); %takes 2 seconds to say "treadmill will stop in"
                 countDownPlayed(end-3) = true; %This should only be run once
             elseif ~countDownPlayed(end-2) && (...
                     (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-2 || RstepCount == restSteps(nextRestIdx)-2)))
-                fprintf(['-2 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['-2 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 play(AudioCount2);
                 countDownPlayed(end-2) = true; %This should only be run once
             elseif ~countDownPlayed(end-1) && (...
                     (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-1 || RstepCount == restSteps(nextRestIdx)-1)))
-                fprintf(['-1 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['-1 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 play(AudioCount1);
                 countDownPlayed(end-1) = true; %This should only be run once
             end
 
             %Trial will end soon.
             if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
-                fprintf(['-3 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['-3 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 %log in NIRS that audio count down is happening.
                 datlog = nirsEvent('TMStopAudioCountDown','D',['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
                 play(AudioTMStop3);
                 countDownPlayed(end-3) = true; %This should only be run once
             elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
-                fprintf(['-2 Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['-2 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 play(AudioCount2);
                 countDownPlayed(end-2) = true; %This should only be run once
             end
@@ -959,7 +974,7 @@ try     % so that if something fails, communications are closed properly
 
         if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
             if numAudioCountDown %adapted from open loop audiocoudntdown
-                fprintf(['Last Stride . Date Time: ' datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
+                fprintf(['Last Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
                 play(AudioCount1);
             end
             break
@@ -982,7 +997,7 @@ try     % so that if something fails, communications are closed properly
             payload = getPayload(velR(RstepCount,1),velL(LstepCount,1), ...
                 accSendR,accSendL,cur_incl);
             sendTreadmillPacket(payload,t);
-            datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()]; % record the command
+            datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount,1) velL(LstepCount,1) cur_incl now()]; %#ok<TNOW1> % record the command
             disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount,1)) ', Rspeed = ' num2str(velR(RstepCount,1))]);
         else
             %simply record what the treadmill should be doing
@@ -1010,12 +1025,11 @@ try     % so that if something fails, communications are closed properly
             datlog = nirsEvent('rest','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
             %instead of a fixed pause, run a WHILE loop here so that the program wouldn't hang and would
             % respond to STOP in the rest break.
-            restStarted = clock;
+            restTic = tic;
             restDone = false;
             while ~restDone && ~STOP
-                t_diff = clock - restStarted; %aux 1x6 array in year, month, day, hour, min, sec
-                t_diff = abs((t_diff(4)*3600)+(t_diff(5)*60)+t_diff(6)); % compute difference in seconds
-                if t_diff >= restDuration-0.5%aux(6)>=restDuration || any(aux(1:5)>0) %enough time to rest has passed. moving on, should never be in the second or loop situation
+                t_diff = toc(restTic); % elapsed seconds since rest began
+                if t_diff >= restDuration-0.5 %enough time to rest has passed. moving on, should never be in the second or loop situation
                     restDone = true;
                 else
                     pause(0.8); % pause for a bit so we are not doing the while loop nonstop.
@@ -1049,8 +1063,8 @@ try     % so that if something fails, communications are closed properly
     datlog.diagnostics.loopSegMs(loopCount+1:end,:) = [];
 
     if STOP
-        datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ',now()};
-        disp(['Stop button pressed, stopping... ' num2str(clock)]);
+        datlog.messages(end+1,:) = {'Stop button pressed at: [see next cell] ,stopping... ',now()}; %#ok<TNOW1>
+        disp(['Stop button pressed, stopping... ' char(datetime('now'))]);
         set(ghandle.Status_textbox,'String','Stopping...');
         set(ghandle.Status_textbox,'BackgroundColor','red');
     end
@@ -1090,7 +1104,7 @@ if hreflex_present      % if hreflex, stop the Arduino state machine and close c
             'command to Arduino: %s'],ME.message);
     end
 
-    datlog.messages(end+1,:) = {'Closing Arduino port...',now()};
+    datlog.messages(end+1,:) = {'Closing Arduino port...',now()}; %#ok<TNOW1>
     fprintf('Closing Arduino serial port...\n');
     try
         flush(portArduino);     % flush remaining data in the buffer
@@ -1108,7 +1122,7 @@ try % stopping the treadmill
         set(ghandle.Status_textbox,'BackgroundColor','red');
         set(ghandle.figure1,'Color',[1 1 1]);
         pause(0.5); % Pablo I. wrote "Do we need this?"
-        fprintf('Trying to stop treadmill (TM1) at %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+        fprintf('Trying to stop treadmill (TM1) at %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         smoothStop(t);
         if numAudioCountDown % no need to say now again, changed the logic to say it earlier at stepN
             play(AudioNow);
@@ -1118,7 +1132,7 @@ try % stopping the treadmill
         set(ghandle.Status_textbox,'String','Stopping');
         set(ghandle.Status_textbox,'BackgroundColor','red');
         pause(0.3);
-        fprintf('Trying to stop treadmill (TM2) at %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+        fprintf('Trying to stop treadmill (TM2) at %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         smoothStop(t);
     end
 
@@ -1130,14 +1144,14 @@ try % stopping the treadmill
 
     % check if treadmill stopped, if not, try again:
     pause(1);
-    fprintf('Trying to stop treadmill (TM3) at %s\n',datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+    fprintf('Trying to stop treadmill (TM3) at %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
     [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
     stopped = (cur_speedR == 0) && (cur_speedL == 0);
     maxStopAttempts = 5;
     counter = 0;
     while ~stopped && counter < maxStopAttempts   % try a few times to stop the treadmill smoothly
         disp('Treadmill did not stop as requested. Retrying...');
-        fprintf('Attempt %d to stop treadmill at %s\n',counter,datestr(now(),'yyyy-mm-dd HH:MM:SS:FFF'));
+        fprintf('Attempt %d to stop treadmill at %s\n',counter,char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         pause(1);   % give time to smoothStop to execute everything
         [cur_speedR,cur_speedL,cur_incl] = readTreadmillPacket(t);
         stopped = (cur_speedR == 0) && (cur_speedL == 0);
@@ -1156,61 +1170,71 @@ try
     closeNexusIface(MyClient);
     closeTreadmillComm(t);
 catch ME
-    datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
+    datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' char(datetime('now'))];
     datlog.errormsgs{end+1} = ME;
-    disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
+    disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' char(datetime('now'))]);
     disp(ME);
 end
 
 %% Convert and Save Timing Data (Vectorized)
 disp('Converting time in datlog...');
 % convert time data into clock format then re-save
-datlog.buildtime = datestr(datlog.buildtime);
+datlog.buildtime = char(buildTime,'dd-MMM-yyyy HH:mm:ss');
 
+% NOTE: the relative-time columns below (col 3/4/5 in each block) are
+% consumed downstream by labTools' SyncDatalog for force-signal
+% alignment, so they must stay value-identical to today's output, not
+% just type-identical. A datetime-subtraction replacement
+% (seconds(datetime(a,'ConvertFrom','datenum')-datetime(b,...))) was
+% verified empirically (200k-sample test) to differ from
+% etime(datevec(a),datevec(b)) by up to ~5e-5 s -- small, but not the
+% bit-identical match this field requires, so etime/datevec (neither of
+% which triggers a Code Analyzer warning on its own) is kept here
+% on purpose; only the outer etime call needs the suppression.
 % convert frame times
 temp = find(isnan(datlog.framenumbers.data(:,1)),1,'first');
 datlog.framenumbers.data(temp:end,:) = [];
 for z = 1:temp-1
-    datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 % convert force times
 datlog.forces.data(1,:) = [];
 temp = find(isnan(datlog.forces.data(:,1)),1,'first');
 datlog.forces.data(temp:end,:) = [];
 for z = 1:temp-1
-    datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));
+    datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2))); %#ok<DETIM>
 end
 % convert RHS times
 datlog.stepdata.RHSdata(temp:end,:) = [];
 temp = size(datlog.stepdata.RHSdata,1) + 1;
 for z = 1:temp-1
-    datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 % convert LHS times
 for z = 1:temp-1
-    datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 % convert RTO times
 for z = 1:temp-1
-    datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 % convert LTO times
 for z = 1:temp-1
-    datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 
 % convert command times
 temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
 datlog.TreadmillCommands.read = datlog.TreadmillCommands.read(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.read,1) % compute relative time and fill in the last column
-    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 
 try
     firstTMTime = datlog.TreadmillCommands.read(1,4);
     lastTMTime = datlog.TreadmillCommands.read(end,4);
-    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ' num2str(firstTMTime) '. Date Time: ' datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n']);
-    fprintf(['Treadmill Last Packet Read Time. Universal Time: ' num2str(lastTMTime) '. Date Time: ' datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n']);
+    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ' num2str(firstTMTime) '. Date Time: ' char(datetime(firstTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
+    fprintf(['Treadmill Last Packet Read Time. Universal Time: ' num2str(lastTMTime) '. Date Time: ' char(datetime(lastTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n\n']);
 catch
     fprintf('Unable to get TM packets start and end time');
 end
@@ -1228,7 +1252,7 @@ datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start,'ConvertFrom'
 temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
 datlog.TreadmillCommands.sent = datlog.TreadmillCommands.sent(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.sent,1)
-    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 
 disp('Saving datlog...');

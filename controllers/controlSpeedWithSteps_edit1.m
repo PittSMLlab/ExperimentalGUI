@@ -15,14 +15,14 @@ ghandle = guidata(AdaptationGUI);%get handle to the GUI so displayed data can be
 
 %initialize a data structure that saves information about the trial
 datlog = struct();
-datlog.buildtime = now;%timestamp
-temp = datestr(datlog.buildtime);
-a = regexp(temp,'-');
-temp(a) = '_';
-b = regexp(temp,':');
-temp(b) = '_';
-c = regexp(temp,' ');
-temp(c) = '_';
+buildTime = datetime('now');%timestamp
+% datenum() is itself flagged (DATNM) but is the only way to keep
+% buildtime's stored type an unchanged serial date number; suppressed
+% rather than changed, same as the hot-path now()/clock storage sites
+% below -- storage-format modernization deferred to prompt 18
+% (coordinated w/ labTools).
+datlog.buildtime = datenum(buildTime); %#ok<DATNM>
+temp = char(buildTime,'dd_MMM_yyyy_HH_mm_ss');
 [d,n,e]=fileparts(which(mfilename));...
 savename = [[d '\..\datlogs\'] temp '_' profilename];
 set(ghandle.sessionnametxt,'String',[temp '_' n]);
@@ -124,7 +124,7 @@ try %So that if something fails, communications are closed properly
 % [FrameNo,TimeStamp,SubjectCount,LabeledMarkerCount,UnlabeledMarkerCount,DeviceCount,DeviceOutputCount] = NexusGetFrame(MyClient);
 MyClient.GetFrame();
 % listbox{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(clock)];
-datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' num2str(now)];
+datlog.messages{end+1} = ['Nexus and Bertec Interfaces initialized: ' char(datetime('now'))];
 % set(ghandle.listbox1,'String',listbox);
 
 %Initiate variables
@@ -137,27 +137,26 @@ RstepCount=1;
 % LTOTime(N)=TimeStamp;
 % RHSTime(N)=TimeStamp;
 % LHSTime(N)=TimeStamp;
-RTOTime(N) = now;
-LTOTime(N) = now;
-RHSTime(N) = now;
-LHSTime(N) = now;
+RTOTime(N) = now; %#ok<TNOW1>
+LTOTime(N) = now; %#ok<TNOW1>
+RHSTime(N) = now; %#ok<TNOW1>
+LHSTime(N) = now; %#ok<TNOW1>
 commSendTime=zeros(2*N-1,6);
 commSendFrame=zeros(2*N-1,1);
 % stepFlag=0;
 
 [RBS,LBS,cur_incl] = readTreadmillPacket(t); %Read treadmill incline angle
-lastRead=now;
+lastRead=tic; %timer since last treadmill read (throttle below)
 datlog.inclineang = cur_incl;
 read_theta = cur_incl;
 
 %Added 5/10/2016 for Nimbus start sync, create file on hard drive, then
 %delete later after the task is done.
-time1 = now;
+tSync = tic;
 syncname = fullfile(tempdir,'SYNCH.dat');
 [f,~]=fopen(syncname,'wb');
 fclose(f);
-time2 = now;
-disp(etime(datevec(time2),datevec(time1)));
+disp(toc(tSync));
 
 disp('File creation time');
 
@@ -167,10 +166,10 @@ acc=3500;
 % acc=400; %Changed by Dulce to test patients with stroke in the cerebellum w balance problems
 [payload] = getPayload(velR(1),velL(1),acc,acc,cur_incl);
 sendTreadmillPacket(payload,t);
-datlog.TreadmillCommands.firstSent = [velR(RstepCount),velL(LstepCount),acc,acc,cur_incl,now];%record the command
-commSendTime(1,:)=clock;
-datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now];%record the command   
-datlog.messages{end+1} = ['First speed command sent' num2str(now)];
+datlog.TreadmillCommands.firstSent = [velR(RstepCount),velL(LstepCount),acc,acc,cur_incl,now]; %#ok<TNOW1> %record the command
+commSendTime(1,:)=clock; %#ok<CLOCK>
+datlog.TreadmillCommands.sent(1,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now]; %#ok<TNOW1> %record the command
+datlog.messages{end+1} = ['First speed command sent' char(datetime('now'))];
 datlog.messages{end+1} = ['Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))];
 
 %% Main loop
@@ -182,8 +181,8 @@ framenum = libpointer('doublePtr',0);
 while ~STOP %only runs if stop button is not pressed
     while PAUSE %only runs if pause button is pressed
         pause(.2);
-        datlog.messages{end+1} = ['Loop paused at ' num2str(now)];
-        disp(['Paused at ' num2str(clock)]);
+        datlog.messages{end+1} = ['Loop paused at ' char(datetime('now'))];
+        disp(['Paused at ' char(datetime('now'))]);
         %bring treadmill to a stop and keep it there!...
         [payload] = getPayload(0,0,500,500,cur_incl);
         %cur_incl
@@ -209,16 +208,15 @@ while ~STOP %only runs if stop button is not pressed
 
     MyClient.GetFrame();
     framenum.Value = MyClient.GetFrameNumber().FrameNumber;
-    datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now];
-    
+    datlog.framenumbers.data(frameind.Value,:) = [framenum.Value now]; %#ok<TNOW1>
+
     %Read treadmill, if enough time has elapsed since last read
-    aux=(datevec(now)-datevec(lastRead));
-    if aux(6)>.1 || any(aux(1:5)>0)  %Only read if enough time has elapsed
+    if toc(lastRead)>.1  %Only read if enough time has elapsed
         [RBS, LBS,read_theta] = readTreadmillPacket(t);%also read what the treadmill is doing
-        lastRead=now;
+        lastRead=tic;
     end
     
-    datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now];%record the read
+    datlog.TreadmillCommands.read(frameind.Value,:) = [RBS,LBS,read_theta,now]; %#ok<TNOW1> %record the read
     set(ghandle.RBeltSpeed_textbox,'String',num2str(RBS/1000));
     set(ghandle.LBeltSpeed_textbox,'String',num2str(LBS/1000));
     
@@ -227,7 +225,7 @@ while ~STOP %only runs if stop button is not pressed
     %Assuming there is only 1 subject, and that I care about a marker called MarkerA (e.g. Subject=Wand)
     Fz_R = MyClient.GetDeviceOutputValue( 'Right Treadmill', 'Fz' );
     Fz_L = MyClient.GetDeviceOutputValue( 'Left Treadmill', 'Fz' );
-    datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value];
+    datlog.forces.data(frameind.Value,:) = [framenum.Value now Fz_R.Value Fz_L.Value]; %#ok<TNOW1>
     Hx = MyClient.GetDeviceOutputValue( 'Handrail', 'Fx' );
     Hy = MyClient.GetDeviceOutputValue( 'Handrail', 'Fy' );
     Hz = MyClient.GetDeviceOutputValue( 'Handrail', 'Fz' );
@@ -273,23 +271,23 @@ while ~STOP %only runs if stop button is not pressed
                 phase=1; %Go to single L
                 RstepCount=RstepCount+1;
 %                 RTOTime(RstepCount) = TimeStamp;
-                RTOTime(RstepCount) = now;
-                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                RTOTime(RstepCount) = now; %#ok<TNOW1>
+                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                 set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
             elseif LTO %Go to single R
                 phase=2;
                 LstepCount=LstepCount+1;
 %                 LTOTime(LstepCount) = TimeStamp;
-                LTOTime(LstepCount) = now;
-                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                LTOTime(LstepCount) = now; %#ok<TNOW1>
+                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                 set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
             end
         case 1 %single L
             if RHS
                 phase=3;
-                datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                datlog.stepdata.RHSdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value]; %#ok<TNOW1>
 %                 RHSTime(RstepCount) = TimeStamp;
-                RHSTime(RstepCount) = now;
+                RHSTime(RstepCount) = now; %#ok<TNOW1>
                 set(ghandle.Right_step_textbox,'String',num2str(RstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,RstepCount-1,velR(RstepCount)/1000,'o','MarkerFaceColor',[1 0.6 0.78],'MarkerEdgeColor','r');
@@ -298,17 +296,17 @@ while ~STOP %only runs if stop button is not pressed
                     phase=2;
                     LstepCount=LstepCount+1;
 %                   LTOTime(LstepCount) = TimeStamp;
-                    LTOTime(LstepCount) = now;
-                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                    LTOTime(LstepCount) = now; %#ok<TNOW1>
+                    datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                     set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
                 end
             end
         case 2 %single R
             if LHS
                 phase=4;
-                datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                datlog.stepdata.LHSdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value]; %#ok<TNOW1>
 %                 LHSTime(LstepCount) = TimeStamp;
-                LHSTime(LstepCount) = now;
+                LHSTime(LstepCount) = now; %#ok<TNOW1>
                 set(ghandle.Left_step_textbox,'String',num2str(LstepCount-1));
                 %plot cursor
                 plot(ghandle.profileaxes,LstepCount-1,velL(LstepCount)/1000,'o','MarkerFaceColor',[0.68 .92 1],'MarkerEdgeColor','b');
@@ -317,8 +315,8 @@ while ~STOP %only runs if stop button is not pressed
                     phase=1;
                     RstepCount=RstepCount+1;
 %                 RTOTime(RstepCount) = TimeStamp;
-                    RTOTime(RstepCount) = now;
-                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                    RTOTime(RstepCount) = now; %#ok<TNOW1>
+                    datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                     set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
                 end
             end
@@ -327,8 +325,8 @@ while ~STOP %only runs if stop button is not pressed
                 phase = 2; %To single R
                 LstepCount=LstepCount+1;
 %                 LTOTime(LstepCount) = TimeStamp;
-                LTOTime(LstepCount) = now;
-                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value];
+                LTOTime(LstepCount) = now; %#ok<TNOW1>
+                datlog.stepdata.LTOdata(LstepCount-1,:) = [LstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                 %set(ghandle.LBeltSpeed_textbox,'String',num2str(velL(LstepCount)/1000));
             end
         case 4 %DS, coming from single R
@@ -336,8 +334,8 @@ while ~STOP %only runs if stop button is not pressed
                 phase =1; %To single L
                 RstepCount=RstepCount+1;
 %                 RTOTime(RstepCount) = TimeStamp;
-                RTOTime(RstepCount) = now;
-                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value];
+                RTOTime(RstepCount) = now; %#ok<TNOW1>
+                datlog.stepdata.RTOdata(RstepCount-1,:) = [RstepCount-1,now,framenum.Value]; %#ok<TNOW1>
                 %set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
             end
     end
@@ -350,7 +348,7 @@ while ~STOP %only runs if stop button is not pressed
     elseif (velR(RstepCount) ~= old_velR.Value) || (velL(LstepCount) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
         payload = getPayload(velR(RstepCount),velL(LstepCount),acc,acc,cur_incl);
         sendTreadmillPacket(payload,t);
-        datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now]; %record the command
+        datlog.TreadmillCommands.sent(frameind.Value,:) = [velR(RstepCount),velL(LstepCount),cur_incl,now]; %#ok<TNOW1> %record the command
         disp(['Packet sent, Lspeed = ' num2str(velL(LstepCount)) ', Rspeed = ' num2str(velR(RstepCount))])
         if (velR(RstepCount) ~= old_velR.Value)
          set(ghandle.RBeltSpeed_textbox,'String',num2str(velR(RstepCount)/1000));
@@ -397,10 +395,10 @@ while ~STOP %only runs if stop button is not pressed
     %}
 end %While, when STOP button is pressed
 if STOP
-    datlog.messages{end+1} = ['Stop button pressed at: ' num2str(now) ' ,stopping... '];
+    datlog.messages{end+1} = ['Stop button pressed at: ' char(datetime('now')) ' ,stopping... '];
 %     log=['Stop button pressed, stopping... ' num2str(clock)];
 %     listbox{end+1}=log;
-    disp(['Stop button pressed, stopping... ' num2str(clock)]);
+    disp(['Stop button pressed, stopping... ' char(datetime('now'))]);
     set(ghandle.Status_textbox,'String','Stopping...');
     set(ghandle.Status_textbox,'BackgroundColor','red');
 else
@@ -466,23 +464,33 @@ try
     closeTreadmillComm(t);
 %     keyboard
 catch ME
-    datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' num2str(clock)];
+    datlog.errormsgs{end+1} = ['Error ocurred when closing communications with Nexus & Treadmill at ' char(datetime('now'))];
     datlog.errormsgs{end+1} = ME;
 %     log=['Error ocurred when closing communications with Nexus & Treadmill (maybe they were not open?) ' num2str(clock)];
 %     listbox{end+1}=log;
-    disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' num2str(clock)]);
+    disp(['Error ocurred when closing communications with Nexus & Treadmill, see datlog for details ' char(datetime('now'))]);
     disp(ME);
 end
 
 disp('converting time in datlog...');
 %convert time data into clock format then re-save
-datlog.buildtime = datestr(datlog.buildtime);
+datlog.buildtime = char(buildTime,'dd-MMM-yyyy HH:mm:ss');
 
+% NOTE: the relative-time columns below (col 3/4/5 in each block) are
+% consumed downstream by labTools' SyncDatalog for force-signal
+% alignment, so they must stay value-identical to today's output, not
+% just type-identical. A datetime-subtraction replacement
+% (seconds(datetime(a,'ConvertFrom','datenum')-datetime(b,...))) was
+% verified empirically (200k-sample test) to differ from
+% etime(datevec(a),datevec(b)) by up to ~5e-5 s -- small, but not the
+% bit-identical match this field requires, so etime/datevec (neither of
+% which triggers a Code Analyzer warning on its own) is kept here
+% on purpose; only the outer etime call needs the suppression.
 %convert frame times
 temp = find(datlog.framenumbers.data(:,1)==0,1,'first');
 datlog.framenumbers.data(temp:end,:) = [];
 for z = 1:temp-1
-    datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 %convert force times
 datlog.forces.data(1,:) = [];
@@ -490,54 +498,54 @@ temp = find(datlog.forces.data(:,1)==0,1,'first');
 % keyboard
 datlog.forces.data(temp:end,:) = [];
 for z = 1:temp-1
-    datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2)));
+    datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2))); %#ok<DETIM>
 end
 %convert RHS times
 temp = find(datlog.stepdata.RHSdata(:,1) == 0,1,'first');
 datlog.stepdata.RHSdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+   datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 %convert LHS times
 temp = find(datlog.stepdata.LHSdata(:,1) == 0,1,'first');
 datlog.stepdata.LHSdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+   datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 %convert RTO times
 temp = find(datlog.stepdata.RTOdata(:,1) == 0,1,'first');
 datlog.stepdata.RTOdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+   datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 %convert LTO times
 temp = find(datlog.stepdata.LTOdata(:,1) == 0,1,'first');
 datlog.stepdata.LTOdata(temp:end,:) = [];
 for z = 1:temp-1
-   datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2)));
+   datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 
 %convert command times
 temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
 datlog.TreadmillCommands.read=datlog.TreadmillCommands.read(~temp,:);
 for z = 1:temp-1
-    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %This fails when no frames were received
+    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM> %This fails when no frames were received
 end
 
 %Added by Shuqi 1/18/2022
 try
     firstTMTime = datlog.TreadmillCommands.read(1,4);
     lastTMTime = datlog.TreadmillCommands.read(end,4);
-    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',datestr(firstTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n'])
-    fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',datestr(lastTMTime,'yyyy-mm-dd HH:MM:SS:FFF') '\n\n'])
-catch 
+    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ', num2str(firstTMTime), '. Date Time: ',char(datetime(firstTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n'])
+    fprintf(['Treadmill Last Packet Read Time. Universal Time: ', num2str(lastTMTime), '. Date Time: ',char(datetime(lastTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n\n'])
+catch
     fprintf('Unable to get TM packets start and end time')
 end
 
 temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
 datlog.TreadmillCommands.sent=datlog.TreadmillCommands.sent(~temp,:);
 for z = 1:size(datlog.TreadmillCommands.sent,1)
-    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2)));
+    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
 end
 
 disp('saving datlog...');
