@@ -91,6 +91,24 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
   `Dual_Stim_Matlab.ino` firmware (fully MATLAB-timed, no on-board gait
   detection) and is a frozen bench/emergency fallback only — do not
   extend it or treat it as a starting point.
+- **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
+  calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
+  `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
+  Analyzer warnings, with no change to trial behavior, timing, or the
+  saved datlog. Two categories are deliberately left as-is with a
+  `%#ok` suppression rather than converted: (1) the hot-path fields
+  that store a raw serial date number consumed by in-loop datenum
+  arithmetic (`RTOTime`/`LTOTime`/`RHSTime`/`LHSTime`, `stim.{L,R}`
+  GateSendTime, `commSendTime`, `messages`, `framenumbers`/`forces`/
+  `stepdata`/`TreadmillCommands` "U Time" columns, and `buildtime`) —
+  converting the call would either change the stored type or add a
+  per-frame `datetime` construction cost to the stim control loop; and
+  (2) the teardown `etime(datevec(...))` relative-time columns that
+  labTools' `SyncDatalog` reads in seconds, where a `datetime`-based
+  replacement was measured to differ by up to ~5e-5 s from the
+  original — small, but not the bit-identical match those columns
+  need. Genuine storage-format modernization for both is deferred to a
+  coordinated ExperimentalGUI + labTools change.
 
 ## Validation Before Resuming Collection
 
