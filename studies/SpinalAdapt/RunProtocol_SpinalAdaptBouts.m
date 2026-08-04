@@ -64,8 +64,8 @@ switch profileToGen
             return;     % abort: fix fast leg assignment
         end
         % generate baseline profiles first (fast leg not yet confirmed)
-        % generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
-        %     true, dirProfile);
+        generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
+            true, dirProfile);
         % generate training profiles after fast leg is confirmed
         generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
             false, dirProfile, fastLeg);
