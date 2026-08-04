@@ -1194,65 +1194,76 @@ datlog.buildtime = char(buildTime,'dd-MMM-yyyy HH:mm:ss');
 % convert frame times
 temp = find(isnan(datlog.framenumbers.data(:,1)),1,'first');
 datlog.framenumbers.data(temp:end,:) = [];
-for z = 1:temp-1
-    datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
-% convert force times
-datlog.forces.data(1,:) = [];
-temp = find(isnan(datlog.forces.data(:,1)),1,'first');
-datlog.forces.data(temp:end,:) = [];
-for z = 1:temp-1
-    datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2))); %#ok<DETIM>
-end
-% convert RHS times
-datlog.stepdata.RHSdata(temp:end,:) = [];
-temp = size(datlog.stepdata.RHSdata,1) + 1;
-for z = 1:temp-1
-    datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
-% convert LHS times
-for z = 1:temp-1
-    datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
-% convert RTO times
-for z = 1:temp-1
-    datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
-% convert LTO times
-for z = 1:temp-1
-    datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
 
-% convert command times
-temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
-datlog.TreadmillCommands.read = datlog.TreadmillCommands.read(~temp,:);
-for z = 1:size(datlog.TreadmillCommands.read,1) % compute relative time and fill in the last column
-    datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
-end
+if isempty(temp) || temp <= 1
+    % No frames were ever logged this trial (e.g., the trial aborted
+    % before the main loop ran -- see datlog.errormsgs for the cause,
+    % such as a failed Nexus/treadmill connection). The columns below
+    % all key off datlog.framenumbers.data(1,2), which does not exist
+    % in this case, so skip relative-time conversion and save the raw
+    % (unconverted) datlog instead of crashing here.
+    disp('No frames logged this trial; skipping relative-time conversion.');
+else
+    for z = 1:temp-1
+        datlog.framenumbers.data(z,3) = etime(datevec(datlog.framenumbers.data(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
+    % convert force times
+    datlog.forces.data(1,:) = [];
+    temp = find(isnan(datlog.forces.data(:,1)),1,'first');
+    datlog.forces.data(temp:end,:) = [];
+    for z = 1:temp-1
+        datlog.forces.data(z,5) = etime(datevec(datlog.forces.data(z,2)),datevec(datlog.forces.data(1,2))); %#ok<DETIM>
+    end
+    % convert RHS times
+    datlog.stepdata.RHSdata(temp:end,:) = [];
+    temp = size(datlog.stepdata.RHSdata,1) + 1;
+    for z = 1:temp-1
+        datlog.stepdata.RHSdata(z,4) = etime(datevec(datlog.stepdata.RHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
+    % convert LHS times
+    for z = 1:temp-1
+        datlog.stepdata.LHSdata(z,4) = etime(datevec(datlog.stepdata.LHSdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
+    % convert RTO times
+    for z = 1:temp-1
+        datlog.stepdata.RTOdata(z,4) = etime(datevec(datlog.stepdata.RTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
+    % convert LTO times
+    for z = 1:temp-1
+        datlog.stepdata.LTOdata(z,4) = etime(datevec(datlog.stepdata.LTOdata(z,2)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
 
-try
-    firstTMTime = datlog.TreadmillCommands.read(1,4);
-    lastTMTime = datlog.TreadmillCommands.read(end,4);
-    fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ' num2str(firstTMTime) '. Date Time: ' char(datetime(firstTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-    fprintf(['Treadmill Last Packet Read Time. Universal Time: ' num2str(lastTMTime) '. Date Time: ' char(datetime(lastTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n\n']);
-catch
-    fprintf('Unable to get TM packets start and end time');
-end
+    % convert command times
+    temp = all(isnan(datlog.TreadmillCommands.read(:,1:4)),2);
+    datlog.TreadmillCommands.read = datlog.TreadmillCommands.read(~temp,:);
+    for z = 1:size(datlog.TreadmillCommands.read,1) % compute relative time and fill in the last column
+        datlog.TreadmillCommands.read(z,5) = etime(datevec(datlog.TreadmillCommands.read(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
 
-% convert audio times
-datlog.audioCues.start = datlog.audioCues.start';
-datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
-temp = isnan(datlog.audioCues.start);
-disp('\nConverting datalog, current starts \n');
-disp(datlog.audioCues.start);
-datlog.audioCues.start = datlog.audioCues.start(~temp);
-datlog.audioCues.startInRelativeTime = (datlog.audioCues.start - datlog.framenumbers.data(1,2)) * 86400;
-datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start,'ConvertFrom','datenum');
+    try
+        firstTMTime = datlog.TreadmillCommands.read(1,4);
+        lastTMTime = datlog.TreadmillCommands.read(end,4);
+        fprintf(['\n\nTreadmill First Packet Read Time. Universal Time: ' num2str(firstTMTime) '. Date Time: ' char(datetime(firstTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
+        fprintf(['Treadmill Last Packet Read Time. Universal Time: ' num2str(lastTMTime) '. Date Time: ' char(datetime(lastTMTime,'ConvertFrom','datenum'),'yyyy-MM-dd HH:mm:ss:SSS') '\n\n']);
+    catch
+        fprintf('Unable to get TM packets start and end time');
+    end
 
-temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
-datlog.TreadmillCommands.sent = datlog.TreadmillCommands.sent(~temp,:);
-for z = 1:size(datlog.TreadmillCommands.sent,1)
-    datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    % convert audio times
+    datlog.audioCues.start = datlog.audioCues.start';
+    datlog.audioCues.audio_instruction_message = datlog.audioCues.audio_instruction_message';
+    temp = isnan(datlog.audioCues.start);
+    disp('\nConverting datalog, current starts \n');
+    disp(datlog.audioCues.start);
+    datlog.audioCues.start = datlog.audioCues.start(~temp);
+    datlog.audioCues.startInRelativeTime = (datlog.audioCues.start - datlog.framenumbers.data(1,2)) * 86400;
+    datlog.audioCues.startInDateTime = datetime(datlog.audioCues.start,'ConvertFrom','datenum');
+
+    temp = all(isnan(datlog.TreadmillCommands.sent(:,1:4)),2);
+    datlog.TreadmillCommands.sent = datlog.TreadmillCommands.sent(~temp,:);
+    for z = 1:size(datlog.TreadmillCommands.sent,1)
+        datlog.TreadmillCommands.sent(z,5) = etime(datevec(datlog.TreadmillCommands.sent(z,4)),datevec(datlog.framenumbers.data(1,2))); %#ok<DETIM>
+    end
 end
 
 disp('Saving datlog...');
