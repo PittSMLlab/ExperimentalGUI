@@ -6,9 +6,10 @@
 // Runs an on-board gait event detection state machine so that stim
 // timing is independent of MATLAB loop rate. Uses an exponentially
 // updated single-stance duration estimate to target 50% of single
-// stance. A median filter reduces noise on the analog force signal, and
-// an outlier clamp rejects physiologically implausible single-stance
-// durations before they corrupt the estimate.
+// stance. Stance is detected from the raw analog force signal with
+// Schmitt-trigger hysteresis (threshFzUp/threshFzDown) and a debounce
+// timer, and an outlier clamp rejects physiologically implausible
+// single-stance durations before they corrupt the estimate.
 //
 // Date started: 26 Mar. 2024
 // Authors: SL, NWB
@@ -45,6 +46,16 @@ const float alpha    = 0.7;  // smoothing factor (0 < alpha <= 1)
 // strides are rejected for clinical populations.
 const unsigned long durSSMinValid = 100;  // ms; reject double-detects
 const unsigned long durSSMaxValid = 1000; // ms; reject missed/rest events
+// how far past the 50% target a pending gate may still fire (fraction of
+// estSS); matches the +/-5% acceptance window in
+// HreflexStimArduino/README.md, so a gate that would land outside
+// acceptance is dropped (echoed as 'D') instead of fired late.
+const float pctSSLateTolerance = 0.05;
+// oldest a pending gate may be before it expires unfired (ms); set well
+// above the slowest expected stride at the study's slow speed, so this
+// only catches a gate whose single stance never arrived (e.g., a missed
+// toe-off), not a normal slow stride.
+const unsigned long durGateMaxAge = 2000;
 const float alphaLPF = 0.02; // low-pass filter smoothing (0 < alpha << 1)
 const unsigned long intervalLog = 5; // ms between CSV logs
 unsigned long timeLastLog = 0;
@@ -107,6 +118,8 @@ bool isStimmingL = false;         // is the left stimulator currently on?
 bool isStimmingR = false;         // is the right stimulator currently on?
 unsigned long timeStimStartL = 0; // time when left stimulation started
 unsigned long timeStimStartR = 0; // time when right stimulation started
+unsigned long timeGateL = 0;      // millis() when shouldStimL was last set
+unsigned long timeGateR = 0;      // millis() when shouldStimR was last set
 
 // gait phase & step counts
 // gait phase: 0 = initial double support, 1 = single L support,
@@ -161,14 +174,20 @@ void processSerialCommands()
 
     case 1: // stimulate the left leg
       shouldStimL = true;
+      timeGateL   = millis(); // for the gate-expiry check below
       break;
 
     case 2: // stimulate the right leg
       shouldStimR = true;
+      timeGateR   = millis();
       break;
 
     case 3: // stop gait event state machine
       shouldRunSM = false;
+      // clear any pending gate so a latch from this trial cannot fire on
+      // the next trial's first strides
+      shouldStimL = false;
+      shouldStimR = false;
       break;
 
     default:
@@ -189,6 +208,10 @@ void resetStateMachine()
   phase     = 0;
   numStepsL = 0;
   numStepsR = 0;
+  // clear any pending gate so a latch from before this reset cannot fire
+  // on the first strides of the new trial
+  shouldStimL = false;
+  shouldStimR = false;
   shouldRunSM = true;
 }
 
@@ -381,11 +404,29 @@ void updateGaitEventStateMachine()
 
 // -------------------------- Stimulation Triggering ------------------
 // Fire the stim output when the estimated 50%-single-stance target
-// delay has elapsed since the contralateral toe-off event.
+// delay has elapsed since the contralateral toe-off event. A gate that
+// is still pending well past its target (pctSSLateTolerance) or whose
+// expected single-stance onset never arrived (durGateMaxAge) is dropped
+// -- echoed as a 'D' record -- rather than fired off-target or carried
+// into a later stride. A dropped gate is a safe skipped stim.
 void triggerStimulation()
 {
   // TODO: move definition up to top
   unsigned long timeNow = millis();
+
+  // expire a gate whose expected single-stance onset never arrived (e.g.
+  // a missed contralateral toe-off); independent of phase so it catches
+  // a stall regardless of what phase got stuck at
+  if (shouldStimL && (timeNow - timeGateL) > durGateMaxAge)
+  {
+    shouldStimL = false;
+    echoStimRecord('D', 'L', numStepsL, timeNow, timeRTO, estSSL);
+  }
+  if (shouldStimR && (timeNow - timeGateR) > durGateMaxAge)
+  {
+    shouldStimR = false;
+    echoStimRecord('D', 'R', numStepsR, timeNow, timeLTO, estSSR);
+  }
 
   // left leg stimulation trigger conditions
   // use contralateral leg (i.e., RHS - RTO) to determine L mid-single stance
@@ -395,8 +436,16 @@ void triggerStimulation()
   if (phase == 1 && shouldStimL && !isStimmingL)
   {
     timeTargetStimL = (unsigned long)(percentSS2Stim * estSSL);
+    unsigned long timeMaxStimL =
+      (unsigned long)((percentSS2Stim + pctSSLateTolerance) * estSSL);
+    unsigned long dtL = timeNow - timeRTO;
 
-    if ((timeNow - timeRTO) >= timeTargetStimL)
+    if (dtL > timeMaxStimL) // past the acceptance window; drop, don't fire
+    {
+      shouldStimL = false;
+      echoStimRecord('D', 'L', numStepsL, timeNow, timeRTO, estSSL);
+    }
+    else if (dtL >= timeTargetStimL)
     {
       digitalWrite(pinOutStimL, HIGH);
       digitalWrite(pinOutViconL, HIGH);
@@ -404,7 +453,7 @@ void triggerStimulation()
       isStimmingL  = true;
       // canStimL = false;
       shouldStimL = false; // reset trigger for next cycle
-      echoStimRecord('L', numStepsL, timeStimStartL, timeRTO, estSSL);
+      echoStimRecord('S', 'L', numStepsL, timeStimStartL, timeRTO, estSSL);
     }
   }
 
@@ -416,8 +465,16 @@ void triggerStimulation()
   if (phase == 2 && shouldStimR && !isStimmingR)
   {
     timeTargetStimR = (unsigned long)(percentSS2Stim * estSSR);
+    unsigned long timeMaxStimR =
+      (unsigned long)((percentSS2Stim + pctSSLateTolerance) * estSSR);
+    unsigned long dtR = timeNow - timeLTO;
 
-    if ((timeNow - timeLTO) >= timeTargetStimR)
+    if (dtR > timeMaxStimR)
+    {
+      shouldStimR = false;
+      echoStimRecord('D', 'R', numStepsR, timeNow, timeLTO, estSSR);
+    }
+    else if (dtR >= timeTargetStimR)
     {
       digitalWrite(pinOutStimR, HIGH);
       digitalWrite(pinOutViconR, HIGH);
@@ -425,30 +482,35 @@ void triggerStimulation()
       isStimmingR  = true;
       // canStimR = false;
       shouldStimR = false; // reset trigger for next cycle
-      echoStimRecord('R', numStepsR, timeStimStartR, timeLTO, estSSR);
+      echoStimRecord('S', 'R', numStepsR, timeStimStartR, timeLTO, estSSR);
     }
   }
 }
 
 // -------------------------- Stim Echo (Outbound) --------------------
-// Echo one delivered-pulse record to MATLAB as timing ground truth.
-// This is an ADDITIVE OUTBOUND channel only: it does not touch the
-// inbound 0/1/2/3 command protocol, the baud rate, the pins, or the
+// Echo one pulse or dropped-gate record to MATLAB as timing ground
+// truth. This is an ADDITIVE OUTBOUND channel only: it does not touch
+// the inbound 0/1/2/3 command protocol, the baud rate, the pins, or the
 // trigger logic. Format (one newline-terminated CSV record):
-//   S,<leg>,<step>,<timeStimStart>,<timeTORef>,<estSS>
-// where leg is 'L' or 'R', step is the ipsilateral step counter,
-// timeStimStart is the millis() time the pulse fired, timeTORef is the
-// contralateral toe-off millis() reference used for the 50% target, and
-// estSS is the current single-stance estimate (ms). The leading "S,"
-// tag lets MATLAB tell these apart from any other serial output. The
-// pin already went HIGH before this call and the pulse is turned off by
-// the time-based handleStimulationTimeout(), so the few hundred
-// microseconds this print buffers into the UART FIFO do not affect
-// pulse timing. MATLAB drains these non-blocking, off its control loop.
-void echoStimRecord(char leg, int step, unsigned long timeStimStart,
-                    unsigned long timeTORef, float estSS)
+//   <kind>,<leg>,<step>,<timeStimStart>,<timeTORef>,<estSS>
+// where kind is 'S' for a delivered pulse or 'D' for a gate dropped by
+// the lateness or gate-expiry guard in triggerStimulation(), leg is 'L'
+// or 'R', step is the ipsilateral step counter, timeStimStart is the
+// millis() time the pulse fired (or the drop was detected), timeTORef is
+// the contralateral toe-off millis() reference used for the 50% target,
+// and estSS is the current single-stance estimate (ms). The leading
+// kind tag lets MATLAB tell these apart from any other serial output.
+// For an 'S' record the pin already went HIGH before this call and the
+// pulse is turned off by the time-based handleStimulationTimeout(), so
+// the few hundred microseconds this print buffers into the UART FIFO do
+// not affect pulse timing. MATLAB drains these non-blocking, off its
+// control loop.
+void echoStimRecord(char kind, char leg, int step,
+                    unsigned long timeStimStart, unsigned long timeTORef,
+                    float estSS)
 {
-  Serial.print("S,");
+  Serial.print(kind);
+  Serial.print(",");
   Serial.print(leg);
   Serial.print(",");
   Serial.print(step);
