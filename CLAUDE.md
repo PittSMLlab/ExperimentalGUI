@@ -63,12 +63,12 @@ LTO}data` (Step#, U Time, frame #, Relative Time), `inclineang`,
 `speedprofile.{velL,velR}`, `TreadmillCommands.{read,sent}` (RBS, LBS,
 angle, U Time, Relative Time) and `.firstSent`, `audioCues`,
 `stim.{L,R}` (Step#, StimDelayTarget(ms), GateSendTime) plus the
-additive `stim.deviceEcho` and `diagnostics` fields (see the H-reflex
-timing contract below). Saved to `datlogs/<timestamp>_<profile>.mat`
-on STOP. For a consolidated per-frame view (belt speeds, gait events,
-stim gate flags joined onto one timetable), see
-`utils.buildDatlogFrameTable` — a read-side helper computed on demand,
-not a field stored in the log.
+additive `stim.deviceEcho`, `stim.deviceDrop`, and `diagnostics`
+fields (see the H-reflex timing contract below). Saved to
+`datlogs/<timestamp>_<profile>.mat` on STOP. For a consolidated
+per-frame view (belt speeds, gait events, stim gate flags joined onto
+one timetable), see `utils.buildDatlogFrameTable` — a read-side
+helper computed on demand, not a field stored in the log.
 
 See [EXPERIMENT_SETUP.md](EXPERIMENT_SETUP.md) for the controller
 reference table and protocol creation guide.
@@ -113,14 +113,27 @@ double support phase immediately preceding single-stance onset (never
 at onset or mid-stance — early is always safe, late risks a missed or
 mistimed stim) and owns the start (`0`)/stop (`3`) handshake; this
 inbound `0`/`1`/`2`/`3` protocol is frozen with the firmware — do not
-change it without re-uploading compatible firmware. The firmware
-additionally echoes each delivered pulse's actual fire time back over
-serial (`echoStimRecord`); MATLAB logs this one-way, informational
-echo to the additive `datlog.stim.deviceEcho` field as a lab
-ground-truth check — it does not feed the firing decision. Keep
-display work off the control loop's hot path. See
-`studies/SpinalAdapt/README.md` for the full timing history,
-display-pattern detail, and the pre-collection validation checklist.
+change it without re-uploading compatible firmware. The protocol is
+frozen at **one byte (`uint8`) per command**, not just at these four
+values: MATLAB must send with `write(portArduino,cmd,'uint8')`, since
+a wider precision pads a trailing zero byte that the firmware reads as
+a spurious extra command `0` (`resetStateMachine()`) one loop pass
+later — this was the root cause of the 2026-08-05 pilot's missed and
+wrong-stride stims (see `studies/SpinalAdapt/README.md`). The firmware
+additionally drops (does not fire) a gate that is still pending well
+past its 50% target or whose expected single-stance onset never
+arrives, and echoes each delivered pulse's or dropped gate's actual
+timing back over serial (`echoStimRecord`, tagged `S`/`D`); MATLAB
+logs this one-way, informational echo to the additive
+`datlog.stim.deviceEcho` (delivered) / `datlog.stim.deviceDrop`
+(dropped) fields as a lab ground-truth check — neither feeds the
+firing decision. MATLAB also watches the echoed Arduino-side step
+counter (`ardStep`) for a decrease, the direct signature of an
+unintended state-machine reset, and warns once per leg into
+`datlog.errormsgs` if it happens. Keep display work off the control
+loop's hot path. See `studies/SpinalAdapt/README.md` for the full
+timing history, root-cause note, display-pattern detail, and the
+dummy-profile dry-run checklist.
 
 **H-reflex M-wave monitor** — a companion tool (in development,
 `studies/SpinalAdapt/`) must keep running in its own **separate

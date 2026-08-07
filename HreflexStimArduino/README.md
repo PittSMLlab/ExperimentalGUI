@@ -40,8 +40,10 @@ wrong firmware):
 1. MATLAB sends command `0` over serial to reset and start the gait-event state
    machine.
 2. The Arduino monitors force-plate Z-axis voltage on analog inputs A0 (left)
-   and A1 (right). It detects heel strikes and toe-offs by threshold-crossing on
-   the filtered force signal.
+   and A1 (right). It detects heel strikes and toe-offs by threshold-crossing
+   (Schmitt-trigger hysteresis: `threshFzUp` to enter stance, the lower
+   `threshFzDown` to remain in stance) on the raw analog reading, with a
+   100 ms debounce.
 3. After each toe-off the Arduino updates an exponentially smoothed estimate of
    single-stance duration (α = 0.7) for that leg. An **outlier clamp** rejects
    physiologically implausible single-stance durations (outside
@@ -81,6 +83,13 @@ detection — MATLAB is fully responsible for timing.
 | `2` | Flag right leg for stimulation on current stride |
 | `3` | Stop gait-event state machine (SpeedIndependent only) |
 
+Each command is **exactly one byte** (`Serial.read()` consumes one byte per
+`loop()` pass; MATLAB sends with `write(portArduino,cmd,'uint8')`). Sending a
+wider precision (e.g., `'int16'`) pads a trailing `0x00` that the firmware
+reads as a spurious command `0` one loop pass later — this caused the missed
+and wrong-stride stims in the 2026-08-05 pilot; see
+`studies/SpinalAdapt/README.md`'s H-reflex timing history for the root cause.
+
 Baud rate: **115200**. Both `LogForcesArduinoSerial.m` and the SpinalAdapt
 controllers use this rate; no changes are needed on the MATLAB side when
 switching between sketches.
@@ -88,36 +97,55 @@ switching between sketches.
 ### Device Stim Echo (outbound, SpeedIndependent only)
 
 The inbound `0/1/2/3` command set above is **fixed**. Separately, the
-SpeedIndependent firmware reports each delivered pulse back to MATLAB on an
-**additive outbound channel** as a newline-terminated CSV record:
+SpeedIndependent firmware reports each delivered pulse — and each gate it
+dropped instead of firing — back to MATLAB on an **additive outbound channel**
+as a newline-terminated CSV record:
 
 ```
-S,<leg>,<step>,<stimMs>,<toRefMs>,<estSS>
+<kind>,<leg>,<step>,<stimMs>,<toRefMs>,<estSS>
 ```
 
 | Field | Meaning |
 |---|---|
-| `S` | Fixed tag so MATLAB can distinguish echoes from other serial output |
-| `leg` | `L` or `R` — the stimulated leg |
-| `step` | Arduino-side ipsilateral step counter at the pulse |
-| `stimMs` | `millis()` time the pulse fired |
+| `kind` | `S` = pulse delivered, `D` = gate dropped (see below) |
+| `leg` | `L` or `R` — the leg the record is for |
+| `step` | Arduino-side ipsilateral step counter at the record |
+| `stimMs` | `millis()` time the pulse fired, or the drop was detected |
 | `toRefMs` | `millis()` of the contralateral toe-off used as the 50% reference |
-| `estSS` | Arduino single-stance estimate at the pulse (ms) |
+| `estSS` | Arduino single-stance estimate at the record (ms) |
+
+A gate is dropped, rather than fired off-target or carried into a later
+stride, when it is still pending more than `pctSSLateTolerance` past its 50%
+target (the acceptance window, ±5% by default) or when its expected
+single-stance onset never arrives within `durGateMaxAge` (2000 ms; e.g., a
+missed contralateral toe-off) — see `triggerStimulation()` in the sketch. A
+dropped gate is a **safe skipped stim**, never a mistimed one.
 
 `NirsHreflexArduinoOpenLoopWithAudio.m` drains these **non-blocking** off its
 control loop (reads only bytes already buffered; a serial hiccup is caught and
-ignored — a dropped echo is a non-event) and appends one row per pulse to
-`datlog.stim.deviceEcho.data`. From `stimMs − toRefMs` (elapsed time into single
-stance) over the MATLAB-measured single-stance duration, it computes the actual
-**%-single-stance** per stim and prints it live, flagging anything outside
-50 ± 5%. This echo requires a **matched firmware re-upload**: old firmware
-simply sends nothing and the MATLAB side is a clean no-op.
+ignored — a dropped echo read is a non-event, distinct from a `D` record) and
+appends one row per record to `datlog.stim.deviceEcho.data` (`S`) or
+`datlog.stim.deviceDrop.data` (`D`), both sharing the same 10-column schema
+(see the doc comment at that assignment for the full column list, including
+`matTimeSerial`, a MATLAB-side timestamp added so the Arduino `millis()` clock
+can be regressed onto the MATLAB/Vicon clock offline). From `stimMs − toRefMs`
+(elapsed time into single stance) over the MATLAB-measured single-stance
+duration, it computes the actual **%-single-stance** per stim and prints it
+live, flagging anything outside 50 ± 5% (or, for a `D` record, flagging the
+drop itself). This echo requires a **matched firmware re-upload**: old
+firmware simply sends nothing and the MATLAB side is a clean no-op.
 
 > **Caveat:** the live %SS mixes an Arduino-detected toe-off (numerator) with a
 > MATLAB-detected single-stance duration (denominator), so it carries a small
 > cross-detector error and is a **gross-error online check**, not the
 > acceptance number. The Vicon analog sync pulse is the gold standard — see
 > "Validating stim timing" below.
+
+> **Regression sentinel:** the Arduino-side `step` counter (`ardStep` in
+> `datlog`) only ever increases within a trial. If it decreases, the
+> controller appends a message to `datlog.errormsgs` and warns once per leg —
+> this is the direct signature of the state machine resetting mid-trial (see
+> the wire-width note above).
 
 ---
 
@@ -133,20 +161,27 @@ ground truth for the ±5% acceptance criterion.
    `triggerStimWithGaitStateMachine_SpeedIndependent`.
 2. **Bench-check the echo** without walking: open the Arduino IDE Serial Monitor
    at 115200, send `0`, then `2` (or `1`), and confirm a `S,R,...`/`S,L,...`
-   line appears per gated stride while you hand-press the force plates. Close
-   the Serial Monitor before running MATLAB (only one process can hold the
-   port). **Also bench-check the outlier clamp:** hand-press several normal-
-   cadence stances and confirm the echoed `estSS` settles to a stable value;
-   then deliberately produce a too-short tap (< 100 ms) and a multi-second hold
-   (> 1000 ms) and confirm the echoed `estSS` does **not** move across those
-   bad "strides" (the clamp rejected them and kept the previous estimate).
+   line appears per gated stride while you hand-press the force plates, with
+   `step` climbing rather than resetting to 0/1. Close the Serial Monitor
+   before running MATLAB (only one process can hold the port). **Also
+   bench-check the outlier clamp:** hand-press several normal-cadence stances
+   and confirm the echoed `estSS` settles to a stable value; then deliberately
+   produce a too-short tap (< 100 ms) and a multi-second hold (> 1000 ms) and
+   confirm the echoed `estSS` does **not** move across those bad "strides"
+   (the clamp rejected them and kept the previous estimate). **Also
+   bench-check the drop guards:** gate a stance (`2` or `1`), then wait well
+   past the 50% target before pressing the plate — confirm a `D,...` line
+   appears instead of a late `S,...`; and gate a stance, then never complete
+   it (release before crossing threshold) — confirm a `D,...` line appears
+   once `durGateMaxAge` (2000 ms) has elapsed.
 3. **MATLAB dry run (no participant):** run a short dummy profile with
    `hreflex_present = true` and the Arduino reading bench force input. Confirm
    the console prints `Stim L/R step N: ...% SS` lines, that
-   `datlog.stim.deviceEcho.data` is populated, and that
-   `datlog.diagnostics.loopSegMs` per-iteration timing is unchanged versus a run
-   with the echo firmware absent (the drain must add no measurable hot-path
-   latency).
+   `datlog.stim.deviceEcho.data` is populated with `ardStep` climbing
+   monotonically per leg, that `datlog.stim.deviceDrop.data` is empty, and
+   that `datlog.diagnostics.loopSegMs` per-iteration timing is unchanged
+   versus a run with the echo firmware absent (the drain must add no
+   measurable hot-path latency).
 4. **Representative trial:** collect ≥1 trial with a participant (or a walking
    stand-in). Offline, for each stim compute
    `100 × (stimVsync − RTO) / (RHS − RTO)` for left (and the LHS/LTO analog for
@@ -220,9 +255,12 @@ Tools → Board → Arduino AVR Boards → **Arduino Uno**
 
 **Step 5 — Select the correct COM port.**
 
-Tools → Port → select the COM port assigned to the Arduino. If you are unsure
-which port it is, open Windows Device Manager (right-click Start → Device
-Manager → Ports (COM & LPT)) and look for "Arduino Uno (COMx)".
+Tools → Port → select the COM port assigned to the Arduino. On the
+experimental PC this is always **COM4**. It is easiest to confirm in the
+Arduino IDE's own Port dropdown: COM4 is the only entry labeled "Arduino Uno
+WiFi" (no need to leave the IDE). If you are unsure, Windows Device Manager
+(right-click Start → Device Manager → Ports (COM & LPT)) also lists it as
+"Arduino Uno (COM4)".
 
 **Step 6 — Upload.**
 
@@ -246,7 +284,11 @@ experimental PC after uploading.
 - [ ] Vicon sync cables connected to Arduino pins 11 (right) and 12 (left)
 - [ ] Run `LogForcesArduinoSerial.m` to verify force signal quality and gait
       event detection before running a participant (see Troubleshooting below)
-- [ ] Confirm MATLAB serial port setting matches the Arduino COM port
+- [ ] Confirm MATLAB serial port setting matches the Arduino COM port. Unlike
+      `LogForcesArduinoSerial.m` (a `comPort`/`namePort` variable at the top
+      of the file), `NirsHreflexArduinoOpenLoopWithAudio.m` hard-codes the
+      port (`serialport('COM4',115200)`, no argument or global) — if the
+      Arduino is not on COM4, edit that line directly.
 
 ---
 
@@ -301,16 +343,22 @@ implemented yet; this section is for planning purposes.
    sides must be kept in sync.
 
 2. **~~Two-way serial protocol with event echo~~ (implemented)** — On each
-   delivered pulse the SpeedIndependent firmware now echoes a tagged record
-   back to MATLAB (`S,<leg>,<step>,<stimMs>,<toRefMs>,<estSS>`); see "Device
-   stim echo" below. MATLAB drains it non-blocking and logs the actual
-   %-single-stance to `datlog.stim.deviceEcho`. Remaining future work: also use
-   the echoed step/timestamp to align H-reflex events during post-processing.
+   delivered pulse or dropped gate the SpeedIndependent firmware now echoes a
+   tagged record back to MATLAB
+   (`<S|D>,<leg>,<step>,<stimMs>,<toRefMs>,<estSS>`); see "Device stim echo"
+   below. MATLAB drains it non-blocking and logs the actual %-single-stance to
+   `datlog.stim.deviceEcho` (delivered) or `datlog.stim.deviceDrop` (dropped).
+   Remaining future work: also use the echoed step/timestamp to align
+   H-reflex events during post-processing.
 
-3. **Mid-experiment gating update** — Currently, MATLAB must send per-stride
-   `1`/`2` commands proactively. A mechanism for MATLAB to send a burst of
-   future-stride flags in advance (e.g., for the next 10 strides) would reduce
-   the risk of missed commands due to MATLAB loop jitter.
+3. **~~Mid-experiment gating update~~ (partially addressed)** — MATLAB still
+   sends per-stride `1`/`2` commands proactively rather than a burst of
+   future-stride flags, but a late-arriving or never-consumed gate is no
+   longer silently carried into a later stride: the firmware now drops it
+   (echoed as a `D` record) once it is past the ±5% acceptance window or its
+   single-stance onset never arrives (`durGateMaxAge`). A burst-ahead
+   mechanism would still reduce how often a stride is *skipped* under bad
+   MATLAB loop jitter, but a skip is now always safe rather than mistimed.
 
 4. **Startup handshake** — Add a request/acknowledge exchange at connection time
    so MATLAB can confirm Arduino firmware version and readiness before starting

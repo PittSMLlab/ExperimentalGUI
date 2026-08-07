@@ -91,6 +91,36 @@ With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
   `Dual_Stim_Matlab.ino` firmware (fully MATLAB-timed, no on-board gait
   detection) and is a frozen bench/emergency fallback only — do not
   extend it or treat it as a starting point.
+- **Missed / wrong-stride stim bug, root cause and fix (2026-08-06):**
+  the 2026-08-05 pilot (`CalibrationSlow`, `CtrlBouts`) delivered some
+  gates as missed pulses and some one stride late, both still correctly
+  timed to 50% of single stance when they did fire. Root cause:
+  `NirsHreflexArduinoOpenLoopWithAudio.m` sent every Arduino command
+  with `write(portArduino,X,'int16')` — two bytes, command + a
+  trailing `0x00` — but the firmware's `processSerialCommands()` reads
+  one byte per `loop()` pass and dispatches `case 0` to
+  `resetStateMachine()`. Every gate byte was therefore immediately
+  followed by a spurious full state-machine reset a few hundred ms
+  before the single stance it was meant to gate, which (via the
+  cross-leg debounce in `updateGaitEventStateMachine()`) could erase
+  the real contralateral toe-off event and stall `phase`, carrying the
+  gate into a later stride. Confirmed from the pilot datlogs: the
+  echoed `ardStep` column (`numStepsL/R` on the Arduino) only ever took
+  values `{0, 1}` across both trials — the signature of a counter that
+  keeps getting zeroed mid-trial. Fix: all four `write(...)` calls now
+  use `'uint8'` (one byte, matching what the firmware actually reads),
+  with the command bytes as named constants
+  (`cmdArduinoStart`/`Stop`/`StimL`/`StimR`). No firmware re-flash is
+  required for this half of the fix; the serial protocol values
+  (`0`/`1`/`2`/`3`) are unchanged. Paired with it, the firmware gained
+  a lateness guard and a gate-expiry guard in `triggerStimulation()`
+  (see `HreflexStimArduino/README.md`) so that any gate that is still
+  late or unconsumed is dropped — echoed as a `D` record — rather than
+  fired off-target or carried forward; this **does** require a
+  re-flash. The `ardStep`-decreased regression sentinel added to the
+  controller (warns once per leg, logs to `datlog.errormsgs`) is the
+  direct guard against this bug class recurring. See the dry-run
+  checklist below before the next pilot.
 - **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
   calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
   `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
@@ -128,6 +158,65 @@ confirm:
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
   with a short dummy profile at low treadmill speed and confirm every
   intended stride fires once near mid-single-stance.
+
+### Dummy-Profile Dry Run (treadmill only, no participant)
+
+Run this after any change to the serial encoding or firmware timing
+guards (e.g., the 2026-08-06 fix above), before the next pilot or
+participant session. **Re-flash the Arduino first** if the firmware
+changed — see `HreflexStimArduino/README.md`'s upload workflow (COM4).
+
+**Setup**
+
+- [ ] Upload the current firmware; bench-check per
+      `HreflexStimArduino/README.md`'s "Validating Stim Timing" step 2,
+      including the outlier-clamp and drop-guard checks.
+- [ ] DS8R output disconnected or intensity at zero. The Vicon sync
+      pins stay live regardless, so echoes and sync pulses are still
+      produced — full end-to-end timing validation with nothing
+      delivered to a person.
+- [ ] Dummy profile: ~40 tied strides at the slow calibration speed,
+      stim on every 2nd stride; then repeat with stim on **every**
+      stride (the `CtrlBouts` pattern that exposed the original 35%
+      loss on the left leg, and the harder test).
+- [ ] Experimenter walks on the treadmill for each run.
+
+**Acceptance** (load the saved `datlogs/*.mat` after each run). Checks 2-3
+reference `stim.deviceDrop`, which exists only in datlogs collected with
+this fix (2026-08-06 or later) — guard with
+`isfield(datlog.stim,'deviceDrop')` if comparing against an older log
+(e.g., the 2026-08-05 pilot files), which predate the field entirely.
+
+1. **`ardStep` climbs monotonically per leg into the tens.** The
+   load-bearing check: the direct regression test for the encoding bug,
+   and proof that exactly one byte went out per command. Any `{0, 1}`
+   pattern means the fix did not take.
+2. **Full accounting:** `size(stim.L,1) + size(stim.R,1)` equals
+   `size(stim.deviceEcho.data,1) + size(stim.deviceDrop.data,1)` — no
+   gate unexplained.
+3. **`stim.deviceDrop` is empty.** If not, the firmware's lateness or
+   gate-expiry guard fired — read the dropped rows' `dtStimMs` for how
+   late. Empty here isolates the encoding fix (check 1) from the
+   firmware guards (this check).
+4. **Zero missed pulses:** `size(deviceEcho.data,1)` equals the number
+   of `1`s in the profile's `stimL`/`stimR` columns for strides walked.
+5. **On-target timing:** `abs(dtStimMs - estSSms/2) <= 5` for every
+   delivered row, and `pctSS` within 50 ± 5%.
+6. **`gateLeadMs*` all positive**, roughly a double-support duration.
+   Negative or near-zero means the gate is arriving at onset rather
+   than during the preceding double support.
+7. **Loop timing unchanged:** `diagnostics.loopSegMs` median and p95
+   comparable to prior pilots (median ~10-11 ms, p95 ~70-90 ms). The
+   added logging must not touch the hot path's cost.
+8. **Stop actually stops** (new behavior — command `3` previously
+   self-cancelled via the same encoding bug): after STOP, confirm no
+   further echoes arrive and the Arduino's stim/Vicon pins read LOW.
+
+**Still unvalidated after this dry run**, to be run once stim testing
+on a person is scheduled: the Vicon-sync acceptance test
+(`100 × (stimVsync − RTO) / (RHS − RTO)` on the Vicon clock, target
+50 ± 5%) per `HreflexStimArduino/README.md`'s acceptance test steps
+4-5, and the M-wave monitor MVP below.
 
 ## Study History
 
