@@ -106,6 +106,16 @@ end
 
 %% Open Arduino Serial Communication (If H-reflex Is Enabled)
 %These parameters should ONLY BE CHANGED IF YOU KNOW WHAT YOU ARE DOING.
+% Arduino serial command bytes; one uint8 per command (write(...,'uint8')
+% below). The byte VALUES are frozen with the firmware's
+% processSerialCommands() -- see HreflexStimArduino/README.md -- but the
+% WIRE WIDTH matters too: a wider precision (e.g., 'int16') pads a
+% trailing zero byte that the firmware reads as a spurious command 0
+% (resetStateMachine) one loop pass after every real command.
+cmdArduinoStart = 0; % reset counters and run the gait state machine
+cmdArduinoStimL = 1; % gate: stimulate left leg this stride
+cmdArduinoStimR = 2; % gate: stimulate right leg this stride
+cmdArduinoStop  = 3; % stop the gait state machine
 percentSS2Stim = 0.50; % target fraction of single stance for the stim (diagnostic only; Arduino applies its own copy of this target)
 alpha          = 0.7;  % MATLAB-side smoothing factor for estSSL/R (diagnostic only, 0 < alpha <= 1); matches the Arduino firmware's alpha so the logged estSS mirrors the device
 estSSLInit     = 396.6; % initial single-stance duration estimate (ms); from Liu et al. 2014 normative gait data, see Arduino sketch header for derivation
@@ -157,6 +167,15 @@ if hreflex_present
     stimDelayL = estSSLInit * percentSS2Stim; % diagnostic-only target delay (ms), logged alongside each stim
     stimDelayR = estSSRInit * percentSS2Stim;
     echoBuf = ''; % partial serial line carried across iterations for the device stim echo
+    % ardStep regression sentinel: an Arduino-side step counter that ever
+    % decreases means the firmware's state machine reset mid-trial (the
+    % symptom of the 2026-08 missed/wrong-stride stim encoding bug -- see
+    % CLAUDE.md's H-reflex timing contract). Warn once per leg so a fault
+    % cannot spam the control loop.
+    prevArdStepL = 0;
+    prevArdStepR = 0;
+    ardStepWarnedL = false;
+    ardStepWarnedR = false;
 end
 
 %% Load GUI Handle and Audio Files for Countdown
@@ -333,26 +352,38 @@ datlog.audioCues.audio_instruction_message = {};
 datlog.stim.header = {'Step#','StimDelayTarget(ms)','GateSendTime(SerialDate#)'};
 datlog.stim.L = [];
 datlog.stim.R = [];
-% Device stim echo (additive; NOT consumed by labTools/SyncDatalog). One
-% row per pulse the Arduino actually delivered, echoed back over serial as
-% timing ground truth (see firmware echoStimRecord). Columns:
+% Device stim echo (additive; NOT consumed by labTools/SyncDatalog).
+% deviceEcho holds one row per pulse the Arduino actually delivered;
+% deviceDrop holds one row per gate the firmware dropped instead of
+% firing (too late relative to target, or its single-stance onset never
+% arrived -- see triggerStimWithGaitStateMachine_SpeedIndependent.ino's
+% triggerStimulation()). Both are echoed back over serial as timing
+% ground truth (see firmware echoStimRecord) and share one schema.
+% Columns:
 %   leg       - 1 = left, 2 = right
-%   ardStep   - Arduino-side ipsilateral step counter at the pulse
+%   ardStep   - Arduino-side ipsilateral step counter at the record
 %   matStep   - MATLAB-side step counter when the echo was drained
-%   stimMs    - Arduino millis() time the pulse fired
+%   stimMs    - Arduino millis() time the pulse fired (deviceEcho) or the
+%               drop was detected (deviceDrop)
 %   toRefMs   - Arduino millis() of the contralateral toe-off reference
-%   estSSms   - Arduino single-stance estimate at the pulse (ms)
+%   estSSms   - Arduino single-stance estimate at the record (ms)
 %   dtStimMs  - stimMs - toRefMs, i.e., elapsed time into single stance
 %   durSSms   - MATLAB-measured single-stance duration used as denominator
-%   pctSS     - 100 * dtStimMs / durSSms, the actual % of single stance
+%   pctSS     - 100 * dtStimMs / durSSms, the actual (or attempted, for a
+%               drop) % of single stance
+%   matTimeSerial - now() when MATLAB drained this record; lets the
+%               Arduino millis() clock be regressed onto the MATLAB/Vicon
+%               clock offline to attribute a record to a definite stride
 % NOTE: pctSS mixes an Arduino-detected toe-off (numerator) with a
 % MATLAB-detected single-stance duration (denominator), so it carries a
 % small cross-detector error and is an online gross-error check only. The
 % Vicon analog sync pulse (Arduino pins 11/12) recorded on the same clock
 % as the force-plate events is the gold-standard acceptance measurement.
-datlog.stim.deviceEcho.header = {'leg','ardStep','matStep', ...
-    'stimMs','toRefMs','estSSms','dtStimMs','durSSms','pctSS'};
+datlog.stim.deviceEcho.header = {'leg','ardStep','matStep','stimMs', ...
+    'toRefMs','estSSms','dtStimMs','durSSms','pctSS','matTimeSerial'};
 datlog.stim.deviceEcho.data = [];
+datlog.stim.deviceDrop.header = datlog.stim.deviceEcho.header;
+datlog.stim.deviceDrop.data = [];
 % Loop-timing diagnostics (additive; NOT consumed by labTools/SyncDatalog).
 % loopSegMs columns: [iterTotal, drawnow/GUI, Vicon read+interop, control+
 % stim], all in ms. gateLeadMs* record (single-stance onset time - gate
@@ -527,7 +558,7 @@ try     % so that if something fails, communications are closed properly
     if hreflex_present
         try
             fprintf('Sending start command to Arduino state machine...\n');
-            write(portArduino,0,'int16');    % reset step counters & start
+            write(portArduino,cmdArduinoStart,'uint8'); % reset & start
             % Clear any bytes left in the OS input buffer from a prior
             % session before the loop starts draining stim echoes; command
             % 0 produces no echo, so nothing of ours is discarded here.
@@ -767,24 +798,61 @@ try     % so that if something fails, communications are closed properly
             try
                 [echoBuf,echoRecs] = drainStimEcho(portArduino,echoBuf);
                 for er = 1:size(echoRecs,1)
-                    legNum   = echoRecs(er,1);
-                    ardStep  = echoRecs(er,2);
-                    stimMs   = echoRecs(er,3);
-                    toRefMs  = echoRecs(er,4);
-                    estSSms  = echoRecs(er,5);
+                    legNum      = echoRecs(er,1);
+                    ardStep     = echoRecs(er,2);
+                    stimMs      = echoRecs(er,3);
+                    toRefMs     = echoRecs(er,4);
+                    estSSms     = echoRecs(er,5);
+                    isDelivered = echoRecs(er,6);
                     dtStimMs = stimMs - toRefMs; % elapsed into single stance
-                    if legNum == 1     % left pulse: single stance L
+                    if legNum == 1     % left record: single stance L
                         matStep = RstepCount;
                         durSSms = durSSL; % most recent measured (ms)
-                    else               % right pulse: single stance R
+                    else               % right record: single stance R
                         matStep = LstepCount;
                         durSSms = durSSR;
                     end
                     pctSS = 100 * dtStimMs / durSSms;
-                    datlog.stim.deviceEcho.data(end+1,:) = [legNum ...
-                        ardStep matStep stimMs toRefMs estSSms ...
-                        dtStimMs durSSms pctSS];
-                    reportStimPctSS(legNum,ardStep,pctSS);
+                    matTimeSerial = now(); %#ok<TNOW1>
+                    stimRow = [legNum ardStep matStep stimMs toRefMs ...
+                        estSSms dtStimMs durSSms pctSS matTimeSerial];
+
+                    % ardStep regression sentinel (applies to both
+                    % delivered and dropped records: both reflect the
+                    % same Arduino-side counter)
+                    if legNum == 1
+                        if ardStep < prevArdStepL && ~ardStepWarnedL
+                            msg = sprintf(['Left ardStep decreased ' ...
+                                '(%d -> %d): Arduino step counter may ' ...
+                                'have reset mid-trial'], ...
+                                prevArdStepL,ardStep);
+                            datlog.errormsgs{end+1} = msg;
+                            warning(['NirsHreflexArduinoOpenLoopWith' ...
+                                'Audio:ArdStepReset'],'%s',msg);
+                            ardStepWarnedL = true;
+                        end
+                        prevArdStepL = ardStep;
+                    else
+                        if ardStep < prevArdStepR && ~ardStepWarnedR
+                            msg = sprintf(['Right ardStep decreased ' ...
+                                '(%d -> %d): Arduino step counter may ' ...
+                                'have reset mid-trial'], ...
+                                prevArdStepR,ardStep);
+                            datlog.errormsgs{end+1} = msg;
+                            warning(['NirsHreflexArduinoOpenLoopWith' ...
+                                'Audio:ArdStepReset'],'%s',msg);
+                            ardStepWarnedR = true;
+                        end
+                        prevArdStepR = ardStep;
+                    end
+
+                    if isDelivered
+                        datlog.stim.deviceEcho.data(end+1,:) = stimRow;
+                    else
+                        datlog.stim.deviceDrop.data(end+1,:) = stimRow;
+                    end
+                    reportStimPctSS(legNum,ardStep,pctSS,dtStimMs, ...
+                        isDelivered);
                 end
             catch ME
                 datlog.errormsgs{end+1} = ['Stim echo drain error: ' ...
@@ -817,7 +885,9 @@ try     % so that if something fails, communications are closed properly
                 end
 
                 try         % send command to Arduino to stimulate right
-                    write(portArduino,2,'int16'); % hard-coded here and in Arduino. Don't change this.
+                    % value frozen with the firmware; must stay one byte
+                    % ('uint8') -- see the cmdArduino* comment above.
+                    write(portArduino,cmdArduinoStimR,'uint8');
                 catch ME
                     warning(ME.identifier,['Failed to send right leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
@@ -836,7 +906,7 @@ try     % so that if something fails, communications are closed properly
                 end
 
                 try         % send command to Arduino to stimulate left
-                    write(portArduino,1,'int16');
+                    write(portArduino,cmdArduinoStimL,'uint8');
                 catch ME
                     warning(ME.identifier,['Failed to send left leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
@@ -1097,7 +1167,7 @@ if hreflex_present      % if hreflex, stop the Arduino state machine and close c
     % clears safely either way.
     try
         fprintf('Sending command to stop the Arduino state machine...\n');
-        write(portArduino,3,'int16');    % stop state machine
+        write(portArduino,cmdArduinoStop,'uint8'); % stop state machine
         fprintf('Stop state machine command sent successfully.\n');
     catch ME
         warning(ME.identifier,['Failed to send stop state machine ' ...
@@ -1292,8 +1362,8 @@ function [bufOut,recs] = drainStimEcho(port,bufIn)
 %
 % Outputs:
 %   bufOut - partial line text to carry into the next call
-%   recs - Px5 numeric array, one row per parsed pulse:
-%          [leg(1=L,2=R), ardStep, stimMs, toRefMs, estSSms]
+%   recs - Px6 numeric array, one row per parsed record:
+%          [leg(1=L,2=R), ardStep, stimMs, toRefMs, estSSms, isDelivered]
 %
 % Toolbox Dependencies: None
 %
@@ -1302,26 +1372,35 @@ function [bufOut,recs] = drainStimEcho(port,bufIn)
 nAvail = port.NumBytesAvailable;
 if nAvail == 0      % nothing waiting (also the no-echo-firmware no-op path)
     bufOut = bufIn;
-    recs = zeros(0,5);
+    recs = zeros(0,6);
     return;
 end
 [bufOut,recs] = parseStimEcho([bufIn char(read(port,nAvail,'char'))]);
 
 end
 
-function reportStimPctSS(legNum,ardStep,pctSS)
-%REPORTSTIMPCTSS Print the device-echoed actual %-single-stance per stim.
+function reportStimPctSS(legNum,ardStep,pctSS,dtStimMs,isDelivered)
+%REPORTSTIMPCTSS Print the device-echoed pulse or dropped-gate outcome.
 %
 %   Surfaces, on the console, where the Arduino actually delivered a pulse
 %   relative to single stance so the experimenter can spot gross timing
 %   errors online. Values outside the target window are flagged;
 %   physically impossible values (<0 or >100) signal an echo/event
-%   matching problem rather than a real out-of-tolerance stim.
+%   matching problem rather than a real out-of-tolerance stim. A dropped
+%   gate (the firmware's lateness or gate-expiry guard) is reported by
+%   elapsed time, not %SS: the gate-expiry case can carry a stale
+%   contralateral toe-off reference (the single stance never arrived),
+%   which would make pctSS meaninglessly large rather than informative.
 %
 % Inputs:
 %   legNum - 1 = left, 2 = right
-%   ardStep - Arduino-side step counter for the pulse
-%   pctSS - actual stim point as a percentage of single stance
+%   ardStep - Arduino-side step counter for the record
+%   pctSS - actual stim point as a percentage of single stance (ignored
+%          for a dropped gate; see dtStimMs)
+%   dtStimMs - elapsed ms from the contralateral toe-off reference to the
+%          pulse (or, for a dropped gate, to when the drop was detected)
+%   isDelivered - true if the Arduino fired the pulse, false if the
+%          firmware dropped the gate instead
 %
 % Outputs:
 %   None
@@ -1338,7 +1417,10 @@ else
     legStr = 'R';
 end
 
-if pctSS < 0 || pctSS > 100
+if ~isDelivered
+    fprintf(['Stim %s step %d: gate DROPPED by firmware (%.0f ms ' ...
+        'since toe-off ref)\n'],legStr,ardStep,dtStimMs);
+elseif pctSS < 0 || pctSS > 100
     fprintf(['Stim %s step %d: %.1f%% SS (out of range; check echo/' ...
         'event matching)\n'],legStr,ardStep,pctSS);
 elseif abs(pctSS - pctTargetSS) > pctToleranceSS
