@@ -33,7 +33,7 @@ end
 function testFinalizesExpectedNumberOfStimuli(testCase)
 %TESTFINALIZESEXPECTEDNUMBEROFSTIMULI Every synthesized stim is
 %eventually finalized exactly once, none dropped or duplicated.
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 finalized = runOnlineDetectorChunked( ...
     trial.times,trial.trigR,trial.tapR,17);
 verifyEqual(testCase,size(finalized,1),5);
@@ -45,7 +45,7 @@ function testChunkSizeInvarianceOfFinalizedIndices(testCase)
 %artifact indices must not depend on how the same signal is chunked
 %(a correctness property streaming code must have to be a faithful
 %re-implementation of a whole-trial algorithm).
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 finalizedSmallChunks = runOnlineDetectorChunked( ...
     trial.times,trial.trigR,trial.tapR,1);
 finalizedLargeChunks = runOnlineDetectorChunked( ...
@@ -60,21 +60,21 @@ function testNoFinalizationBeforeFullSearchWindowArrives(testCase)
 %stay pending (not finalized) until winDurStim (default 100 ms) of
 %future samples have arrived -- the bounded, non-blocking delay
 %DETECTSTIMARTIFACTONLINE documents.
-trial = generateSyntheticHreflexTrial('numStim',1);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',1);
 period = trial.period;
 onsetSamp = find(trial.trigR > 2.5,1,'first');
 
 % feed only up to 50 ms after onset: not yet a full 100 ms window
 cutoffInd = onsetSamp + round(0.05 / period);
 state = [];
-[state,finalizedEarly] = detectStimArtifactOnline( ...
+[state,finalizedEarly] = hreflexMonitor.detectStimArtifactOnline( ...
     state,trial.times(1:cutoffInd),trial.trigR(1:cutoffInd), ...
     trial.tapR(1:cutoffInd));
 verifyEqual(testCase,size(finalizedEarly,1),0);
 verifyEqual(testCase,numel(state.pendingOnsetTimes),1);
 
 % now feed the rest: the full window has arrived, so it finalizes
-[~,finalizedLater] = detectStimArtifactOnline( ...
+[~,finalizedLater] = hreflexMonitor.detectStimArtifactOnline( ...
     state,trial.times(cutoffInd + 1:end), ...
     trial.trigR(cutoffInd + 1:end),trial.tapR(cutoffInd + 1:end));
 verifyEqual(testCase,size(finalizedLater,1),1);
@@ -87,7 +87,7 @@ function testParityWithOfflineHelperRightLeg(testCase)
 %EXTRACTSTIMARTIFACTINDSFROMTRIGGER finds when run over the whole
 %trial at once -- this is the core parity guarantee for the
 %re-implementation.
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 
 finalizedOnline = runOnlineDetectorChunked( ...
     trial.times,trial.trigR,trial.tapR,13);
@@ -105,7 +105,7 @@ function testParityWithOfflineHelperLeftLeg(testCase)
 %TESTPARITYWITHOFFLINEHELPERLEFTLEG Same parity guarantee as
 %TESTPARITYWITHOFFLINEHELPERRIGHTLEG, exercised on the left-leg cell
 %slot to confirm the detector's leg-agnostic behavior.
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 
 finalizedOnline = runOnlineDetectorChunked( ...
     trial.times,trial.trigL,trial.tapL,13);
@@ -143,8 +143,8 @@ finalized = zeros(0,2);
 numSamps = numel(times);
 for startInd = 1:chunkSize:numSamps
     endInd = min(startInd + chunkSize - 1,numSamps);
-    [state,newFinalized] = detectStimArtifactOnline(state, ...
-        times(startInd:endInd),trig(startInd:endInd), ...
+    [state,newFinalized] = hreflexMonitor.detectStimArtifactOnline( ...
+        state,times(startInd:endInd),trig(startInd:endInd), ...
         tap(startInd:endInd));
     finalized = [finalized; newFinalized]; %#ok<AGROW>
 end

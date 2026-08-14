@@ -51,7 +51,15 @@ function [state,newAmps] = stepHreflexMonitor(state,chunk,muscle,legSlot)
 %
 % Outputs:
 %   state   - updated running pipeline state to pass into the next
-%             call
+%             call. Additive field mWaveInds (numStim x 2: [indMin
+%             indMax], sample indices into a 121-sample snippet) marks
+%             the M-wave peak/trough HREFLEX.COMPUTEAMPLITUDES actually
+%             used for each stimulus -- the stimulus's own raw in-
+%             window max/min, or, for a stimulus flagged by
+%             COMPUTEAMPLITUDES' outlier-duration correction, the
+%             across-trial median index instead. Re-derived here (see
+%             the COMPUTEAMPLITUDES NOTE below) so a caller's marker
+%             matches the displayed (possibly corrected) amplitude.
 %   newAmps - numNewStim x 3 array of amplitudes (M-wave, H-wave,
 %             noise, mV) for stimuli newly finalized THIS call (0x3 if
 %             none)
@@ -78,6 +86,7 @@ if isempty(state)
         'snippets',zeros(0,121), ... % -5:0.5:55 ms @ 2 kHz = 121 samples
         'onsetTimes',zeros(0,1), ...
         'amps',zeros(0,3), ...
+        'mWaveInds',zeros(0,2), ...  % [indMin indMax] into a snippet
         'pending',zeros(0,2), ...    % [onsetTime artifactInd]
         'muscle',muscle, ...
         'legSlot',legSlot);
@@ -85,7 +94,7 @@ end
 
 state.hBuf = [state.hBuf; chunk.h];
 
-[state.detect,finalized] = detectStimArtifactOnline( ...
+[state.detect,finalized] = hreflexMonitor.detectStimArtifactOnline( ...
     state.detect,chunk.times,chunk.trig,chunk.tap);
 state.pending = [state.pending; finalized];
 
@@ -128,12 +137,37 @@ ampsCell{legSlot} = state.snippets;
 % leg (Phase 1) pipeline
 [lastMsg,lastId] = lastwarn();
 warnState = warning('off','all');
-amps = Hreflex.computeAmplitudes(ampsCell);
+[amps,~,usedMedMinMaxInds] = Hreflex.computeAmplitudes(ampsCell);
 warning(warnState);
 lastwarn(lastMsg,lastId);
 
 % V -> mV, matches GENERATEHREFLEXRECRUITMENTCURVES' convention
 state.amps = 1000 * [amps{legSlot,1} amps{legSlot,2} amps{legSlot,3}];
 newAmps = state.amps(end-numNew+1:end,:);
+
+%% Re-Derive the M-Wave Peak/Trough Indices COMPUTEAMPLITUDES Used
+% COMPUTEAMPLITUDES' outlier-duration correction (and the raw min/max
+% indices it corrects from) live in a private local function, so are
+% not directly retrievable -- only the per-stimulus outlier FLAG
+% (usedMedMinMaxInds) is returned. Mirror that private function's
+% min/max-then-population-median logic here (same math, duplicated
+% because it cannot be called externally) so a caller's marker matches
+% the displayed (possibly corrected) M-wave amplitude instead of
+% always showing each stimulus's own raw in-window max/min.
+mWaveWinDef  = [4.5e-3 20e-3];   % s; matches HREFLEX.COMPUTEAMPLITUDES
+mWaveWinInds = round(mWaveWinDef ./ period) + 11;
+winMwave = state.snippets(:,mWaveWinInds(1):mWaveWinInds(2));
+[~,indsMinRaw] = min(winMwave,[],2);
+[~,indsMaxRaw] = max(winMwave,[],2);
+indMinMed = round(median(indsMinRaw));
+indMaxMed = round(median(indsMaxRaw));
+
+isOutlierDur = usedMedMinMaxInds{legSlot,1};   % M-wave column
+indsMinFinal = indsMinRaw;
+indsMaxFinal = indsMaxRaw;
+indsMinFinal(isOutlierDur) = indMinMed;
+indsMaxFinal(isOutlierDur) = indMaxMed;
+
+state.mWaveInds = [indsMinFinal indsMaxFinal] + mWaveWinInds(1) - 1;
 
 end

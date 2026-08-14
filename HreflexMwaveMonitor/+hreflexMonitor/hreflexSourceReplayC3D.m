@@ -56,7 +56,7 @@ arguments
 end
 
 if isempty(options.muscle)
-    muscle = promptHreflexMuscle();
+    muscle = hreflexMonitor.promptHreflexMuscle();
 elseif ismember(options.muscle,{'SOL','MG','LG'})
     muscle = options.muscle;
 else
@@ -69,7 +69,8 @@ H = btkReadAcquisition(c3dPath);
 [analogs,analogsInfo] = btkGetAnalogs(H);
 period = 1 / analogsInfo.frequency;
 
-[tapR,tapL,hR,hL,trigR,trigL] = mapHreflexAnalogChannels( ...
+[tapR,tapL,hR,hL,trigR,trigL] = ...
+    hreflexMonitor.mapHreflexAnalogChannels( ...
     analogs,options.emgSensorMap,muscle);
 
 if any(cellfun(@isempty,{tapR,tapL,hR,hL,trigR,trigL}))

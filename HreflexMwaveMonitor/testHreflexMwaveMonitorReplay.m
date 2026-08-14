@@ -41,7 +41,7 @@ end
 function testAmplitudeParityWithOfflinePipelineRightLeg(testCase)
 %TESTAMPLITUDEPARITYWITHOFFLINEPIPELINERIGHTLEG See file header;
 %exercised on the right-leg cell slot.
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 [amps,numStim] = replayTrialLeg(trial,1,17);
 verifyEqual(testCase,numStim,5);
 
@@ -53,34 +53,14 @@ end
 function testGrowingSetOutlierCorrectionMattersRightLeg(testCase)
 %TESTGROWINGSETOUTLIERCORRECTIONMATTERSRIGHTLEG Demonstrates that
 %STEPHREFLEXMONITOR's growing-set recompute is load-bearing, not just
-%equivalent by luck to a simpler per-stimulus approach. Builds a hand-
-%crafted H-muscle signal (unambiguous rectangular peak/trough pairs,
-%not a continuous bump shape, so each stimulus's M-wave peak-to-trough
-%duration in samples is known exactly and not left to window-truncation
-%or noise interaction) where one stimulus's duration is confirmed
-%below to actually trigger HREFLEX.COMPUTEAMPLITUDES' population-level
-%outlier-duration correction. The growing-set (STEPHREFLEXMONITOR)
-%result must then match the true offline batch result, while a (wrong)
-%per-stimulus, N=1 computation -- where ISOUTLIER can never fire --
-%must NOT.
-trial = generateSyntheticHreflexTrial('numStim',5);
-
-period = trial.period;
-troughOffsetS = 0.010;   % s after onset; lands inside the M-wave
-% window once aligned to the (onset + 3 ms TAP artifact delay) snippet
-% t=0, for every duration below
-durationsSamples = [6 6 6 6 24];   % last stim deliberately an outlier
-peakAmp = 0.01;   % V; far above the 1e-4 V background noise floor
-hR = 1e-4 * randn(size(trial.times));
-for st = 1:5
-    troughTime = trial.onsetTimesR(st) + troughOffsetS;
-    peakTime   = troughTime + durationsSamples(st) * period;
-    troughInd  = round(troughTime / period) + 1;
-    peakInd    = round(peakTime / period) + 1;
-    hR(troughInd) = hR(troughInd) - peakAmp;
-    hR(peakInd)   = hR(peakInd) + peakAmp;
-end
-trial.hR = hR;
+%equivalent by luck to a simpler per-stimulus approach. Uses a hand-
+%crafted H-muscle signal (see BUILDOUTLIERTRIAL) where one stimulus's
+%duration is confirmed below to actually trigger HREFLEX.
+%COMPUTEAMPLITUDES' population-level outlier-duration correction. The
+%growing-set (STEPHREFLEXMONITOR) result must then match the true
+%offline batch result, while a (wrong) per-stimulus, N=1 computation --
+%where ISOUTLIER can never fire -- must NOT.
+trial = buildOutlierTrial();
 
 % confirm the crafted signal actually engages the outlier correction --
 % otherwise this test would not exercise the regression it targets
@@ -107,11 +87,30 @@ verifyNotEqual(testCase,ampsGrowing(5,1),ampsPerStim5);
 
 end
 
+function testMwaveMarkerIndsMatchDisplayedAmplitude(testCase)
+%TESTMWAVEMARKERINDSMATCHDISPLAYEDAMPLITUDE STEPHREFLEXMONITOR's
+%mWaveInds must index the same peak/trough RUNHREFLEXMWAVEMONITOR's
+%marker plots as the displayed (possibly outlier-corrected) M-wave
+%amplitude in state.amps -- otherwise the marker would visually
+%disagree with the number next to it. Checked for every stimulus,
+%including stim 5's outlier-corrected one, in BUILDOUTLIERTRIAL.
+trial = buildOutlierTrial();
+[amps,numStim,mWaveInds,snippets] = replayTrialLeg(trial,1,17);
+verifyEqual(testCase,numStim,5);
+
+for st = 1:numStim
+    markerAmpMv = 1000 * abs(snippets(st,mWaveInds(st,2)) - ...
+        snippets(st,mWaveInds(st,1)));
+    verifyEqual(testCase,markerAmpMv,amps(st,1),'AbsTol',1e-9);
+end
+
+end
+
 function testAmplitudeParityWithOfflinePipelineLeftLeg(testCase)
 %TESTAMPLITUDEPARITYWITHOFFLINEPIPELINELEFTLEG Same parity guarantee
 %as TESTAMPLITUDEPARITYWITHOFFLINEPIPELINERIGHTLEG, on the left-leg
 %cell slot, confirming STEPHREFLEXMONITOR's leg-agnostic wiring.
-trial = generateSyntheticHreflexTrial('numStim',5);
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
 [amps,numStim] = replayTrialLeg(trial,2,17);
 verifyEqual(testCase,numStim,5);
 
@@ -133,7 +132,7 @@ testCase.assumeTrue(~isempty(c3dPath) && isfile(c3dPath), ...
     'real calibration trial C3D path to run this lab-only test; ' ...
     'skipping (not failing) since none is configured.']);
 
-trial = hreflexSourceReplayC3D(c3dPath,'muscle','SOL');
+trial = hreflexMonitor.hreflexSourceReplayC3D(c3dPath,'muscle','SOL');
 % chunk size matches the ~20 subsamples/frame the probe checks for
 [amps,~] = replayTrialLeg(trial,1,20);
 ampsOffline = computeOfflineAmps(trial,1);
@@ -145,7 +144,47 @@ end
 
 %% Local Functions
 
-function [amps,numStim] = replayTrialLeg(trial,legSlot,chunkSize)
+function trial = buildOutlierTrial()
+%BUILDOUTLIERTRIAL Synthetic 5-stim trial with a hand-crafted H-muscle
+%signal (unambiguous rectangular peak/trough pairs, not a continuous
+%bump shape, so each stimulus's M-wave peak-to-trough duration in
+%samples is known exactly and not left to window-truncation or noise
+%interaction) where the last stimulus's duration is deliberately an
+%outlier, engaging HREFLEX.COMPUTEAMPLITUDES' population-level
+%outlier-duration correction.
+%
+% Inputs:
+%   None
+%
+% Outputs:
+%   trial - struct from GENERATESYNTHETICHREFLEXTRIAL with hR replaced
+%
+% Toolbox Dependencies:
+%   None
+
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
+
+period = trial.period;
+troughOffsetS = 0.010;   % s after onset; lands inside the M-wave
+% window once aligned to the (onset + 3 ms TAP artifact delay) snippet
+% t=0, for every duration below
+durationsSamples = [6 6 6 6 24];   % last stim deliberately an outlier
+peakAmp = 0.01;   % V; far above the 1e-4 V background noise floor
+hR = 1e-4 * randn(size(trial.times));
+for st = 1:5
+    troughTime = trial.onsetTimesR(st) + troughOffsetS;
+    peakTime   = troughTime + durationsSamples(st) * period;
+    troughInd  = round(troughTime / period) + 1;
+    peakInd    = round(peakTime / period) + 1;
+    hR(troughInd) = hR(troughInd) - peakAmp;
+    hR(peakInd)   = hR(peakInd) + peakAmp;
+end
+trial.hR = hR;
+
+end
+
+function [amps,numStim,mWaveInds,snippets] = replayTrialLeg( ...
+    trial,legSlot,chunkSize)
 %REPLAYTRIALLEG Replay one leg of TRIAL through STEPHREFLEXMONITOR in
 %fixed-size chunks (simulating streaming cadence) and return the final
 %accumulated amplitudes.
@@ -157,8 +196,12 @@ function [amps,numStim] = replayTrialLeg(trial,legSlot,chunkSize)
 %   chunkSize - samples per simulated streaming chunk
 %
 % Outputs:
-%   amps    - numStim x 3 array (M-wave, H-wave, noise, mV)
-%   numStim - number of stimuli finalized
+%   amps      - numStim x 3 array (M-wave, H-wave, noise, mV)
+%   numStim   - number of stimuli finalized
+%   mWaveInds - numStim x 2 array; see STEPHREFLEXMONITOR's state.
+%               mWaveInds
+%   snippets  - numStim x 121 array; see STEPHREFLEXMONITOR's state.
+%               snippets
 %
 % Toolbox Dependencies:
 %   None
@@ -177,11 +220,14 @@ for startInd = 1:chunkSize:numSamps
     chunk.trig  = trigAll(startInd:endInd);
     chunk.tap   = tapAll(startInd:endInd);
     chunk.h     = hAll(startInd:endInd);
-    state = stepHreflexMonitor(state,chunk,trial.muscle,legSlot);
+    state = hreflexMonitor.stepHreflexMonitor( ...
+        state,chunk,trial.muscle,legSlot);
 end
 
 amps = state.amps;
 numStim = size(amps,1);
+mWaveInds = state.mWaveInds;
+snippets = state.snippets;
 
 end
 

@@ -35,8 +35,8 @@ function testResolvesDefaultSensorMapChannelsBySensorNumber(testCase)
 analogs = buildFakeAnalogs();
 emgSensorMap = defaultEmgSensorMap();
 
-[tapR,tapL,hR,hL,trigR,trigL] = mapHreflexAnalogChannels( ...
-    analogs,emgSensorMap,'SOL');
+[tapR,tapL,hR,hL,trigR,trigL] = ...
+    hreflexMonitor.mapHreflexAnalogChannels(analogs,emgSensorMap,'SOL');
 
 % sensor 1 = RTAP -> EMG1; sensor 7 = RSOL -> EMG7; etc. (see
 % BUILDFAKEANALOGS: EMG<k> is filled with the constant value k)
@@ -55,7 +55,8 @@ function testMuscleSelectionChangesWhichSensorIsUsed(testCase)
 analogs = buildFakeAnalogs();
 emgSensorMap = defaultEmgSensorMap();
 
-[~,~,hR,hL,~,~] = mapHreflexAnalogChannels(analogs,emgSensorMap,'MG');
+[~,~,hR,hL,~,~] = ...
+    hreflexMonitor.mapHreflexAnalogChannels(analogs,emgSensorMap,'MG');
 
 verifyEqual(testCase,hR,ones(5,1) * 5);
 verifyEqual(testCase,hL,ones(5,1) * 11);
@@ -71,7 +72,8 @@ analogs = buildFakeAnalogs();
 analogs = rmfield(analogs,'EMG7');   % drop the RSOL sensor
 emgSensorMap = defaultEmgSensorMap();
 
-[~,~,hR,~,~,~] = mapHreflexAnalogChannels(analogs,emgSensorMap,'SOL');
+[~,~,hR,~,~,~] = ...
+    hreflexMonitor.mapHreflexAnalogChannels(analogs,emgSensorMap,'SOL');
 
 verifyEqual(testCase,hR,zeros(0,0));
 

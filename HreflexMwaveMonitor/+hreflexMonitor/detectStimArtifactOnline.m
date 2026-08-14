@@ -116,8 +116,15 @@ for pp = 1:numel(state.pendingOnsetTimes)
 
     winSearch = max(1,indStim - winSamples): ...
         min(numel(state.tap),indStim + winSamples);
+    % suppress findpeaks' expected "Invalid MinPeakHeight" warning for a
+    % window with no qualifying peak (falls back to raw max below,
+    % exactly like HREFLEX.EXTRACTSTIMARTIFACTINDSFROMTRIGGER's private
+    % findStimArtifactInds, which emits the identical warning on the
+    % same real data -- benign, but noisy on a live monitor console)
+    warnState = warning('off','signal:findpeaks:largeMinPeakHeight');
     [~,locs] = findpeaks(state.tap(winSearch), ...
         'MinPeakHeight',options.minArtifactPeak);
+    warning(warnState);
     if isempty(locs)             % if no peaks detected, ...
         [~,indMaxTAP] = max(state.tap(winSearch)); % use max as peak
     else                         % otherwise, ...
