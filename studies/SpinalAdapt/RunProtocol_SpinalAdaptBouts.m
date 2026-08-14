@@ -1,9 +1,9 @@
 %RUNPROTOCOL_SPINALADAPTBOUTS Automate the SpinalAdapt experimental session.
 %
 %   TEMPLATE — Updated with new SpinalAdapt protocol structure:
-%   16 conditions (2 TM + 2 OG baselines, 1 control bouts, 8 split
-%   bouts trials, 1 control bouts repeat, 2 post-adapt). Verify all
-%   conditions and the subjectID skip logic before data collection.
+%   13 conditions (2 familiarization, 6 control bouts trials, 5 split
+%   bouts trials). Verify all conditions against the final approved
+%   protocol before data collection.
 %   See History-PilotStudy2/ for the Pilot Study 2 original.
 %
 %   Guides the experimenter through profile generation, pre- and post-
@@ -63,12 +63,8 @@ switch profileToGen
         if ~strcmp(answer, 'Yes')
             return;     % abort: fix fast leg assignment
         end
-        % generate baseline profiles first (fast leg not yet confirmed)
         generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
-            true, dirProfile);
-        % generate training profiles after fast leg is confirmed
-        generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
-            false, dirProfile, fastLeg);
+            dirProfile, fastLeg);
     case 'No, I generated them already'
         disp('Profile generated already. Continue with the experiments');
     otherwise
@@ -88,9 +84,9 @@ global numAudioCountDown
 global isCalibration
 
 maxCon              = 13;   % maximum number of conditions
-pauseTime2min30     = 115;  % s; accounts for Vicon stop/start delay
+pauseBetweenTrials  = 55;   % s; ~90 s wall clock including the ~35 s
+                             % Vicon stop/start delay
 ctrlSlotNirsHreflex = 14;   % GUI slot: NirsHreflexArduinoOpenLoopWithAudio
-ctrlSlotOGHreflex   = 16;   % GUI slot: HreflexOGWithAudio
 pauseTransferSec    = 60;   % s; allows Vicon to stop and save last trial
 
 %% Complete Pre-Session H-Reflex Walking Calibration Trials
@@ -168,7 +164,7 @@ while currCon < maxCon
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button, [], handles);
-            pause(pauseTime2min30);     % break for at least 2.5 minutes
+            pause(pauseBetweenTrials);  % break for ~90 s wall clock
             play(AudioTimeUp);
         case {4, 5, 6, 7, 8}        % Split Bouts Trials 1-8
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
@@ -181,7 +177,7 @@ while currCon < maxCon
             end
             AdaptationGUI('Execute_button_Callback', ...
                 handles.Execute_button, [], handles);
-            pause(pauseTime2min30);     % break for at least 2.5 minutes
+            pause(pauseBetweenTrials);  % break for ~90 s wall clock
             play(AudioTimeUp);
     end
 end
