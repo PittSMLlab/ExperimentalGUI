@@ -30,39 +30,51 @@ precise H-reflex stimulation timing before collection resumes.
 
 **Fast speed** is computed from the N-Minute Walk Test comfortable
 overground walking speed via `utils.extractSpeedsNMWT()`. Slow speed
-= fast × 0.7 (changed from 0.5 after participant SABH16, July 2024).
+= fast × 0.5 for the current protocol design (`speedProportion` in
+`RunProtocol_SpinalAdaptBouts.m`); Pilot Study 2 used 0.7, changed from
+0.5 after participant SABH16 (July 2024) — see Study History below.
 
-**Initial new-protocol design (subject to revision):**
+**Current protocol design (revised 2026-08-13, subject to further
+revision):**
 
 | Condition | # | Strides (excl. rest pads) |
 |---|---|---|
-| TM Baseline Fast / Slow (tied) | 2 | 100 each |
-| OG Baseline Fast / Slow (optional, skipped for SABH) | 2 | 100 each |
-| Control Bouts (tied, 10 bouts × 10 ramp + 10 SS) | 1 | 200 |
-| Split Bouts (10 bouts × 10 ramp + 10 SS per trial) | 8 | 200 each |
-| Control Bouts repeat | 1 | 200 |
-| Post-Adapt (tied fast, 100 strides per trial) | 2 | 100 each |
+| Familiarization Slow / Fast (tied, 5 bouts × 3 ramp + 10 SS) | 2 | 65 each |
+| Control Bouts (tied, 10 bouts × 3 ramp + 10 SS) | 6 | 130 each |
+| Split Bouts (10 bouts × 3 ramp + 10 SS per trial) | 5 | 130 each |
 
-Total (without OG): 200 + 200 + 8×200 + 200 + 200 = **2,400 strides**.
-With OG baselines: 2,600 strides. Profile files: `CtrlBouts.mat`,
-`SplitBouts.mat`, `PostAdapt.mat`.
+Total: 2×65 + 6×130 + 5×130 = **1,560 strides**. Profile files:
+`FamBoutsSlow.mat`, `FamBoutsFast.mat`, `CtrlBouts.mat`,
+`SplitBouts.mat`. H-reflex walking calibration
+(`CalibrationFast.mat`, `CalibrationSlow.mat`, 400 strides each) runs
+separately before and after the main protocol via
+`runWalkingCalibrations`, not as a numbered condition. There are no
+TM/OG baseline or post-adapt conditions or profiles in the current
+design — the previous protocol version used the TM baseline step
+length asymmetry to determine each stroke participant's fast/slow leg
+assignment; the current design takes `fastLeg` as a direct
+experimenter input instead (`RunProtocol_SpinalAdaptBouts.m`), so
+those profiles were removed from `generateProfiles_SpinalAdaptBouts`.
 
-- Overground baseline trials: `HreflexOGWithAudio` (GUI menu slot 16).
-  The speed feedback range must be adjusted manually between
-  participants based on comfortable overground walking speed.
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
-- Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, fixed
-  2026-07): the inter-bout rest is a fixed ~10 s SILENT window
-  (`restSilentSec`, belts stopped, timer padded by the rest cue's own
-  length so it excludes the cue), applied to every run of this
-  controller including fNIRS/H-reflex sessions. Every bout start
-  (tied ramp = `AccRamp`, split ramp = `DccRamp2Split`) announces "TM
-  will start now" exactly once; bout 1 is announced by the pre-loop
-  3-2-1 countdown, and the ramp-event cue is suppressed only for that
-  first bout to avoid a duplicate. The "which bout to start from"
-  dialog range and default are derived from the loaded profile's bout
-  count (5 for familiarization, 10 for Control/Split), not
-  hard-coded.
+- Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
+  2026-08-13): the inter-bout rest is a fixed ~10 s SILENT window
+  (`restSilentSec`, belts stopped, timer padded by the `stopAndRest`
+  cue's own length so it excludes the cue), applied to every run of
+  this controller including fNIRS/H-reflex sessions. Every bout start
+  (tied ramp = `AccRamp`, split ramp = `DccRamp2Split`) announces
+  "Walk" exactly once, with no 3-2-1 countdown; bout 1 gets the same
+  "Walk" cue from the pre-loop block, and the ramp-event cue is
+  suppressed only for that first bout to avoid a duplicate. Every
+  belt stop (each inter-bout rest and the trial end) plays
+  `stopAndRest.mp3`, also with no countdown. The speed ramp at each
+  bout start is 3 strides (`rampStrides` in
+  `generateProfiles_SpinalAdaptBouts.m`, reduced from 10). The "which
+  bout to start from" dialog range and default are derived from the
+  loaded profile's bout count (5 for familiarization, 10 for
+  Control/Split), not hard-coded. The break between trials
+  (`pauseBetweenTrials` in `RunProtocol_SpinalAdaptBouts.m`) targets
+  ~90 s wall clock, reduced from ~150 s.
 - H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
   paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
   is the authoritative, Arduino-timed path. The Arduino owns the
@@ -224,6 +236,15 @@ on a person is scheduled: the Vicon-sync acceptance test
 |---|---|
 | `History-PilotStudy1/` | Original pilot — simpler tied/split structure; no fNIRS bout design. Scripts: `SpinalAdaptProtocol.m`, `GenerateProfileSpinalStudy.m`. |
 | `History-PilotStudy2/` | Bout-based protocol — participants SABH01 through at least SABH16+ (July 2023–2025). Speed ratio changed from 0.5 to 0.7 after SABH16 (July 2024); ramp-to-split option added then later removed. Scripts reformatted to CLAUDE.md style (June 2026). |
+
+2026-08-13 redesign of the active files (this folder's current templates,
+not yet archived): ramp strides per bout reduced 10 → 3; bout-start cue
+simplified from a 3-2-1 countdown to a single "Walk"; belt-stop cue
+simplified to `stopAndRest.mp3` only, no countdown; inter-trial break
+reduced from ~150 s to ~90 s wall clock; `TMBaselineFast/Slow` and
+`OGBaselineFast/Slow` profiles and the `baseOnly` generator mode removed
+(the fast/slow leg assignment they supported is now a direct
+`fastLeg` input rather than derived from a TM baseline trial).
 
 The active files in this folder are templates for the next protocol version.
 Initial protocol design is incorporated (bout structure described below);

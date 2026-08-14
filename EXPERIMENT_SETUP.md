@@ -54,10 +54,15 @@ may be required before collection resumes. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
 Subject ID formats: `SABH##` (healthy controls), `SAS##V##` (stroke,
-two visits). Speed parameters default to a fast:slow ratio of 0.7
-(i.e., slow = 0.7 × fast speed) with an abrupt split (no ramp); this
-was changed from a 0.5 ratio and gradual ramp after participant SABH16
-(July 2024).
+two visits). Speed parameters default to a fast:slow ratio of 0.5
+(i.e., slow = 0.5 × fast speed) in the current protocol design
+(`speedProportion` in `RunProtocol_SpinalAdaptBouts.m`). Pilot Study 2
+used a 0.7 ratio (changed from 0.5 after participant SABH16, July
+2024) with an abrupt tied-to-split transition (no ramp). The current
+design's "abrupt split" refers to the same thing — no separate
+ramp-to-split phase — and is distinct from the per-bout 3-stride ramp
+from rest to target speed at the start of every bout (tied or split);
+see `studies/SpinalAdapt/README.md`'s Protocol Notes.
 
 H-reflex stimulation requires an Arduino Uno running the firmware in
 `HreflexStimArduino/`. See `HreflexStimArduino/README.md` for the
