@@ -187,10 +187,12 @@ if ~ismember(-1,numAudioCountDown)  % if '-1' not included, throw an error
 end
 
 if numAudioCountDown    % copied from open loop audiocountdown controller
-    [audio_data,audio_fs] = audioread('TMStartIn3.mp3');
-    AudioTMStart3 = audioplayer(audio_data,audio_fs);
-    [audio_data,audio_fs] = audioread('TMStopIn3.mp3');
-    AudioTMStop3 = audioplayer(audio_data,audio_fs);
+    % TMStartIn3/TMStopIn3 (treadmill start/stop 3-2-1 countdown) are not
+    % loaded: bout start/stop now use the single 'walk'/'stopAndRest'
+    % cues from the instructions map (see below) instead of a countdown.
+    % 2/1/now/TMChangeIn3 remain for the mid-trial speed-change countdown
+    % branch, which this protocol does not reach (numAudioCountDown is
+    % the scalar -1) but which other profiles may still use.
     [audio_data,audio_fs] = audioread('2.mp3');
     AudioCount2 = audioplayer(audio_data,audio_fs);
     [audio_data,audio_fs] = audioread('1.mp3');
@@ -225,7 +227,7 @@ disp('Initial Setup');
 %Event code from initial letter in nirsEventNames: A-AccRamp (to start),
 %S-Split, M-Mid, P-PostTied, D-DccRamp2Split
 %set up audio players
-audioids = {'relax','rest','stopAndRest','TMStartNow'};
+audioids = {'relax','stopAndRest','walk'};
 instructions = containers.Map();
 for ii = 1:length(audioids)
     [audio_data,audio_fs] = audioread([audioids{ii} '.mp3']);
@@ -234,13 +236,13 @@ end
 
 %this should be changed if the protocol is changing to no ramp, straight to
 %start, then the event would be 'Mid'
-% Both bout-start ramp labels play the same "TM will start now" cue: tied
-% bouts ramp via 'AccRamp', split bouts ramp via 'DccRamp2Split' (see
+% Both bout-start ramp labels play the same "Walk" cue: tied bouts ramp
+% via 'AccRamp', split bouts ramp via 'DccRamp2Split' (see
 % PARSEEVENTSFROMSPEEDS). Mapping both here fixes split bouts that were
 % previously silent at the start of every bout after the first.
 tmStartEventNames = {'AccRamp', 'DccRamp2Split'};
 for ii = 1:numel(tmStartEventNames)
-    instructions(tmStartEventNames{ii}) = instructions('TMStartNow');
+    instructions(tmStartEventNames{ii}) = instructions('walk');
 end
 
 %% Parse Speed Profiles for NIRS Event Logging
@@ -296,10 +298,14 @@ if ~isempty(restSteps)
     need2LogEvent = true;
 end
 nextRestIdx = 1;
+startCueSettleSec = 1; % s; fixed margin added after the "walk" start cue
+% finishes playing and before the belts begin accelerating, so the
+% participant has a moment to brace beyond the cue's own (short) length
 restSilentSec = 10; % s; target SILENT inter-bout rest, i.e., time after
-% the 'rest' audio cue (rest.mp3) before belts resume; applies to every
-% run of this controller, including fNIRS/H-reflex sessions
-restCuePlayer = instructions('rest');
+% the 'stopAndRest' audio cue (stopAndRest.mp3) before belts resume;
+% applies to every run of this controller, including fNIRS/H-reflex
+% sessions
+restCuePlayer = instructions('stopAndRest');
 restCueSec    = restCuePlayer.TotalSamples / restCuePlayer.SampleRate;
 % the rest timer below starts together with the cue (see rest handler),
 % so padding the target by the cue's own length keeps the silent
@@ -503,25 +509,22 @@ try     % so that if something fails, communications are closed properly
     fclose(fid);
     fprintf('Sync file creation time (s): %.3f\n',toc(tSync));
 
-    % audio countdown
-    % if no rest (regular adapt block) or 1st stride speed is non 0, start with audio count down.
-    % suppressFirstStartCue latches true only when this countdown plays,
-    % so the upcoming bout-1 ramp event below (AccRamp / DccRamp2Split)
-    % doesn't announce "TM will start now" a second time; a resumed bout
-    % (trainIdx > 1) starts on a rest pad instead, skips this block, and
-    % gets its start cue from the ramp event only.
+    % audio start cue
+    % if no rest (regular adapt block) or 1st stride speed is non 0, start with the "walk" cue.
+    % suppressFirstStartCue latches true only when this cue plays, so the
+    % upcoming bout-1 ramp event below (AccRamp / DccRamp2Split) doesn't
+    % announce "walk" a second time; a resumed bout (trainIdx > 1) starts
+    % on a rest pad instead, skips this block, and gets its start cue
+    % from the ramp event only.
     suppressFirstStartCue = false;
-    if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Add a 3-2-1 count down.
-        fprintf('Ready to count down. Date Time: %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
-        play(AudioTMStart3);
-        pause(2.5);
-        play(AudioCount2);
-        pause(1);
-        play(AudioCount1);
-        pause(1);
-        play(AudioNow);
+    if (isempty(restSteps) || velL(1,1) ~=0) && numAudioCountDown %No rest, will start right away. Play the walk cue.
+        fprintf('Ready to walk. Date Time: %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
+        walkCuePlayer = instructions('walk');
+        play(walkCuePlayer);
+        pause(walkCuePlayer.TotalSamples / walkCuePlayer.SampleRate ...
+            + startCueSettleSec);
         suppressFirstStartCue = true;
-        % log it without saying "TM will start now" again.
+        % log it without saying "walk" again.
         datlog = nirsEvent('Mid_noaudio','M',['Mid' num2str(nextRestIdx-1)],instructions,datlog,Oxysoft,oxysoft_present);
     end
 
@@ -579,9 +582,10 @@ try     % so that if something fails, communications are closed properly
     if numAudioCountDown    % adapted from open loop audio countdown
         countDownPlayed = false(1,5*length(numAudioCountDown));
         %if there are speed changes in between, will have 4 counts for
-        %each: 3-2-1-now & 1 for complete, moving on to next.
-        %the last 4 index will be used for 3-2-1-now(stop) and will be reused
-        %for each rest stop in between.
+        %each: 3-2-1-now & 1 for complete, moving on to next. This
+        %protocol has no mid-trial speed changes (numAudioCountDown is
+        %the scalar -1), so this branch and its countDownPlayed indexing
+        %are unreachable here; kept for profiles that do use it.
         countDownIdx = 1;
         countDownIdxOffset = 0;
         if length(numAudioCountDown) > 1 % there is speed change in between
@@ -944,9 +948,9 @@ try     % so that if something fails, communications are closed properly
                 nirsEventString = nirsEventNames{nextNirsEventIdx};
                 isStartEvent = ismember(nirsEventString, tmStartEventNames);
                 if isStartEvent && suppressFirstStartCue
-                    % bout 1's "TM will start now" was already announced
-                    % by the pre-loop 3-2-1 countdown above; log the NIRS
-                    % marker without playing the cue again.
+                    % bout 1's "walk" cue was already announced by the
+                    % pre-loop block above; log the NIRS marker without
+                    % playing the cue again.
                     audioKey = [nirsEventString '_noaudio'];
                     suppressFirstStartCue = false;
                 else
@@ -957,7 +961,9 @@ try     % so that if something fails, communications are closed properly
                 % event logged multiple times.
                 need2LogEvent = false;
                 if isStartEvent && strcmp(audioKey, nirsEventString) %starting TM again and the cue actually played, give it time.
-                    pause(2); %give some time for the instruction to play.
+                    walkCuePlayer = instructions('walk');
+                    pause(walkCuePlayer.TotalSamples / walkCuePlayer.SampleRate ...
+                        + startCueSettleSec); %let the cue finish, plus a settle margin before belts move
                 end
             elseif LstepCount >= nirsEventSteps(nextNirsEventIdx)+1 && RstepCount >= nirsEventSteps(nextNirsEventIdx)+1
                 %now have past the most recent change by at least 1 steps both side, reset the flag
@@ -1008,45 +1014,9 @@ try     % so that if something fails, communications are closed properly
                     prevChangeTime = datetime('now');
                 end
             end %end conditional block for when there is step change in the middle
-
-            if ~countDownPlayed(end-3) && ( ...
-                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-4 || RstepCount == restSteps(nextRestIdx)-4)))
-                fprintf(['-3 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                %log in NIRS that audio count down is happening.
-                datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
-                play(AudioTMStop3); %takes 2 seconds to say "treadmill will stop in"
-                countDownPlayed(end-3) = true; %This should only be run once
-            elseif ~countDownPlayed(end-2) && (...
-                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-2 || RstepCount == restSteps(nextRestIdx)-2)))
-                fprintf(['-2 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                play(AudioCount2);
-                countDownPlayed(end-2) = true; %This should only be run once
-            elseif ~countDownPlayed(end-1) && (...
-                    (nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx)-1 || RstepCount == restSteps(nextRestIdx)-1)))
-                fprintf(['-1 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                play(AudioCount1);
-                countDownPlayed(end-1) = true; %This should only be run once
-            end
-
-            %Trial will end soon.
-            if (LstepCount == N-3 || RstepCount == N-3) && ~countDownPlayed(end-3)
-                fprintf(['-3 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                %log in NIRS that audio count down is happening.
-                datlog = nirsEvent('TMStopAudioCountDown','D',['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
-                play(AudioTMStop3);
-                countDownPlayed(end-3) = true; %This should only be run once
-            elseif (LstepCount == N-1 || RstepCount == N-1) && ~countDownPlayed(end-2)
-                fprintf(['-2 Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                play(AudioCount2);
-                countDownPlayed(end-2) = true; %This should only be run once
-            end
         end
 
         if LstepCount >= N || RstepCount >= N%if taken enough steps, stop
-            if numAudioCountDown %adapted from open loop audiocoudntdown
-                fprintf(['Last Stride . Date Time: ' char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS') '\n']);
-                play(AudioCount1);
-            end
             break
             % send treadmill command only if speed changes
         elseif (velR(RstepCount,1) ~= old_velR.Value) || (velL(LstepCount,1) ~= old_velL.Value)% && LstepCount<N && RstepCount<N
@@ -1082,17 +1052,14 @@ try     % so that if something fails, communications are closed properly
             need2LogEvent = false;
             %for all rest except for the 1st (starting with a rest TM is not
             %moving)
-            if countDownPlayed(end-1) % just counted down from 3-2-1, probably should say TM now.
-                play(AudioNow);
-                countDownPlayed(end-3:end) = false; % reset countdown flag
-            end
 
             % make sure TM is at zero and hold it there.
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            pause(1.5); % give some time for the previous instruction to finish.
+            pause(1.5); % give the belts a moment to settle at zero before
+            % the stopAndRest cue plays below.
             % this function plays the audio, sends event to NIRS, and logs it in datlog
-            datlog = nirsEvent('rest','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
+            datlog = nirsEvent('stopAndRest','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
             %instead of a fixed pause, run a WHILE loop here so that the program wouldn't hang and would
             % respond to STOP in the rest break.
             restTic = tic;
@@ -1194,8 +1161,8 @@ try % stopping the treadmill
         pause(0.5); % Pablo I. wrote "Do we need this?"
         fprintf('Trying to stop treadmill (TM1) at %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         smoothStop(t);
-        if numAudioCountDown % no need to say now again, changed the logic to say it earlier at stepN
-            play(AudioNow);
+        if numAudioCountDown % announce the trial has stopped; no countdown
+            play(instructions('stopAndRest'));
         end
         % see if the treadmill should be stopped when the STOP button is pressed
     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value') == 1 && STOP == 1
