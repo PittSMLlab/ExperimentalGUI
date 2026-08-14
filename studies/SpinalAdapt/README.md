@@ -228,7 +228,9 @@ this fix (2026-08-06 or later) — guard with
 on a person is scheduled: the Vicon-sync acceptance test
 (`100 × (stimVsync − RTO) / (RHS − RTO)` on the Vicon clock, target
 50 ± 5%) per `HreflexStimArduino/README.md`'s acceptance test steps
-4-5, and the M-wave monitor MVP below.
+4-5, and a live lab dry-run of the H-Reflex M-Wave Monitor tool
+(below) — it is replay-validated against real prior calibration data
+but not yet run live in the lab.
 
 ## Study History
 
@@ -259,69 +261,20 @@ verify all parameters against the final approved protocol before collection.
 | `runWalkingCalibrations.m` | Active | H-reflex walking calibration helper |
 | `transferData_SpinalAdaptBouts.m` | Active | Data transfer and archival |
 
-## H-Reflex M-Wave Monitor (In Development)
+## H-Reflex M-Wave Monitor
 
-A near-real-time M-wave monitor is being built to help the
-experimenter hold each leg's H-reflex M-wave within ~±10% of its
-calibration baseline during a session by watching a live snippet plot
-and adjusting DS8R current accordingly. It is designed to run in a
-**separate MATLAB instance** (its own Vicon DataStream client, device
-data only) so it cannot perturb `NirsHreflexArduinoOpenLoopWithAudio`'s
-control-loop timing; it never opens the Arduino serial port and never
-writes to the controller's `datlog`.
+A near-real-time M-wave monitor helps the experimenter hold each leg's
+H-reflex M-wave within ~±10% of its calibration baseline during a
+session by watching a live plot and adjusting DS8R current
+accordingly. It runs in a **separate MATLAB instance** from this
+study's control/stimulation instance, so it cannot perturb
+`NirsHreflexArduinoOpenLoopWithAudio`'s control-loop timing.
 
-**Status: Phase 0 (device probe) + Phase 1 (single-leg MVP) complete,
-validated against a synthetic fixture; not yet run against a real
-calibration C3D or live data (see Known Gaps below).**
-
-| Script | Phase | Purpose |
-|---|---|---|
-| `probeViconDataStreamDevices.m` | 0 | Read-only DataStream device/output enumeration — run this first in the lab to confirm EMG + `Stimulator_Trigger_Sync_*` are exposed live (not just in the C3D) before relying on the live source in a later phase. |
-| `detectStimArtifactOnline.m` | 1 | Causal, streaming re-implementation of `Hreflex.extractStimArtifactIndsFromTrigger`'s onset/artifact-peak detection. |
-| `stepHreflexMonitor.m` | 1 | Per-chunk pipeline step: buffers EMG, calls the detector, and — once each stim's full snippet window has arrived — recomputes M-/H-wave/noise amplitudes over the *entire accumulated snippet set* via `Hreflex.computeAmplitudes` (required for exact parity with the offline batch statistic; see its header comment). |
-| `hreflexSourceReplayC3D.m` | 1 | Loads a prior H-reflex trial C3D (via BTK) for replay validation. |
-| `mapHreflexAnalogChannels.m` | 1 | BTK-independent channel-mapping logic used by the loader above: EMG channels are `EMG<sensorNumber>` fields in the C3D — the muscle assignment is session-specific placement metadata, not derivable from the file, so this mirrors `generateHreflexRecruitmentCurves`'s own sensor-order mapping (`emgSensorMap`, same default). Factored out so this mapping — the exact logic an earlier version of this tool got wrong — is unit-testable without BTK. |
-| `promptHreflexMuscle.m` | 1 | Shared "which muscle is the H-reflex channel" prompt (SOL default, MG/LG allowed) — used by the replay source now and, in a later phase, by the live source too. |
-| `generateSyntheticHreflexTrial.m` | 1 (test) | Hardware/BTK-free synthetic trial fixture for CI. |
-| `runHreflexMwaveMonitor.m` | 1 | Entry point: replays a trial through the pipeline, updating one persistent per-leg figure (snippet + M-wave highlighted) in place per stim. Single-leg only for now (`leg` argument); a later phase removes it and monitors both legs at once. |
-
-Validate with `runtests('testDetectStimArtifactOnline')`,
-`runtests('testHreflexMwaveMonitorReplay')`, and
-`runtests('testMapHreflexAnalogChannels')`. The first two include an
-online-vs-offline parity check against the real `+Hreflex` batch
-functions, including a dedicated test that hand-crafts a signal to
-confirm `Hreflex.computeAmplitudes`' outlier-duration correction
-actually engages (proving the growing-set recompute is necessary, not
-just equivalent by luck to a simpler per-stimulus approach). The
-`testHreflexMwaveMonitorReplay` suite also has a lab-only real-C3D
-replay test, skipped unless the `HREFLEX_REPLAY_TEST_C3D` environment
-variable points at a prior calibration trial C3D.
-
-**Known gaps before this is lab-ready:**
-- `hreflexSourceReplayC3D.m`'s BTK read (`btkReadAcquisition`,
-  `btkGetAnalogs`) has zero execution coverage in this environment (no
-  BTK Windows MEX binary available here) and its real-C3D path needs
-  to be run against a real prior calibration trial C3D (via
-  `HREFLEX_REPLAY_TEST_C3D`) before Phase 1 can be considered done; its
-  post-BTK channel-mapping logic is unit-tested BTK-free via
-  `mapHreflexAnalogChannels.m`.
-- `promptHreflexMuscle.m` and `hreflexSourceReplayC3D.m`'s interactive
-  dialogs are untested (every automated test passes `muscle` explicitly
-  to bypass them).
-- The M-wave marker plotted in `runHreflexMwaveMonitor.m` shows the raw
-  in-window max/min, which will visually disagree with the displayed
-  number for a stimulus `Hreflex.computeAmplitudes` outlier-corrects
-  (see that file's comment).
-- `stepHreflexMonitor.m`'s growing-set recompute is O(numStimSoFar) per
-  new stimulus by design (see its header); the "bounded per-update
-  work" isolation requirement has not yet been measured against real
-  session-length stimulus counts in the lab.
-
-Later phases add the ±10% tolerance bounds (prompt-entered per-leg
-baseline, since no baseline is currently persisted by
-`generateHreflexRecruitmentCurves.m`), an out-of-tolerance indicator
-and last-N counter, a second leg, the live Vicon DataStream source,
-and a lab dry-run alongside the control instance.
+Built for SpinalAdapt, the tool now lives outside this folder, at
+[`HreflexMwaveMonitor/`](../../HreflexMwaveMonitor/README.md) (repo
+root), since H-reflex measurement may not stay unique to this study —
+see that folder's README for the full file list, phase status,
+real-data validation results, and known gaps.
 
 ## H-Reflex Calibration Processing
 

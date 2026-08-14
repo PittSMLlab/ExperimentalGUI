@@ -135,12 +135,21 @@ loop's hot path. See `studies/SpinalAdapt/README.md` for the full
 timing history, root-cause note, display-pattern detail, and the
 dummy-profile dry-run checklist.
 
-**H-reflex M-wave monitor** — a companion tool (in development,
-`studies/SpinalAdapt/`) must keep running in its own **separate
-MATLAB instance** with its own Vicon DataStream client (device data
-only): it must never open the Arduino serial port or write to
-`datlog`, since that would perturb the control loop above. See
-`studies/SpinalAdapt/README.md` for phase status and file list.
+**H-reflex M-wave monitor** — a companion tool, `HreflexMwaveMonitor/`
+(repo root; the `+hreflexMonitor` namespace — see Code Style below),
+built for SpinalAdapt but kept study-agnostic since other studies may
+adopt H-reflex measurement later. Must keep running in its own
+**separate MATLAB instance** with its own Vicon DataStream client
+(device data only): it must never open the Arduino serial port or
+write to `datlog`, since that would perturb the control loop above.
+`detectStimArtifactOnline` is a causal re-implementation of (not a
+call into) the offline `Hreflex.extractStimArtifactIndsFromTrigger`,
+pinned by a replay parity test; `stepHreflexMonitor` recomputes
+amplitudes over the full accumulated snippet set per new stimulus
+(not per-stimulus) because `Hreflex.computeAmplitudes`' outlier
+correction is a population statistic. See
+`HreflexMwaveMonitor/README.md` for phase status, file list, and
+real-data validation results.
 
 **NirsAutomaticityProtocol**, **Perceptual Adaptation**, and **Weber
 Perception** — completed; consult the lead experimenter (see
@@ -166,6 +175,15 @@ release.
 - camelCase for function files, PascalCase for scripts. Do not rename
   existing files. Choose descriptive variable names; abbreviations are
   acceptable when unambiguous (`tbl`, `fig`, `lme`, `pval`).
+- Namespace (`+package`) folder names: camelCase, matching the
+  repository root's own `+utils` precedent (e.g. `+hreflexMonitor` in
+  `HreflexMwaveMonitor/`) — distinct from labTools' own `+Hreflex`
+  (PascalCase) namespace convention, which this repository does not
+  follow. Reach for a namespace when a tool's functions are numerous
+  enough, or likely to grow or be reused across studies enough, that
+  grouping and collision-avoidance are worth the `package.function(...)`
+  call-site cost; a handful of one-off, study-specific helper functions
+  do not need one.
 - Do not use `i` or `j` as loop indices (reserved for imaginary unit).
   For stride loops use `st`; for generic enumeration use `ii`, `jj`,
   `kk`. Preferred short names: `mscl`, `mrkr`, `lbl`, `tr`, `con`,

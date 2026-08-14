@@ -99,6 +99,15 @@ amplitudes, fit curves, and save figures to `HreflexCalFigs/`.
 This script is triggered by Nexus — not by ExperimentalGUI. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
+**H-reflex M-wave monitor:** a separate, near-real-time tool helps the
+experimenter hold each leg's M-wave within ~±10% of its calibration
+baseline during a session, running in its own MATLAB instance so it
+cannot perturb the control loop above. Built for SpinalAdapt but kept
+study-agnostic (outside `studies/SpinalAdapt/`) since other studies
+may adopt H-reflex measurement later. See
+[HreflexMwaveMonitor/README.md](HreflexMwaveMonitor/README.md) for
+phase status, file list, and validation results.
+
 ---
 
 ## Controller Reference
