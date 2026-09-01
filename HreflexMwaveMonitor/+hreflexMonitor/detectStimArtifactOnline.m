@@ -7,8 +7,11 @@ function [state,finalized] = detectStimArtifactOnline(state, ...
 %   labTools' HREFLEX.EXTRACTSTIMARTIFACTINDSFROMTRIGGER
 %   (getStimOnsetTimes, findStimArtifactInds): detects the rising edge
 %   of the stimulation trigger pulse, then locates the artifact peak in
-%   the proximal TA EMG signal, exactly like the offline (whole-trial)
-%   helper, but incrementally, chunk by chunk, as new samples arrive. A
+%   the proximal TA EMG signal as the largest ABSOLUTE deflection from
+%   the search window median -- polarity agnostic, since the artifact
+%   is commonly negative-dominant -- exactly like the offline
+%   (whole-trial) helper, but incrementally, chunk by chunk, as new
+%   samples arrive. A
 %   detected onset is only "finalized" into an artifact index once
 %   enough future samples exist to search the same +-winDurStim window
 %   the offline helper uses -- a bounded delay (default 100 ms), never
@@ -37,9 +40,9 @@ function [state,finalized] = detectStimArtifactOnline(state, ...
 %                     (default: 2.5, matches HREFLEX.
 %                     EXTRACTSTIMARTIFACTINDSFROMTRIGGER)
 %   winDurStim      - search window duration around trigger pulse, s
-%                     (default: 0.1, matches the offline helper)
-%   minArtifactPeak - minimum stim artifact peak height, V (default:
-%                     0.001, matches the offline helper)
+%                     (default: 0.1, matches the offline helper). NOTE:
+%                     wide enough to span the ~50 ms Delsys wireless
+%                     EMG transmission delay.
 %
 % Outputs:
 %   state     - updated running state to pass into the next call
@@ -59,9 +62,8 @@ arguments
     chunkTimes (:,1) double
     chunkTrig  (:,1) double
     chunkTAP   (:,1) double
-    options.threshStim      (1,1) double {mustBePositive} = 2.5
-    options.winDurStim      (1,1) double {mustBePositive} = 0.1
-    options.minArtifactPeak (1,1) double {mustBePositive} = 0.001
+    options.threshStim (1,1) double {mustBePositive} = 2.5
+    options.winDurStim (1,1) double {mustBePositive} = 0.1
 end
 
 if isempty(state)  % first call: initialize the running detector state
@@ -116,21 +118,15 @@ for pp = 1:numel(state.pendingOnsetTimes)
 
     winSearch = max(1,indStim - winSamples): ...
         min(numel(state.tap),indStim + winSamples);
-    % suppress findpeaks' expected "Invalid MinPeakHeight" warning for a
-    % window with no qualifying peak (falls back to raw max below,
-    % exactly like HREFLEX.EXTRACTSTIMARTIFACTINDSFROMTRIGGER's private
-    % findStimArtifactInds, which emits the identical warning on the
-    % same real data -- benign, but noisy on a live monitor console)
-    warnState = warning('off','signal:findpeaks:largeMinPeakHeight');
-    [~,locs] = findpeaks(state.tap(winSearch), ...
-        'MinPeakHeight',options.minArtifactPeak);
-    warning(warnState);
-    if isempty(locs)             % if no peaks detected, ...
-        [~,indMaxTAP] = max(state.tap(winSearch)); % use max as peak
-    else                         % otherwise, ...
-        indMaxTAP = locs(1);     % use first (earliest) peak
-    end
-    finalized(end+1,:) = [onsetTime winSearch(indMaxTAP)]; %#ok<AGROW>
+    % largest ABSOLUTE deflection from the window median, identical to
+    % HREFLEX.EXTRACTSTIMARTIFACTINDSFROMTRIGGER's private
+    % findStimArtifactInds: the artifact is commonly negative-dominant,
+    % and the window is already anchored to a known trigger pulse, so
+    % no peak-height threshold is needed to reject other deflections
+    segment = state.tap(winSearch);
+    deflection = abs(segment - median(segment,'omitnan'));
+    [~,indPeak] = max(deflection,[],'omitnan');
+    finalized(end+1,:) = [onsetTime winSearch(indPeak)]; %#ok<AGROW>
 end
 state.pendingOnsetTimes(isResolved) = [];
 
