@@ -298,7 +298,7 @@ maximum M-wave).
 
 | Function | Role |
 |---|---|
-| `extractStimArtifactIndsFromTrigger` | Locate pulse times from trigger channel |
+| `extractStimArtifactIndsFromTrigger` | Locate the artifact peak in a window anchored to each trigger pulse |
 | `plotStimArtifactPeaks` | Plot detected peaks for QC |
 | `extractSnippets` | Extract per-pulse EMG windows |
 | `plotSnippets` | Plot per-pulse snippets for QC |
@@ -307,6 +307,84 @@ maximum M-wave).
 | `fitCal` | Fit recruitment curves to amplitude vs. current |
 | `plotNoiseHistogram` | Plot background EMG noise distribution |
 | `plotCal` | Plot fitted recruitment curves |
+
+### Collection-Side Prerequisite: Trigger Sync Channels
+
+The trial **must** record the two stimulator trigger sync channels
+(`Stimulator_Trigger_Sync_Right_Stimulator` and
+`Stimulator_Trigger_Sync_Left__Stimulator`, 0 → ~4.3 V). They anchor a
+±100 ms search window around each pulse — wide enough to span the
+~50 ms Delsys wireless EMG transmission delay — and that anchoring is
+what makes artifact localization reliable. Without them the script has
+to search the whole trial blind. **Confirm the channels appear in the
+Vicon Nexus analog device configuration before collection.** The
+2026-08-21 dry run's C3D had neither, and the script silently degraded;
+it now stops and asks (Abort / Continue with threshold detection)
+instead.
+
+### 2026-08-21 Dry Run: Findings and Fixes (2026-08-26)
+
+That calibration trial produced no recruitment curves. Four
+independent causes, all now fixed:
+
+1. **`Hreflex.plotStimArtifactPeaks` crashed at both call sites** — the
+   one `+Hreflex` function never migrated to an `arguments` block, so
+   it parsed the script's name-value pairs positionally. Converted; it
+   now also accepts `labels` (the artifact muscle per leg) and
+   `isWeak`, which draws flagged stimuli as red circles.
+2. **The artifact is negative-dominant** — a sharp downward deflection
+   with a smaller positive rebound ~1.5 ms later. Both localization
+   paths searched for a signed-positive peak above a 1 mV height gate,
+   so they either locked onto the rebound or, when the artifact was
+   small, found nothing and fell back to the raw maximum over a 200 ms
+   window. Both now take the largest **absolute** deflection from the
+   window median. This was never dry-run-specific: SABH02 `Trial03`
+   is negative-dominant too (|min|/max ≈ 2.0 on both TAP channels) and
+   worked only because a larger artifact made the rebound clear 1 mV.
+3. **No trigger sync channels** (see the prerequisite above).
+4. **Only the left leg was stimulated**, but the script required
+   RTAP/LTAP/RSOL/LSOL and assumed two legs throughout. A leg is now
+   analyzed only if stimulation amplitudes were entered for it —
+   **leave a leg's amplitude field blank when it was not stimulated**
+   — and every figure, fit, and curve is per leg.
+
+Also changed in that pass:
+
+- **Muscle selection.** Two new dialog fields (appended, so older
+  config files are padded with defaults rather than rejected): the
+  H-reflex muscle (default `SOL`) and the artifact localization muscle
+  (default `TAP`, falling back to the H-reflex muscle when that leg
+  has no such channel).
+- **Artifact threshold is now a quality control floor, not a gate**,
+  in both paths: a stimulus below it is flagged and drawn in red, not
+  discarded. On the dry run a 0.3 mV gate excluded 3 of 60 real
+  artifacts. Without a trigger pulse the script instead ranks
+  candidate deflections by size and keeps the number of stimuli
+  entered, which located all 60.
+- **Per-leg QC summary** printed to the console: stimuli located vs.
+  expected, median peak artifact, and flagged count. This is how a
+  dead leg reads at a glance — the dry run's right SOL peaked at
+  0.047 mV against the left leg's 3.5 mV.
+- **Config files shrank from ~200 MB to <1 KB** — the analog data and
+  the BTK handle are no longer saved alongside `answer`, which is all
+  that is ever loaded back (SABH02 had ≈1.4 GB of them).
+- Default minimum time between stimulation pulses lowered from 5 s to
+  1 s: at most one stimulus per stride per leg, and a stride is ≳1 s.
+  At 5 s the fallback could not resolve the dry run's ~3.5 s per-leg
+  interval.
+
+**Verified.** On SABH02 `Trial03` (known-good reference) the new
+localization keeps all 60 stimuli per leg, shifts every index 1.5 ms
+earlier (max 2.0 ms) onto the artifact's initial deflection, and moves
+mean M-wave amplitude by −0.23% (right) and +0.57% (left). On the dry
+run trial the script now runs to completion: 60/60 left-leg stimuli
+located, 3 flagged weak, M-wave fit R² = 0.98, plateau ≈3.3 mV.
+
+**Still open, not addressed:** on that trial the left M-wave trough
+lands at ~18.5 ms, close to the 20 ms edge of `computeAmplitudes`'
+M-wave window, and the 20–25 ms "noise" window rides the M-wave tail
+so noise amplitude tracks M amplitude (up to ~1.7 mV). The window
+definitions were left alone; revisit them separately.
 
 ## Hardware
 

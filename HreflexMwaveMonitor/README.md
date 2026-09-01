@@ -41,7 +41,7 @@ Subfolders" from the repo root, run once and saved); confirm
 | File | Phase | Purpose |
 |---|---|---|
 | `+hreflexMonitor/probeViconDataStreamDevices.m` | 0 | Read-only DataStream device/output enumeration — run this first in the lab to confirm EMG + `Stimulator_Trigger_Sync_*` are exposed live (not just in the C3D) before relying on a live source in a later phase. |
-| `+hreflexMonitor/detectStimArtifactOnline.m` | 1 | Causal, streaming re-implementation of `Hreflex.extractStimArtifactIndsFromTrigger`'s onset/artifact-peak detection. |
+| `+hreflexMonitor/detectStimArtifactOnline.m` | 1 | Causal, streaming re-implementation of `Hreflex.extractStimArtifactIndsFromTrigger`'s onset/artifact-peak detection (largest absolute deflection in the window; see Artifact Localization Rule below). |
 | `+hreflexMonitor/stepHreflexMonitor.m` | 1-2 | Per-chunk pipeline step: buffers EMG, calls the detector, and — once each stim's full snippet window has arrived — recomputes M-/H-wave/noise amplitudes over the *entire accumulated snippet set* via `Hreflex.computeAmplitudes` (required for exact parity with the offline batch statistic), and re-derives which peak/trough sample indices that computation used (`state.mWaveInds`) so a caller's marker matches the displayed, possibly outlier-corrected, amplitude. |
 | `+hreflexMonitor/hreflexSourceReplayC3D.m` | 1 | Loads a prior H-reflex trial C3D (via BTK) for replay validation. |
 | `+hreflexMonitor/mapHreflexAnalogChannels.m` | 1 | BTK-independent channel-mapping logic used by the loader above: EMG channels are named by sensor number in the C3D. The real field naming (confirmed on SABH02 `Trial03.c3d`) has TWO fields per sensor, `Sensor_<n>_EMG<n>` and `Sensor_<n>_IM_EMG<n>`; for every sensor checked in that file the plain `EMG<n>` field was completely flat (`std(Sensor_7_EMG7) = 0`) while `IM_EMG<n>` carried the real signal (`std(Sensor_7_IM_EMG7) ≈ 6e-5 V`) — the plain field appears to be an unpopulated placeholder in this export configuration, not real EMG. Both this mapping and `generateHreflexRecruitmentCurves.m` resolve a sensor's channel via the same `strfind(...,'EMG')` + trailing-digit parse and, because `IM_EMG<n>` iterates after `EMG<n>` in this file's field order, both end up selecting the live `IM_EMG<n>` field here (`relData(:,idxList) = relDataTemp`'s last-write-wins behavior in the offline script — inferred by reading that code, not executed, since it is external/out-of-repo and not something to run changes against). This has only been confirmed for this one file; it is not proven as a structural invariant across all SpinalAdapt sessions — see Real-Data Validation below. — the muscle assignment is session-specific placement metadata, not derivable from the file, so this mirrors `generateHreflexRecruitmentCurves`'s own sensor-order mapping (`emgSensorMap`, same default). Factored out so this mapping is unit-testable without BTK. |
@@ -50,7 +50,7 @@ Subfolders" from the repo root, run once and saved); confirm
 | `+hreflexMonitor/computeMwaveTolerance.m` | 2 | Pure ±10% (default) tolerance-bound arithmetic around a baseline M-wave value. |
 | `+hreflexMonitor/generateSyntheticHreflexTrial.m` | 1 (test) | Hardware/BTK-free synthetic trial fixture for CI. |
 | `+hreflexMonitor/runHreflexMwaveMonitor.m` | 1-3 | Entry point: replays a trial through the pipeline, updating one persistent two-axes figure in place per stim — snippet with the M-wave peak/trough marked (top), M-wave amplitude vs. stimulus number with the baseline and ±10% bounds, an in/out-of-tolerance indicator, and a last-N-out-of-tolerance counter (bottom). Single-leg only for now (`leg` argument); a later phase removes it and monitors both legs at once. |
-| `testDetectStimArtifactOnline.m` | 1 (test) | Unit + online-vs-offline parity tests for the causal detector. |
+| `testDetectStimArtifactOnline.m` | 1 (test) | Unit + online-vs-offline parity tests for the causal detector, including the negative-dominant artifact regression fixture (see Artifact Localization Rule below). |
 | `testHreflexMwaveMonitorReplay.m` | 1-2 (test) | Integration parity between the online pipeline and the offline `+Hreflex` batch pipeline, including the marker-index fix and a lab-only real-C3D replay test. |
 | `testMapHreflexAnalogChannels.m` | 1 (test) | BTK-free unit tests for the channel-mapping logic. |
 | `testComputeMwaveTolerance.m` | 2 (test) | Unit tests for the tolerance-bound arithmetic. |
@@ -104,13 +104,31 @@ walking H-reflex calibration data, from
   real recruitment curve's shape, correct peak/trough marker placement,
   and a working tolerance indicator/counter.
 
-`Hreflex.extractStimArtifactIndsFromTrigger`'s private `findStimArtifactInds`
-(and this tool's causal mirror, `detectStimArtifactOnline`) both emit a
-benign, expected `findpeaks:largeMinPeakHeight` warning for a stimulus
-whose TAP artifact window has no peak clearing `minArtifactPeak`
-(falls back to the window's raw max) — normal EMG variability, not a
-defect. `detectStimArtifactOnline` suppresses it from the console
-(the offline helper does not, since it is not a live-monitor console).
+## Artifact Localization Rule (2026-08-26)
+
+`Hreflex.extractStimArtifactIndsFromTrigger`'s private
+`findStimArtifactInds` and this tool's causal mirror,
+`detectStimArtifactOnline`, both take the artifact as the sample of
+largest **absolute** deflection from the search window median. The
+stimulation artifact is commonly negative-dominant — its initial
+deflection is downward, with a smaller positive rebound ~1.5 ms later —
+so the previous signed-positive `findpeaks` search with a
+`minArtifactPeak` height gate either locked onto the rebound or, when
+the artifact was small, found nothing and fell back to the raw maximum
+over the whole 200 ms window. Absolute deflection is polarity agnostic
+and needs no threshold, because the window is already anchored to a
+known trigger pulse; `findpeaks` (and its
+`findpeaks:largeMinPeakHeight` warning, previously suppressed here) is
+gone from both implementations.
+
+Measured on SABH02 `Trial03.c3d`, the rule change moves every one of
+the 120 stimuli 1.5 ms earlier (max 2.0 ms) and shifts mean M-wave
+amplitude by less than 0.6%. `minArtifactPeak` survives only in the
+offline helper, repurposed from a detection gate into a quality
+control floor reported through its new second output,
+`isWeakArtifact`; `detectStimArtifactOnline` no longer takes it.
+`testDetectStimArtifactOnline` pins the shared rule with a
+negative-dominant fixture whose artifact sits below the old 1 mV gate.
 
 ## Known Gaps Before This Is Lab-Ready
 
