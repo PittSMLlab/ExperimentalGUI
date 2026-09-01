@@ -6,28 +6,38 @@ visitOptions = {'Visit2(Pre)','Visit3(Practice)','Visit4(Post TM + Nirs Alphabet
 if isempty(visitNum)
     error('Invalid selection. Try again.')
 else
-    confirmVisit = questdlg(sprintf('You selected: %s.\n Is this correct?',visitOptions{visitNum}));
+    confirmVisit = questdlg(sprintf('You selected: %s.\n Is this correct?',visitOptions{visitNum})); 
     if ~strcmp(confirmVisit,'Yes')
         error('Invalid selection. Try again.')%Abort starting the trial
     end
+    oneyrfollowup = questdlg(sprintf('Is this a one-year follow up visit?')); % Check if it's a one-year follow up participants
+    if strcmp(oneyrfollowup,'Yes')
+        oneyrfollowupID = inputdlg(sprintf('What is the Subject ID? (Ex. BW020)')); % Get the SubjectID of the one-year follow up participant
+        oneyearfollowupparams = load(['W:\BrainWalk\Data\',oneyrfollowupID{1,1},'\V02\',oneyrfollowupID{1,1},'V02params.mat']); % Load their params file from their first visit 
+        dominantRight = strcmp(oneyearfollowupparams.adaptData.subData.fastLeg,'Right'); % Get their dominant/fast leg information 
+        if dominantRight
+            fprintf('Fast Leg: Right');
+        else
+            fprintf('Fast Leg: Left');
+        end
+    end
 end
-
 %display the selections
 visitNum = visitOptions{visitNum}
-
-if ~ismember(visitNum,{'Visit5(Nirs N-back)','TrailRun to familiarize with TM'}) %ask dominant leg only for TM sessions with split
-    opts.Interpreter = 'tex';
-    opts.Default = 'Right';
-    dominantRight = questdlg(['Dominant leg is: '],'', ...
-        'Left','Right',opts);
-    if strcmp(dominantRight,'Right')
-        dominantRight = true;
-    else
-        dominantRight = false;
+if ~strcmp(oneyrfollowup,'Yes') % Only ask for dominant/fast leg if it's a new participant
+    if ~ismember(visitNum,{'Visit5(Nirs N-back)','TrailRun to familiarize with TM'}) %ask dominant leg only for TM sessions with split
+        opts.Interpreter = 'tex';
+        opts.Default = 'Right';
+        dominantRight = questdlg(['Dominant leg is: '],'', ...
+            'Left','Right',opts);
+        if strcmp(dominantRight,'Right')
+            dominantRight = true;
+        else
+            dominantRight = false;
+        end
+        dominantRight
     end
-    dominantRight
 end
-
 %% Set up GUI and run exp
 %load adapation GUI and get handle
 handles = guidata(AdaptationGUI);
