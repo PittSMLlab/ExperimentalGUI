@@ -188,8 +188,9 @@ end
 
 if numAudioCountDown    % copied from open loop audiocountdown controller
     % TMStartIn3/TMStopIn3 (treadmill start/stop 3-2-1 countdown) are not
-    % loaded: bout start/stop now use the single 'walk'/'stopAndRest'
-    % cues from the instructions map (see below) instead of a countdown.
+    % loaded: bout start/stop now use the 'walk'/'stop'/
+    % 'silentlyCountForward' cues from the instructions map (see below)
+    % instead of a countdown.
     % 2/1/now/TMChangeIn3 remain for the mid-trial speed-change countdown
     % branch, which this protocol does not reach (numAudioCountDown is
     % the scalar -1) but which other profiles may still use.
@@ -227,7 +228,7 @@ disp('Initial Setup');
 %Event code from initial letter in nirsEventNames: A-AccRamp (to start),
 %S-Split, M-Mid, P-PostTied, D-DccRamp2Split
 %set up audio players
-audioids = {'relax','stopAndRest','walk'};
+audioids = {'relax','stop','silentlyCountForward','walk'};
 instructions = containers.Map();
 for ii = 1:length(audioids)
     [audio_data,audio_fs] = audioread([audioids{ii} '.mp3']);
@@ -301,16 +302,20 @@ nextRestIdx = 1;
 startCueSettleSec = 1; % s; fixed margin added after the "walk" start cue
 % finishes playing and before the belts begin accelerating, so the
 % participant has a moment to brace beyond the cue's own (short) length
-restSilentSec = 10; % s; target SILENT inter-bout rest, i.e., time after
-% the 'stopAndRest' audio cue (stopAndRest.mp3) before belts resume;
-% applies to every run of this controller, including fNIRS/H-reflex
-% sessions
-restCuePlayer = instructions('stopAndRest');
-restCueSec    = restCuePlayer.TotalSamples / restCuePlayer.SampleRate;
-% the rest timer below starts together with the cue (see rest handler),
-% so padding the target by the cue's own length keeps the silent
-% remainder at ~restSilentSec
-restDuration = restSilentSec + restCueSec;
+restSilentSec = 10; % s; target SILENT counting window, i.e., time after
+% the 'silentlyCountForward' audio cue (silentlyCountForward.mp3) before
+% belts resume; applies to every run of this controller, including
+% fNIRS/H-reflex sessions
+stopCuePlayer  = instructions('stop');
+stopCueSec     = stopCuePlayer.TotalSamples / stopCuePlayer.SampleRate;
+countCuePlayer = instructions('silentlyCountForward');
+countCueSec    = countCuePlayer.TotalSamples / countCuePlayer.SampleRate;
+% the rest handler below plays 'stop', blocks for stopCueSec so the two
+% cues don't overlap, then plays 'silentlyCountForward' and starts the
+% rest timer together with THAT cue — padding the target by only the
+% second cue's own length keeps the silent remainder at ~restSilentSec
+% after counting instructions finish
+restDuration = restSilentSec + countCueSec;
 
 if ~isempty(nirsEventSteps)
     need2LogEvent = true;
@@ -1057,9 +1062,16 @@ try     % so that if something fails, communications are closed properly
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
             pause(1.5); % give the belts a moment to settle at zero before
-            % the stopAndRest cue plays below.
-            % this function plays the audio, sends event to NIRS, and logs it in datlog
-            datlog = nirsEvent('stopAndRest','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
+            % the stop/count-forward cues play below.
+            % this function plays the 'stop' audio, sends event to NIRS,
+            % and logs it in datlog
+            datlog = nirsEvent('stop','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
+            pause(stopCueSec); % block until 'stop' finishes playing so
+            % 'silentlyCountForward' starts right after without overlap
+            play(instructions('silentlyCountForward'));
+            datlog.audioCues.start(end+1) = now(); %#ok<TNOW1>
+            datlog.audioCues.audio_instruction_message{end+1} = ...
+                ['Rest' num2str(nextRestIdx+trainIdx) '_CountForward'];
             %instead of a fixed pause, run a WHILE loop here so that the program wouldn't hang and would
             % respond to STOP in the rest break.
             restTic = tic;
@@ -1162,7 +1174,9 @@ try % stopping the treadmill
         fprintf('Trying to stop treadmill (TM1) at %s\n',char(datetime('now'),'yyyy-MM-dd HH:mm:ss:SSS'));
         smoothStop(t);
         if numAudioCountDown % announce the trial has stopped; no countdown
-            play(instructions('stopAndRest'));
+            play(instructions('stop'));
+            pause(stopCueSec); % avoid overlapping the two cues
+            play(instructions('silentlyCountForward'));
         end
         % see if the treadmill should be stopped when the STOP button is pressed
     elseif get(ghandle.StoptreadmillSTOP_checkbox,'Value') == 1 && STOP == 1
