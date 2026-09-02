@@ -280,7 +280,7 @@ real-data validation results, and known gaps.
 
 After each walking dynamic H-reflex calibration trial, a Vicon Nexus
 2.12 processing pipeline automatically runs
-`labTools/fun/misc/generateHreflexRecruitmentCurves.m`. This script
+`labTools/fun/misc/GenerateHreflexRecruitmentCurves.m`. This script
 is **not** called by ExperimentalGUI — it is triggered by Nexus after
 each calibration C3D is saved.
 

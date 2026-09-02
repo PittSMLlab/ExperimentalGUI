@@ -35,7 +35,7 @@ addpath(genpath('C:\Users\cntctsml\Documents\GitHub\labTools\'));
 | `C:\Program Files\Vicon\` | Vicon DataStream SDK v1.11.0 (`.NET`; `ViconDataStreamSDK_DotNET.dll`) — real-time motion capture streaming | `ViconDataStreamSDK.DotNET.Client`, `MyClient.GetFrame`, `MyClient.GetMarkerGlobalTranslation`, `MyClient.GetDeviceOutputValue` |
 | `C:\Users\Public\Documents\MATLAB\` | Bertec treadmill communication layer — UDP packet build/send/read (functions in `HMRLhardware\TreadmillInterface\` subfolder) | `getPayload`, `sendTreadmillPacket`, `readTreadmillPacket`, `openTreadmillComm`, `getCurrentData` |
 | `C:\Users\cntctsml\Documents\GitHub\labTools\` | PittSMLlab `labTools` — used here for post-trial C3D export and marker-gap filling | `dataMotion.processAndFillMarkerGapsSession`, `dataMotion.exportSessionToC3D` |
-| `W:\Nathan\ViconNexusSDK\` | Vicon Nexus MATLAB SDK — `ViconNexus` scripting class (server drive; distinct from DataStream SDK). **Not required by ExperimentalGUI** — used only by Nexus pipeline scripts such as `generateHreflexRecruitmentCurves.m`. | `ViconNexus` |
+| `W:\Nathan\ViconNexusSDK\` | Vicon Nexus MATLAB SDK — `ViconNexus` scripting class (server drive; distinct from DataStream SDK). **Not required by ExperimentalGUI** — used only by Nexus pipeline scripts such as `GenerateHreflexRecruitmentCurves.m`. | `ViconNexus` |
 
 > **NOTE:** The treadmill comm functions (`getPayload`,
 > `sendTreadmillPacket`, etc.) are in the

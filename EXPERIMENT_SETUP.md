@@ -90,7 +90,7 @@ walking speed varies. Calibration trials use
 
 **H-reflex calibration processing:** After each walking dynamic
 calibration trial, a Vicon Nexus 2.12 processing pipeline runs
-`generateHreflexRecruitmentCurves.m` (`labTools/fun/misc/`) to
+`GenerateHreflexRecruitmentCurves.m` (`labTools/fun/misc/`) to
 produce recruitment curves in near real time. The script reads the
 open trial via `ViconNexus()` (Nexus MATLAB SDK), loads EMG and
 force-plate data via BTK, and calls helper functions in the
@@ -265,7 +265,7 @@ SpinalAdapt require coordination with the lead experimenter).
 | Interface | Path root / location | Representative symbols |
 |---|---|---|
 | Vicon DataStream SDK v1.11.0 (`.NET`; `ViconDataStreamSDK_DotNET.dll`) | `C:\Program Files\Vicon\DataStream SDK\Win64\dotNET\` | `ViconDataStreamSDK.DotNET.Client`, `MyClient.GetFrame`, `MyClient.GetMarkerGlobalTranslation`, `MyClient.GetDeviceOutputValue` |
-| Vicon Nexus MATLAB SDK | `W:\Nathan\ViconNexusSDK\MATLAB\` (server drive; distinct from DataStream SDK) | `ViconNexus` class — used by Nexus pipeline scripts (e.g. `generateHreflexRecruitmentCurves.m`); not called directly by ExperimentalGUI |
+| Vicon Nexus MATLAB SDK | `W:\Nathan\ViconNexusSDK\MATLAB\` (server drive; distinct from DataStream SDK) | `ViconNexus` class — used by Nexus pipeline scripts (e.g. `GenerateHreflexRecruitmentCurves.m`); not called directly by ExperimentalGUI |
 | Bertec treadmill comm layer | `C:\Users\Public\Documents\MATLAB\HMRLhardware\TreadmillInterface\` (lab PC) | `getPayload`, `sendTreadmillPacket`, `readTreadmillPacket`, `openTreadmillComm`, `getCurrentData` |
 | labTools post-processing | `C:\Users\cntctsml\Documents\GitHub\labTools\` | `dataMotion.processAndFillMarkerGapsSession`, `dataMotion.exportSessionToC3D` |
 | Artinis Oxysoft (fNIRS) COM API | installed application | `actxserver('OxySoft.OxyApplication')` |
