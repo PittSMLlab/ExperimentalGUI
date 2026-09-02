@@ -68,30 +68,38 @@ the participant walks at their own comfortable pace.
 
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
 - Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
-  2026-08-13): the inter-bout rest is a fixed ~10 s SILENT window
-  (`restSilentSec`, belts stopped, timer padded by the `stopAndRest`
-  cue's own length so it excludes the cue), applied to every run of
-  this controller including fNIRS/H-reflex sessions. Every bout start
-  (tied ramp = `AccRamp`, split ramp = `DccRamp2Split`) announces
-  "Walk" exactly once, with no 3-2-1 countdown; bout 1 gets the same
-  "Walk" cue from the pre-loop block, and the ramp-event cue is
-  suppressed only for that first bout to avoid a duplicate. Every
-  belt stop (each inter-bout rest and the trial end) plays
-  `stopAndRest.mp3`, also with no countdown. The speed ramp at each
-  bout start is 3 strides (`rampStrides` in
+  2026-08-13, cue split 2026-09-02): the inter-bout rest is a fixed
+  ~10 s SILENT window (`restSilentSec`, belts stopped, timer padded by
+  the `silentlyCountForward` cue's own length so it excludes the cue),
+  applied to every run of this controller including fNIRS/H-reflex
+  sessions. Every bout start (tied ramp = `AccRamp`, split ramp =
+  `DccRamp2Split`) announces "Walk" exactly once, with no 3-2-1
+  countdown; bout 1 gets the same "Walk" cue from the pre-loop block,
+  and the ramp-event cue is suppressed only for that first bout to
+  avoid a duplicate. Every belt stop (each inter-bout rest and the
+  trial end) plays `stop.mp3` then, once it finishes,
+  `silentlyCountForward.mp3` — sequenced with a blocking `pause` on the
+  first cue's own duration so the two never overlap — also with no
+  countdown. The speed ramp at each bout start is 3 strides
+  (`rampStrides` in
   `generateProfiles_SpinalAdaptBouts.m`, reduced from 10). The "which
   bout to start from" dialog range and default are derived from the
   loaded profile's bout count (5 for familiarization, 10 for
   Control/Split), not hard-coded. The break between trials
   (`pauseBetweenTrials` in `RunProtocol_SpinalAdaptBouts.m`) targets
   ~90 s wall clock, reduced from ~150 s.
-- **Stop cue wording (revised 2026-09-01):** the 2026-08 dry run's
-  `stopAndRest.mp3` was too wordy; the replacement cue is short —
-  "Stop. Silently count forward from one." — recorded under the same
-  filename, so no code change was needed: `restCueSec` in
-  `NirsHreflexArduinoOpenLoopWithAudio.m` reads the mp3's own duration
-  and pads it by the fixed `restSilentSec = 10`, so the 10 s silent
-  counting window holds automatically for any cue length.
+- **Stop cue wording and split into two files (revised 2026-09-02):**
+  the 2026-08 dry run's single `stopAndRest.mp3` was too wordy; it is
+  replaced by two shorter cues played back-to-back — `stop.mp3`
+  ("Stop") then `silentlyCountForward.mp3` ("Silently count forward
+  from one"). `NirsHreflexArduinoOpenLoopWithAudio.m` plays `stop`,
+  blocks for exactly its own duration (`stopCueSec`), then plays
+  `silentlyCountForward` and starts the rest timer from that second
+  cue — so the 10 s silent counting window (`restSilentSec`) always
+  begins exactly when `silentlyCountForward.mp3` finishes, regardless
+  of either cue's length. Both mp3s were generated with Narakeet — see
+  [CONTRIBUTING.md](../../CONTRIBUTING.md#audio-cue-assets) for the
+  voice/settings used and why other cues in this repo may not match.
 - H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
   paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
   is the authoritative, Arduino-timed path. The Arduino owns the
@@ -310,21 +318,29 @@ The experimenter inspects the curves to select the stimulation
 current for the walking adaptation trials (target: ≈ 10–20% of
 maximum M-wave).
 
-**If the Nexus pipeline fails to run this script** (reported after the
-2026-08 dry run): the pipeline config and the script itself both live
-outside this repo, so there is nothing here to patch directly. To
-diagnose on the lab PC:
-1. Open the pipeline in Nexus's Pipeline tool and check the exact
-   script name/path it invokes.
+**The Nexus pipeline, `GenerateHreflexRecruitmentCurve`, is currently
+broken** (reported after the 2026-09 dry run). It runs three steps —
+**Combined Processing**, **Save Trial - C3D + VSK**, then **Run MatLab
+Operation** — and fails at the last step, **Run MatLab Operation**.
+Since the first two steps succeed (the C3D/VSK files are produced),
+the fault is isolated to how that step invokes MATLAB, not to trial
+processing or file export. The pipeline config and the script itself
+both live outside this repo, so there is nothing here to patch
+directly. To diagnose on the lab PC:
+1. Open `GenerateHreflexRecruitmentCurve` in Nexus's Pipeline tool and
+   inspect the **Run MatLab Operation** step's configured script
+   name/path (and working directory, if set).
 2. Compare that against the real file at
    `C:\Users\cntctsml\Documents\GitHub\labTools\fun\misc\` — confirm
    the current filename/casing there (`GenerateHreflexRecruitmentCurves.m`,
    PascalCase; prior documentation here incorrectly used camelCase).
-3. Run the pipeline manually on a saved calibration trial and read the
-   exact MATLAB/Nexus error — "undefined function" points to a stale
-   name left over from a prior rename, while "file not found" points to
-   a path/casing mismatch — then update the pipeline's script reference
-   to match the current name.
+3. Run that step manually (or the whole pipeline) on a saved
+   calibration trial and read the exact MATLAB/Nexus error —
+   "undefined function"/"not found" points to a stale name left over
+   from a prior rename, while a path-not-found or "cannot start
+   MATLAB" error points to a broken MATLAB executable/working-directory
+   reference in the step's own configuration — then update the
+   pipeline's script reference (or MATLAB path config) to match.
 
 **`+Hreflex` functions called by this pipeline** (all in
 `labTools/fun/+Hreflex/`):
@@ -350,7 +366,9 @@ The trial **must** record the two stimulator trigger sync channels
 ~50 ms Delsys wireless EMG transmission delay — and that anchoring is
 what makes artifact localization reliable. Without them the script has
 to search the whole trial blind. **Confirm the channels appear in the
-Vicon Nexus analog device configuration before collection.** The
+Vicon Nexus analog device configuration before collection: the
+`HreflexEMGDataCollection` system/pipeline profile must be selected in
+Nexus for these trigger channels to be recorded.** The
 2026-08-21 dry run's C3D had neither, and the script silently degraded;
 it now stops and asks (Abort / Continue with threshold detection)
 instead.
