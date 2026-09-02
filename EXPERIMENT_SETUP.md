@@ -151,7 +151,7 @@ GUI menu slot numbers correspond to `case` labels in
 | 9 | `controlSpeedWithSteps_PercAdap` | Perceptual adaptation variant; trial ends on click response, task length is time-based. | Perceptual Adaptation |
 | 11 | `controlSpeedWithSteps_edit1_AudioCountDown` | Split-belt controller with audio countdown cue at trial start. | BrainWalk (TM trials), C3 (TM trials) |
 | 15 | `controlSpeedWithSteps_WeberPerceptionFaster` | Weber perception variant; faster inter-stride update for threshold estimation. | Weber Perception |
-| 8 | `HreflexOGWithAudio` | Overground (no belt control) with H-reflex triggers and audio speed feedback. | BrainWalk (OG baseline), C3 (OG baseline) |
+| 8 | `HreflexOGWithAudio` | Overground (no belt control) with H-reflex triggers and audio speed feedback. | BrainWalk (OG baseline), C3 (OG baseline), SpinalAdapt (6-min walk test) |
 | 16 | `HreflexOGWithAudio` | Same controller, second menu entry; used for H-reflex OG trials with audio in SpinalAdapt. | SpinalAdapt |
 | 14 | `NirsHreflexArduinoOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback. | NirsAutomaticityProtocol, SpinalAdapt (calibration) |
 | 10 | `NirsAutomaticityAssessment` | Overground alphabet dual-task assessment. Records responses and logs events. | BrainWalk, NirsAutomaticityProtocol |

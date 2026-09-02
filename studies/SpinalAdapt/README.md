@@ -56,6 +56,16 @@ assignment; the current design takes `fastLeg` as a direct
 experimenter input instead (`RunProtocol_SpinalAdaptBouts.m`), so
 those profiles were removed from `generateProfiles_SpinalAdaptBouts`.
 
+**Overground 6-minute walk test (added 2026-09-01):** a one-time
+trial at the very start of the session, before H-reflex calibration —
+not one of the 13 numbered conditions above. Uses `HreflexOGWithAudio`
+(slot 8, `hreflex_present = false`, no stim), profile `SixMinuteWalk.mat`
+(`velL`/`velR` all-`NaN`, 1,000 strides — self-paced, sized only as a
+generous safety margin since the trial length is controlled by the
+experimenter pressing Stop in the GUI, not by the profile). Answer
+**No** to the "Should audio feedback on speed be provided?" prompt so
+the participant walks at their own comfortable pace.
+
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
 - Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
   2026-08-13): the inter-bout rest is a fixed ~10 s SILENT window
@@ -75,6 +85,13 @@ those profiles were removed from `generateProfiles_SpinalAdaptBouts`.
   Control/Split), not hard-coded. The break between trials
   (`pauseBetweenTrials` in `RunProtocol_SpinalAdaptBouts.m`) targets
   ~90 s wall clock, reduced from ~150 s.
+- **Stop cue wording (revised 2026-09-01):** the 2026-08 dry run's
+  `stopAndRest.mp3` was too wordy; the replacement cue is short —
+  "Stop. Silently count forward from one." — recorded under the same
+  filename, so no code change was needed: `restCueSec` in
+  `NirsHreflexArduinoOpenLoopWithAudio.m` reads the mp3's own duration
+  and pads it by the fixed `restSilentSec = 10`, so the 10 s silent
+  counting window holds automatically for any cue length.
 - H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
   paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
   is the authoritative, Arduino-timed path. The Arduino owns the
@@ -292,6 +309,22 @@ are saved to a `HreflexCalFigs/` subfolder of the trial directory.
 The experimenter inspects the curves to select the stimulation
 current for the walking adaptation trials (target: ≈ 10–20% of
 maximum M-wave).
+
+**If the Nexus pipeline fails to run this script** (reported after the
+2026-08 dry run): the pipeline config and the script itself both live
+outside this repo, so there is nothing here to patch directly. To
+diagnose on the lab PC:
+1. Open the pipeline in Nexus's Pipeline tool and check the exact
+   script name/path it invokes.
+2. Compare that against the real file at
+   `C:\Users\cntctsml\Documents\GitHub\labTools\fun\misc\` — confirm
+   the current filename/casing there (`GenerateHreflexRecruitmentCurves.m`,
+   PascalCase; prior documentation here incorrectly used camelCase).
+3. Run the pipeline manually on a saved calibration trial and read the
+   exact MATLAB/Nexus error — "undefined function" points to a stale
+   name left over from a prior rename, while "file not found" points to
+   a path/casing mismatch — then update the pipeline's script reference
+   to match the current name.
 
 **`+Hreflex` functions called by this pipeline** (all in
 `labTools/fun/+Hreflex/`):
