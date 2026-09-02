@@ -87,7 +87,26 @@ maxCon              = 13;   % maximum number of conditions
 pauseBetweenTrials  = 55;   % s; ~90 s wall clock including the ~35 s
                              % Vicon stop/start delay
 ctrlSlotNirsHreflex = 14;   % GUI slot: NirsHreflexArduinoOpenLoopWithAudio
+ctrlSlotOgWalkTest  = 8;    % GUI slot: HreflexOGWithAudio, no stim
 pauseTransferSec    = 60;   % s; allows Vicon to stop and save last trial
+
+%% Complete Overground 6-Minute Walk Test
+% One-time trial at the very start of the session; not part of the
+% numbered condition switch below since it isn't one of the 13 main
+% protocol conditions. Self-paced (NaN profile) — answer 'No' to the
+% audio feedback prompt below so the participant walks at their own pace.
+handles.popupmenu2.set('Value', ctrlSlotOgWalkTest);
+profilename = fullfile(dirProfile, 'SixMinuteWalk.mat');
+manualLoadProfile([], [], handles, profilename);
+answer = questdlg(['Confirm controller is Overground audio speed ' ...
+    'feedback and profile is SixMinuteWalk. When prompted for audio ' ...
+    'feedback, answer No (self-paced 6-minute walk test).']);
+if ~strcmp(answer, 'Yes')
+    return;
+end
+AdaptationGUI('Execute_button_Callback', ...
+    handles.Execute_button, [], handles);
+% manually stop in the GUI once six minutes of walking have elapsed
 
 %% Complete Pre-Session H-Reflex Walking Calibration Trials
 isCalibration = true;   % run at least once (slow & fast speeds)

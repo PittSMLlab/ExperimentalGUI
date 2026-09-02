@@ -5,8 +5,8 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 %
 %   Generates speed (velL, velR) and H-reflex stimulus (stimL, stimR)
 %   profiles for each condition in the SpinalAdapt bout-based protocol:
-%   H-reflex walking calibration, familiarization, control, and split
-%   bouts.
+%   the overground 6-minute walk test, H-reflex walking calibration,
+%   familiarization, control, and split bouts.
 %
 %   TEMPLATE — Updated with new SpinalAdapt protocol bout structure
 %   (3-stride ramp + 10-stride SS per bout, 10 bouts per trial,
@@ -31,6 +31,18 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 if ~exist(profileDir, 'dir')
     mkdir(profileDir);
 end
+
+%% Generate Overground 6-Minute Walk Test Profile
+% Self-paced (NaN) strides: this trial has no belt to control and no
+% target pace, so the profile only needs to preallocate enough stride
+% slots that indexing never runs out before the experimenter manually
+% stops the trial via the GUI Stop button at six minutes.
+sixMinWalkStrides = 1000;   % strides; margin above a fast per-leg
+% cadence (~140 steps/min for 6 min = 840 steps) since trial length is
+% experimenter-controlled, not profile-controlled
+velL = nan(sixMinWalkStrides, 1);
+velR = velL;
+save(fullfile(profileDir, 'SixMinuteWalk.mat'), 'velL', 'velR');
 
 %% Define H-Reflex Walking Calibration Constants
 calibStrides       = 400;   % strides; H-reflex calib trial length
