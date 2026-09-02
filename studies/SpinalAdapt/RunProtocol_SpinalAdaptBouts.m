@@ -1,9 +1,9 @@
-%RUNPROTOCOL_SPINALADAPTBOUTS Automate the SpinalAdapt experimental session.
+%RUNPROTOCOL_SPINALADAPTBOUTS Run the SpinalAdapt experimental session.
 %
-%   TEMPLATE — Updated with new SpinalAdapt protocol structure:
-%   13 conditions (2 familiarization, 6 control bouts trials, 5 split
-%   bouts trials). Verify all conditions against the final approved
-%   protocol before data collection.
+%   Current SpinalAdapt protocol structure: 13 conditions (2
+%   familiarization, 6 control bouts trials, 5 split bouts trials).
+%   Verify all conditions against the final approved protocol before
+%   data collection.
 %   See History-PilotStudy2/ for the Pilot Study 2 original.
 %
 %   Guides the experimenter through profile generation, pre- and post-
@@ -120,7 +120,7 @@ end
 isFirstCon = true;      % is this the first condition in the session?
 currCon    = 0;         % current condition index; loop runs while < maxCon
 while currCon < maxCon
-    if ~isFirstCon      % after first condition, ask whether to auto-advance
+    if ~isFirstCon      % after 1st condition, ask whether to auto-advance
         nextConButton = questdlg(['Would you like to automatically ' ...
             'continue with the next condition?']);
         if strcmp(nextConButton, 'Yes')
