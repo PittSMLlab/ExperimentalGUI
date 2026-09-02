@@ -11,6 +11,7 @@ submitting changes.
 
 1. [Where to Put New Code](#where-to-put-new-code)
    - [Active Study Constraints](#active-study-constraints)
+   - [Audio Cue Assets](#audio-cue-assets)
 2. [MATLAB Version Compatibility](#matlab-version-compatibility)
 3. [Code Style](#code-style)
 4. [Arduino / C++ Code Style](#arduino--c-code-style)
@@ -49,6 +50,19 @@ Style/formatting edits are acceptable; logic changes are not.
 
 **C3** (~3 participants remaining) is also active. Consult the PI
 before making functional changes to scripts in `studies/C3/`.
+
+### Audio Cue Assets
+
+Spoken instruction cues live as `.mp3` files in
+`controllers/AudioInstructionsMP3/`, loaded via `audioread`/
+`audioplayer` into an `instructions` map (see controller doc blocks
+for that pattern). When adding or replacing a cue, record the web
+application and voice/settings used so future cues can be kept
+consistent with — or deliberately matched to — existing ones:
+
+| Cue file(s) | Source | Voice | Notes |
+|---|---|---|---|
+| `stop.mp3`, `silentlyCountForward.mp3` | [Narakeet](https://www.narakeet.com/) | English - American, Kelly (Female, Asian-American) | Added 2026-09-02 for SpinalAdapt's bout-end cue (see `studies/SpinalAdapt/README.md`). Other existing cues in this folder were **not** necessarily generated with this application or voice — check before assuming consistency, and consider standardizing the library on one source/voice in the future. |
 
 ---
 
