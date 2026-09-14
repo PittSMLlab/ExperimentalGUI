@@ -158,6 +158,71 @@ the participant walks at their own comfortable pace.
   controller (warns once per leg, logs to `datlog.errormsgs`) is the
   direct guard against this bug class recurring. See the dry-run
   checklist below before the next pilot.
+- **Missed and wrong-stride stim bug #2, root cause and fix
+  (2026-09-14):** the 2026-09-08 pilot (`CalibrationFast`) lost 50 of
+  333 strides (15%) to the Arduino's gait-event state machine falling
+  behind — `numStepsL/R` climbing too slowly, not resetting — which
+  produced 5 missed pulses and 24 stim-stride-schedule gaps (a pulse
+  landing a stride later than intended), despite every delivered pulse
+  still being correctly timed to ~50% of the (wrong) stride's single
+  stance. Diagnosed against the matching Vicon capture (`Trial08.c3d`)
+  and a known-good comparison session from 2026-09-02 (`Trial03.c3d`,
+  same belt speed and loop timing, 0 stride-count deficit). Root
+  cause: `updateGaitEventStateMachine()`'s stance debounce required
+  BOTH legs' `timeSinceStanceChange` to exceed `timeDebounce` (100 ms)
+  before accepting a heel-strike or toe-off, coupling the debounce to
+  double-support duration; a constant ~40 ms heel-strike registration
+  lag (from `threshFzUp`) shrinks true double support into
+  *perceived* double support, and 09-08's perceived double support
+  (105 ms) had only ~5 ms of margin left over the debounce versus
+  09-02's 41 ms (176 ms true DS vs. 132 ms) — measured margin
+  sensitivity: 20 ms of extra lag blanks 7% of toe-offs, 30 ms blanks
+  32%, 35 ms blanks 59%. A blanked toe-off was then *lost*
+  (`isPrevStanceL/R` advanced unconditionally every loop pass, whether
+  or not the debounce accepted the transition), stalling `phase` for a
+  full stride; a latched gate then carried forward and fired at 50% of
+  the *next* stride, and `durGateMaxAge` (2000 ms, longer than one
+  stride) let two consecutive stalls carry a gate two strides before
+  the expiry guard dropped it — all 4 drops in the 09-08 pilot were
+  this expiry case. Ruled out: loop timing (statistically identical
+  between the two sessions), the encoding regression above (`ardStep`
+  climbed cleanly into the 140s), and analog wiring/gain/zeroing (a
+  single ~320 N effective threshold, and a swing-phase baseline
+  differing by <2 N, explain both sessions equally well — a wiring or
+  zeroing change could not fit both). Fix (firmware, needs
+  re-upload): the debounce now checks only each leg's own
+  `timeSinceStanceChange` (see the `timeDebounce` comment in the
+  sketch); `isPrevStanceL/R` now advances only when its own debounce
+  accepts the transition, so a blanked event is retried next pass
+  instead of discarded; `durGateMaxAge` is now `durGateMaxAgeFactor`
+  (1.5) times the live `estSS` rather than a fixed 2000 ms, so it
+  still tracks genuinely slower clinical strides without needing
+  re-tuning; a gate still pending at STOP now echoes a `D` record
+  instead of vanishing silently, so the accounting identity (check 2
+  below) holds for every trial. Fix (MATLAB, no re-flash): the
+  calibration audio cue now plays after the Arduino write, not
+  before, so `audioplayer` start latency cannot eat into the gate
+  lead; the live `%SS` console readout now divides by `estSSms`
+  (same-stride, Arduino clock) instead of `durSSms` (one stride
+  stale), which had been inflating the apparent within-stance spread
+  the experimenters noticed (true placement sd was 2.4–2.8% in both
+  sessions; the stale-denominator readout ran 3.9–5.2%); a new
+  stride-count-deficit watchdog (distinct from the existing `ardStep`
+  regression sentinel, which only catches the counter *decreasing*)
+  warns into `datlog.errormsgs` the first time a leg's Arduino step
+  count falls behind MATLAB's own, which would have flagged 09-08
+  within its first 20 strides. See
+  [`diagnostics/auditHreflexStimTiming.m`](../../diagnostics/auditHreflexStimTiming.m)
+  (repo root) for a reusable tool that runs this incident's full
+  diagnosis — accounting, drop classification, the on-target metric,
+  loop timing, and (given the matching C3D) the Arduino stride-count
+  deficit, true double support, and toe-off reference error — against
+  any saved datlog; it reproduces 0/360 for the 09-02 session and
+  50/333 for 09-08. **Still required before the next pilot:** re-flash
+  the firmware, a bench bits-to-newtons calibration for `threshFzUp`
+  (see `HreflexStimArduino/README.md`), and the dry-run checklist
+  below, now including a fast-speed run and a light or
+  short-double-support walker.
 - **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
   calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
   `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
@@ -192,16 +257,35 @@ confirm:
 - **Loop timing** — review `datlog.diagnostics.loopSegMs` (median, p95,
   max) and `gateLeadMs*` (positive = gate arrived that many ms *before*
   single-stance onset; expect roughly a double-support duration of lead).
+- **Arduino stride-count deficit = 0** — each leg's Arduino `ardStep`
+  increment between consecutive delivered pulses should equal how many
+  true strides actually elapsed (from the C3D force plates). This is the
+  load-bearing check for the 2026-09-14 failure mode above: it is not
+  caught by loop timing or by the pre-existing `ardStep`-decreased
+  sentinel, since the counter still increases, just too slowly.
+- **Double-support margin** — measured double support (C3D force plates)
+  should exceed `timeDebounce` (100 ms) by at least ~40 ms. Below that,
+  the debounce risks blanking a genuine toe-off (see the
+  margin-sensitivity table above); fast walking and a short-statured or
+  light participant both shorten double support and are the conditions
+  to watch.
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
   with a short dummy profile at low treadmill speed and confirm every
   intended stride fires once near mid-single-stance.
 
+[`diagnostics/auditHreflexStimTiming.m`](../../diagnostics/auditHreflexStimTiming.m)
+runs the missed-stims, stim-timing, loop-timing, and (given the matching
+C3D) stride-count-deficit and double-support checks above in one call
+against a saved datlog — see its help text for the full check list and
+output fields.
+
 ### Dummy-Profile Dry Run (treadmill only, no participant)
 
 Run this after any change to the serial encoding or firmware timing
-guards (e.g., the 2026-08-06 fix above), before the next pilot or
-participant session. **Re-flash the Arduino first** if the firmware
-changed — see `HreflexStimArduino/README.md`'s upload workflow (COM4).
+guards (e.g., the 2026-08-06 or 2026-09-14 fixes above), before the next
+pilot or participant session. **Re-flash the Arduino first** if the
+firmware changed — see `HreflexStimArduino/README.md`'s upload workflow
+(COM4).
 
 **Setup**
 
@@ -216,7 +300,14 @@ changed — see `HreflexStimArduino/README.md`'s upload workflow (COM4).
       stim on every 2nd stride; then repeat with stim on **every**
       stride (the `CtrlBouts` pattern that exposed the original 35%
       loss on the left leg, and the harder test).
-- [ ] Experimenter walks on the treadmill for each run.
+- [ ] Repeat both dummy-profile runs at the **fast** calibration speed
+      — fast walking is the stress case for double support (see the
+      2026-09-14 fix above) and the slow-speed runs alone would not
+      have caught it.
+- [ ] Experimenter walks on the treadmill for each run; for at least one
+      fast run, use a **light or short-statured** experimenter (short
+      double support) rather than whoever is tallest/heaviest available,
+      to reproduce the condition that exposed the 2026-09-14 bug.
 
 **Acceptance** (load the saved `datlogs/*.mat` after each run). Checks 2-3
 reference `stim.deviceDrop`, which exists only in datlogs collected with
@@ -248,6 +339,16 @@ this fix (2026-08-06 or later) — guard with
 8. **Stop actually stops** (new behavior — command `3` previously
    self-cancelled via the same encoding bug): after STOP, confirm no
    further echoes arrive and the Arduino's stim/Vicon pins read LOW.
+9. **Arduino stride-count deficit = 0**, at both slow and fast speed.
+   The direct regression test for the 2026-09-14 fix: run
+   `diagnostics/auditHreflexStimTiming.m` against the dry-run datlog
+   with the matching C3D and confirm `strideDeficit` is 0 for both
+   legs.
+10. **Measured double support exceeds `timeDebounce` by >= 40 ms** on
+    the fast-speed runs (same tool, `groundTruth.doubleSupportMs`). If
+    it does not, the margin is thin regardless of check 9's result on
+    this particular walker/day — flag it before moving to a
+    participant.
 
 **Still unvalidated after this dry run**, to be run once stim testing
 on a person is scheduled: the Vicon-sync acceptance test

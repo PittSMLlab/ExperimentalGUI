@@ -43,7 +43,10 @@ wrong firmware):
    and A1 (right). It detects heel strikes and toe-offs by threshold-crossing
    (Schmitt-trigger hysteresis: `threshFzUp` to enter stance, the lower
    `threshFzDown` to remain in stance) on the raw analog reading, with a
-   100 ms debounce.
+   100 ms **per-leg** debounce (each leg's `timeSinceStanceChange` is
+   checked against its own prior transition only; a cross-leg term was
+   removed 2026-09 — see `studies/SpinalAdapt/README.md`'s 2026-09-14
+   fix for why it was blanking genuine toe-offs at fast walking speed).
 3. After each toe-off the Arduino updates an exponentially smoothed estimate of
    single-stance duration (α = 0.7) for that leg. An **outlier clamp** rejects
    physiologically implausible single-stance durations (outside
@@ -117,9 +120,18 @@ as a newline-terminated CSV record:
 A gate is dropped, rather than fired off-target or carried into a later
 stride, when it is still pending more than `pctSSLateTolerance` past its 50%
 target (the acceptance window, ±5% by default) or when its expected
-single-stance onset never arrives within `durGateMaxAge` (2000 ms; e.g., a
-missed contralateral toe-off) — see `triggerStimulation()` in the sketch. A
-dropped gate is a **safe skipped stim**, never a mistimed one.
+single-stance onset never arrives within `durGateMaxAgeFactor × estSS`
+(1.5× the live single-stance estimate — e.g., a missed contralateral
+toe-off; a fixed 2000 ms bound before 2026-09-14 risked expiring a
+legitimate gate in slow clinical gait while also being long enough to
+carry a gate across two stalled strides — see
+`studies/SpinalAdapt/README.md`'s 2026-09-14 fix) — see
+`triggerStimulation()` in the sketch. A dropped gate is a **safe skipped
+stim**, never a mistimed one. As of 2026-09-14, a gate still pending when
+command `3` stops the state machine is also echoed as a `D` record
+instead of being silently cleared, so `studies/SpinalAdapt/README.md`'s
+accounting identity (check 2 in the dry-run acceptance list) holds even
+for a trial stopped mid-stance.
 
 `NirsHreflexArduinoOpenLoopWithAudio.m` drains these **non-blocking** off its
 control loop (reads only bytes already buffered; a serial hiccup is caught and
@@ -145,7 +157,15 @@ firmware simply sends nothing and the MATLAB side is a clean no-op.
 > `datlog`) only ever increases within a trial. If it decreases, the
 > controller appends a message to `datlog.errormsgs` and warns once per leg —
 > this is the direct signature of the state machine resetting mid-trial (see
-> the wire-width note above).
+> the wire-width note above). This sentinel does **not** catch the counter
+> falling behind without resetting (still increasing, just too slowly) — the
+> 2026-09-08 pilot's failure mode (see `studies/SpinalAdapt/README.md`'s
+> 2026-09-14 fix). A separate stride-count-deficit watchdog added then
+> compares each leg's `ardStep` increment against MATLAB's own ipsilateral
+> step-count increment between consecutive echoes and warns if the Arduino
+> falls behind; `diagnostics/auditHreflexStimTiming.m` runs the equivalent
+> check offline against the matching C3D, which is the more sensitive
+> ground-truth version of the same test.
 
 ---
 
@@ -173,7 +193,8 @@ ground truth for the ±5% acceptance criterion.
    past the 50% target before pressing the plate — confirm a `D,...` line
    appears instead of a late `S,...`; and gate a stance, then never complete
    it (release before crossing threshold) — confirm a `D,...` line appears
-   once `durGateMaxAge` (2000 ms) has elapsed.
+   once `durGateMaxAgeFactor × estSS` (1.5× the current single-stance
+   estimate, typically ~500-750 ms) has elapsed.
 3. **MATLAB dry run (no participant):** run a short dummy profile with
    `hreflex_present = true` and the Arduino reading bench force input. Confirm
    the console prints `Stim L/R step N: ...% SS` lines, that
@@ -316,6 +337,19 @@ If force traces look flat or noisy:
   reaching the Arduino (10-bit ADC; stances should reach ~30 bits above
   baseline).
 
+> **Open question (2026-09-14):** analysis of the 2026-09-08 pilot puts
+> the firmware's *effective* stance-entry threshold at roughly 280-320 N
+> of a ~940-1350 N peak stance force — i.e., `threshFzUp = 30` bits maps
+> to something like 280-320 N, not the "~30 bits above baseline" (implying
+> a threshold near full stance amplitude) stated just above. That figure
+> is inferred from two independent observables in a saved datlog (the
+> `estSS` bias and the miss rate), not measured on the bench. A genuine
+> bits-to-newtons calibration — step known loads on each plate while
+> logging raw `analogRead` bits from `LogForcesArduinoSerial.m` — is
+> still needed to settle this and to tune `threshFzUp` with confidence;
+> see `studies/SpinalAdapt/README.md`'s 2026-09-14 fix for the full
+> reasoning and the ~40 ms heel-strike registration lag this implies.
+
 ---
 
 ## Future Improvements
@@ -356,9 +390,17 @@ implemented yet; this section is for planning purposes.
    future-stride flags, but a late-arriving or never-consumed gate is no
    longer silently carried into a later stride: the firmware now drops it
    (echoed as a `D` record) once it is past the ±5% acceptance window or its
-   single-stance onset never arrives (`durGateMaxAge`). A burst-ahead
-   mechanism would still reduce how often a stride is *skipped* under bad
-   MATLAB loop jitter, but a skip is now always safe rather than mistimed.
+   single-stance onset never arrives (`durGateMaxAgeFactor × estSS`). A
+   burst-ahead mechanism would still reduce how often a stride is *skipped*
+   under bad MATLAB loop jitter, but a skip is now always safe rather than
+   mistimed. **Caveat (found 2026-09-14):** this guard only fires once a
+   gate is *pending*; it did not protect against the gait-event state
+   machine itself silently missing a toe-off (a blanked event, not a late or
+   unconsumed gate) and stalling `phase` for a stride, which is a different
+   failure mode with the same symptom (a carried-forward, wrong-stride
+   stim). See `studies/SpinalAdapt/README.md`'s 2026-09-14 fix for that root
+   cause and its own fix (per-leg debounce, deferred rather than discarded
+   stance transitions).
 
 4. **Startup handshake** — Add a request/acknowledge exchange at connection time
    so MATLAB can confirm Arduino firmware version and readiness before starting
