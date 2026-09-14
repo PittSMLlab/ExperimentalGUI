@@ -7,9 +7,9 @@
 // timing is independent of MATLAB loop rate. Uses an exponentially
 // updated single-stance duration estimate to target 50% of single
 // stance. Stance is detected from the raw analog force signal with
-// Schmitt-trigger hysteresis (threshFzUp/threshFzDown) and a debounce
-// timer, and an outlier clamp rejects physiologically implausible
-// single-stance durations before they corrupt the estimate.
+// Schmitt-trigger hysteresis (threshFzUp/threshFzDown) and a per-leg
+// debounce timer, and an outlier clamp rejects physiologically
+// implausible single-stance durations before they corrupt the estimate.
 //
 // Date started: 26 Mar. 2024
 // Authors: SL, NWB
@@ -34,7 +34,18 @@ const int pinOutViconR = 11; // right Vicon sync output
 const int threshFzUp   = 30;  // force threshold (bits), stance upper
 const int threshFzDown = 2;   // force threshold (bits), stance lower
 const int durStimPulse = 20;  // stimulation pulse duration (ms)
-// de-bouncing time constant (ms)
+// de-bouncing time constant (ms); applied per leg against that leg's own
+// timeSinceStanceChange only (see updateGaitEventStateMachine()). A
+// cross-leg term was removed 2026-09: it required the CONTRALATERAL
+// leg's debounce to have elapsed too, which coupled the debounce to
+// double-support duration and silently discarded a genuine toe-off
+// whenever perceived double support (true DS minus the heel-strike
+// detection lag from threshFzUp) fell under timeDebounce -- 15% of
+// strides at fast walking speed with a light participant in the
+// 2026-09-08 pilot (see studies/SpinalAdapt/README.md). Each leg's own
+// stance-to-stance and swing-to-swing intervals are both far longer
+// than timeDebounce, so this still rejects a genuine same-leg
+// double-detect.
 const unsigned long timeDebounce   = 100;
 const float percentSS2Stim = 0.5;  // 50% of single stance phase
 const float alpha    = 0.7;  // smoothing factor (0 < alpha <= 1)
@@ -51,11 +62,14 @@ const unsigned long durSSMaxValid = 1000; // ms; reject missed/rest events
 // HreflexStimArduino/README.md, so a gate that would land outside
 // acceptance is dropped (echoed as 'D') instead of fired late.
 const float pctSSLateTolerance = 0.05;
-// oldest a pending gate may be before it expires unfired (ms); set well
-// above the slowest expected stride at the study's slow speed, so this
-// only catches a gate whose single stance never arrived (e.g., a missed
-// toe-off), not a normal slow stride.
-const unsigned long durGateMaxAge = 2000;
+// oldest a pending gate may be before it expires unfired, as a multiple
+// of the current single-stance estimate (see triggerStimulation()); a
+// normal gate lives DS + percentSS2Stim*estSS, so 1.5x estSS comfortably
+// covers up to 1.5 stances of pure wait while staying under one full
+// stride (2*(DS+SS)) at any walkable cadence -- unlike a fixed-ms bound,
+// this scales across walking speeds and slower clinical gait (see
+// durSSMinValid/durSSMaxValid comment) without needing to be re-tuned.
+const float durGateMaxAgeFactor = 1.5;
 const float alphaLPF = 0.02; // low-pass filter smoothing (0 < alpha << 1)
 const unsigned long intervalLog = 5; // ms between CSV logs
 unsigned long timeLastLog = 0;
@@ -184,6 +198,19 @@ void processSerialCommands()
 
     case 3: // stop gait event state machine
       shouldRunSM = false;
+      // echo a drop for any gate still pending at stop (e.g., the trial
+      // ended mid-stance) so MATLAB's accounting identity -- gates sent
+      // equals delivered plus dropped -- holds even for a trial stopped
+      // before every sent gate resolved; see the dropped-gate schema
+      // note in NirsHreflexArduinoOpenLoopWithAudio.m
+      if (shouldStimL)
+      {
+        echoStimRecord('D', 'L', numStepsL, millis(), timeRTO, estSSL);
+      }
+      if (shouldStimR)
+      {
+        echoStimRecord('D', 'R', numStepsR, millis(), timeLTO, estSSR);
+      }
       // clear any pending gate so a latch from this trial cannot fire on
       // the next trial's first strides
       shouldStimL = false;
@@ -250,8 +277,12 @@ int medianFilter(int pin, int numSamples = 9)
 void updateGaitEventStateMachine()
 {
   // implement gait event state machine to update gait phase
-  isPrevStanceL = isCurrStanceL; // save previous stance values
-  isPrevStanceR = isCurrStanceR;
+  // NOTE: isPrevStanceL/R are intentionally NOT unconditionally advanced
+  // here (unlike earlier versions of this sketch). Each is only advanced
+  // to isCurrStanceL/R once its own debounce-gated event block below
+  // accepts the transition, so a transition that the debounce defers
+  // this pass is re-compared against the same isPrevStanceL/R next pass
+  // instead of being silently lost.
 
   // read z-axis force plate sensor values to detect new stance phase
   // TODO: consider updating a force data buffer rather than current approach
@@ -286,22 +317,22 @@ void updateGaitEventStateMachine()
   timeSinceStanceChangeL = millis() - timeStanceChangeL;
   timeSinceStanceChangeR = millis() - timeStanceChangeR;
 
-  // update events if stance state changes and debounce time has passed
-  if (isCurrStanceL != isPrevStanceL
-      && timeSinceStanceChangeL > timeDebounce
-      && timeSinceStanceChangeR > timeDebounce)
+  // update events once this leg's OWN debounce time has passed; each
+  // leg's debounce is independent of the other's (see timeDebounce
+  // comment above)
+  if (isCurrStanceL != isPrevStanceL && timeSinceStanceChangeL > timeDebounce)
   {
     timeStanceChangeL = millis();
     LHS = isCurrStanceL && !isPrevStanceL; // left heel strike detection
     LTO = !isCurrStanceL && isPrevStanceL; // left toe off detection
+    isPrevStanceL = isCurrStanceL;
   }
-  if (isCurrStanceR != isPrevStanceR
-      && timeSinceStanceChangeR > timeDebounce
-      && timeSinceStanceChangeL > timeDebounce)
+  if (isCurrStanceR != isPrevStanceR && timeSinceStanceChangeR > timeDebounce)
   {
     timeStanceChangeR = millis();
     RHS = isCurrStanceR && !isPrevStanceR; // right heel strike detection
     RTO = !isCurrStanceR && isPrevStanceR; // right toe off detection
+    isPrevStanceR = isCurrStanceR;
   }
 
   // gait event state machine to determine phase transitions
@@ -406,9 +437,10 @@ void updateGaitEventStateMachine()
 // Fire the stim output when the estimated 50%-single-stance target
 // delay has elapsed since the contralateral toe-off event. A gate that
 // is still pending well past its target (pctSSLateTolerance) or whose
-// expected single-stance onset never arrived (durGateMaxAge) is dropped
-// -- echoed as a 'D' record -- rather than fired off-target or carried
-// into a later stride. A dropped gate is a safe skipped stim.
+// expected single-stance onset never arrived (durGateMaxAgeFactor *
+// estSS) is dropped -- echoed as a 'D' record -- rather than fired
+// off-target or carried into a later stride. A dropped gate is a safe
+// skipped stim.
 void triggerStimulation()
 {
   // TODO: move definition up to top
@@ -416,13 +448,17 @@ void triggerStimulation()
 
   // expire a gate whose expected single-stance onset never arrived (e.g.
   // a missed contralateral toe-off); independent of phase so it catches
-  // a stall regardless of what phase got stuck at
-  if (shouldStimL && (timeNow - timeGateL) > durGateMaxAge)
+  // a stall regardless of what phase got stuck at. The bound scales with
+  // the current single-stance estimate (see durGateMaxAgeFactor comment)
+  // rather than a fixed ms value.
+  unsigned long durGateMaxAgeL = (unsigned long)(durGateMaxAgeFactor * estSSL);
+  unsigned long durGateMaxAgeR = (unsigned long)(durGateMaxAgeFactor * estSSR);
+  if (shouldStimL && (timeNow - timeGateL) > durGateMaxAgeL)
   {
     shouldStimL = false;
     echoStimRecord('D', 'L', numStepsL, timeNow, timeRTO, estSSL);
   }
-  if (shouldStimR && (timeNow - timeGateR) > durGateMaxAge)
+  if (shouldStimR && (timeNow - timeGateR) > durGateMaxAgeR)
   {
     shouldStimR = false;
     echoStimRecord('D', 'R', numStepsR, timeNow, timeLTO, estSSR);
