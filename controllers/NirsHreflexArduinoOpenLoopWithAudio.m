@@ -176,6 +176,24 @@ if hreflex_present
     prevArdStepR = 0;
     ardStepWarnedL = false;
     ardStepWarnedR = false;
+    % Stride-count-deficit watchdog: the regression sentinel above only
+    % catches ardStep DECREASING (a state-machine reset). It cannot catch
+    % the Arduino silently falling behind -- e.g., a toe-off blanked by
+    % the firmware's stance debounce -- because ardStep keeps increasing,
+    % just too slowly. This tracks each leg's ipsilateral MATLAB step
+    % count at that leg's previous echo, to compare its increment against
+    % the ardStep increment over the same span (see the deficit check at
+    % the echo-drain site below). hasPrevEchoL/R gate the check until
+    % each leg has echoed at least twice (no valid baseline before that);
+    % they are also reset after a rest-break step-count jump, since that
+    % jump is not a stride the Arduino ever counted (see the rest-break
+    % handler further down).
+    prevMatStepIpsiL = 0;
+    prevMatStepIpsiR = 0;
+    hasPrevEchoL = false;
+    hasPrevEchoR = false;
+    ardStepDeficitWarnedL = false;
+    ardStepDeficitWarnedR = false;
 end
 
 %% Load GUI Handle and Audio Files for Countdown
@@ -826,10 +844,23 @@ try     % so that if something fails, communications are closed properly
                     stimRow = [legNum ardStep matStep stimMs toRefMs ...
                         estSSms dtStimMs durSSms pctSS matTimeSerial];
 
+                    % Live console readout only (not stored): pctSS above
+                    % divides by durSSms, which is stale by one stride
+                    % (only updated at the FOLLOWING heel strike -- see
+                    % the durSSms comment above), inflating apparent
+                    % placement spread by roughly the stride-to-stride
+                    % single-stance variability. pctSSLive instead divides
+                    % by estSSms, the Arduino's own same-stride estimate
+                    % on the same clock as dtStimMs, so it reflects actual
+                    % pulse placement rather than denominator lag.
+                    pctSSLive = 100 * dtStimMs / estSSms;
+
                     % ardStep regression sentinel (applies to both
                     % delivered and dropped records: both reflect the
-                    % same Arduino-side counter)
+                    % same Arduino-side counter), plus the stride-count-
+                    % deficit watchdog (see its state comment above)
                     if legNum == 1
+                        matStepIpsi = LstepCount; % ipsilateral counter
                         if ardStep < prevArdStepL && ~ardStepWarnedL
                             msg = sprintf(['Left ardStep decreased ' ...
                                 '(%d -> %d): Arduino step counter may ' ...
@@ -840,8 +871,28 @@ try     % so that if something fails, communications are closed properly
                                 'Audio:ArdStepReset'],'%s',msg);
                             ardStepWarnedL = true;
                         end
+                        if hasPrevEchoL && ~ardStepDeficitWarnedL
+                            deficit = (matStepIpsi - prevMatStepIpsiL) - ...
+                                (ardStep - prevArdStepL);
+                            if deficit > 0
+                                msg = sprintf(['Left Arduino step ' ...
+                                    'counter fell behind MATLAB by %d ' ...
+                                    'stride(s) (ardStep %d -> %d while ' ...
+                                    'MATLAB step %d -> %d): the ' ...
+                                    'firmware likely missed a toe-off'], ...
+                                    deficit,prevArdStepL,ardStep, ...
+                                    prevMatStepIpsiL,matStepIpsi);
+                                datlog.errormsgs{end+1} = msg;
+                                warning(['NirsHreflexArduinoOpenLoop' ...
+                                    'WithAudio:ArdStepDeficit'],'%s',msg);
+                                ardStepDeficitWarnedL = true;
+                            end
+                        end
                         prevArdStepL = ardStep;
+                        prevMatStepIpsiL = matStepIpsi;
+                        hasPrevEchoL = true;
                     else
+                        matStepIpsi = RstepCount; % ipsilateral counter
                         if ardStep < prevArdStepR && ~ardStepWarnedR
                             msg = sprintf(['Right ardStep decreased ' ...
                                 '(%d -> %d): Arduino step counter may ' ...
@@ -852,7 +903,26 @@ try     % so that if something fails, communications are closed properly
                                 'Audio:ArdStepReset'],'%s',msg);
                             ardStepWarnedR = true;
                         end
+                        if hasPrevEchoR && ~ardStepDeficitWarnedR
+                            deficit = (matStepIpsi - prevMatStepIpsiR) - ...
+                                (ardStep - prevArdStepR);
+                            if deficit > 0
+                                msg = sprintf(['Right Arduino step ' ...
+                                    'counter fell behind MATLAB by %d ' ...
+                                    'stride(s) (ardStep %d -> %d while ' ...
+                                    'MATLAB step %d -> %d): the ' ...
+                                    'firmware likely missed a toe-off'], ...
+                                    deficit,prevArdStepR,ardStep, ...
+                                    prevMatStepIpsiR,matStepIpsi);
+                                datlog.errormsgs{end+1} = msg;
+                                warning(['NirsHreflexArduinoOpenLoop' ...
+                                    'WithAudio:ArdStepDeficit'],'%s',msg);
+                                ardStepDeficitWarnedR = true;
+                            end
+                        end
                         prevArdStepR = ardStep;
+                        prevMatStepIpsiR = matStepIpsi;
+                        hasPrevEchoR = true;
                     end
 
                     if isDelivered
@@ -860,7 +930,7 @@ try     % so that if something fails, communications are closed properly
                     else
                         datlog.stim.deviceDrop.data(end+1,:) = stimRow;
                     end
-                    reportStimPctSS(legNum,ardStep,pctSS,dtStimMs, ...
+                    reportStimPctSS(legNum,ardStep,pctSSLive,dtStimMs, ...
                         isDelivered);
                 end
             catch ME
@@ -889,17 +959,20 @@ try     % so that if something fails, communications are closed properly
             % single-stance phases (they only advance on the contralateral
             % toe-off), so shouldStimR/L select the same strides either way.
             if (shouldStimR && (phase == 3 || phase == 2) && canStim)
-                if isCalibration    % play sound
-                    play(CalibAudioR);
-                end
-
                 try         % send command to Arduino to stimulate right
                     % value frozen with the firmware; must stay one byte
-                    % ('uint8') -- see the cmdArduino* comment above.
+                    % ('uint8') -- see the cmdArduino* comment above. Sent
+                    % before the calibration audio cue below so
+                    % audioplayer's start latency cannot eat into the
+                    % gate lead time.
                     write(portArduino,cmdArduinoStimR,'uint8');
                 catch ME
                     warning(ME.identifier,['Failed to send right leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
+                end
+
+                if isCalibration    % play sound
+                    play(CalibAudioR);
                 end
                 canStim = false;
                 % pending; resolved to a lead time once single-stance R
@@ -910,17 +983,19 @@ try     % so that if something fails, communications are closed properly
             end
 
             if (shouldStimL && (phase == 4 || phase == 1) && canStim)
-                if isCalibration    % play sound
-                    play(CalibAudioL);
-                end
-
                 try         % send command to Arduino to stimulate left
+                    % sent before the calibration audio cue below so
+                    % audioplayer's start latency cannot eat into the
+                    % gate lead time (mirrors the right-leg block above)
                     write(portArduino,cmdArduinoStimL,'uint8');
                 catch ME
                     warning(ME.identifier,['Failed to send left leg ' ...
                         'stimulation command to Arduino: %s'],ME.message);
                 end
 
+                if isCalibration    % play sound
+                    play(CalibAudioL);
+                end
                 canStim = false;    % prevent immediate re-stimulation
                 % pending; resolved to a lead time once single-stance L
                 % onset (RTO) is observed below
@@ -1095,6 +1170,16 @@ try     % so that if something fails, communications are closed properly
             if nextNirsEventIdx <= length(nirsEventSteps) %assign stepCont to next event, only if there is still more event coming.
                 LstepCount = nirsEventSteps(nextNirsEventIdx);
                 RstepCount = nirsEventSteps(nextNirsEventIdx); %it appears that we always take coded stride - 1 steps (but that's how it is in open loop controller too bc stepcount started at 1 intead of 0)
+                if hreflex_present
+                    % the jump above is not a stride the Arduino ever
+                    % counted; restart the stride-count-deficit
+                    % watchdog's baseline so it does not compare across
+                    % this discontinuity (see the watchdog state comment
+                    % near prevArdStepL/R and the deficit check at the
+                    % echo-drain site)
+                    hasPrevEchoL = false;
+                    hasPrevEchoR = false;
+                end
             else %otherwise assume rest is the last thing the script will do.
                 STOP = true;    % manually set stop to the experiments
             end
@@ -1376,8 +1461,12 @@ function reportStimPctSS(legNum,ardStep,pctSS,dtStimMs,isDelivered)
 % Inputs:
 %   legNum - 1 = left, 2 = right
 %   ardStep - Arduino-side step counter for the record
-%   pctSS - actual stim point as a percentage of single stance (ignored
-%          for a dropped gate; see dtStimMs)
+%   pctSS - actual stim point as a percentage of single stance, computed
+%          from the Arduino's same-stride estSSms (not the stored
+%          datlog.stim.deviceEcho pctSS column, which divides by
+%          durSSms, a MATLAB-measured value one stride stale -- see the
+%          pctSSLive comment at the call site); ignored for a dropped
+%          gate (see dtStimMs)
 %   dtStimMs - elapsed ms from the contralateral toe-off reference to the
 %          pulse (or, for a dropped gate, to when the drop was detected)
 %   isDelivered - true if the Arduino fired the pulse, false if the
