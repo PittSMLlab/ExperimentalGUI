@@ -131,7 +131,12 @@ stim**, never a mistimed one. As of 2026-09-14, a gate still pending when
 command `3` stops the state machine is also echoed as a `D` record
 instead of being silently cleared, so `studies/SpinalAdapt/README.md`'s
 accounting identity (check 2 in the dry-run acceptance list) holds even
-for a trial stopped mid-stance.
+for a trial stopped mid-stance. This guard only fires once a gate is
+*pending*; it does not, by itself, protect against the gait-event state
+machine silently missing a toe-off and stalling `phase` for a stride,
+which is a different failure mode with the same symptom (a
+carried-forward, wrong-stride stim) — see `studies/SpinalAdapt/README.md`'s
+2026-09-14 fix for that root cause and the per-leg debounce fix.
 
 `NirsHreflexArduinoOpenLoopWithAudio.m` drains these **non-blocking** off its
 control loop (reads only bytes already buffered; a serial hiccup is caught and
@@ -146,6 +151,8 @@ duration, it computes the actual **%-single-stance** per stim and prints it
 live, flagging anything outside 50 ± 5% (or, for a `D` record, flagging the
 drop itself). This echo requires a **matched firmware re-upload**: old
 firmware simply sends nothing and the MATLAB side is a clean no-op.
+Remaining future work: also use the echoed step/timestamp to align
+H-reflex events during post-processing.
 
 > **Caveat:** the live %SS mixes an Arduino-detected toe-off (numerator) with a
 > MATLAB-detected single-stance duration (denominator), so it carries a small
@@ -177,7 +184,7 @@ instant on the *same clock* as the force-plate gait events, so they are the
 ground truth for the ±5% acceptance criterion.
 
 1. **Re-upload firmware** (the echo is a firmware change): follow "Arduino
-   Upload Workflow" above for
+   Upload Workflow" below for
    `triggerStimWithGaitStateMachine_SpeedIndependent`.
 2. **Bench-check the echo** without walking: open the Arduino IDE Serial Monitor
    at 115200, send `0`, then `2` (or `1`), and confirm a `S,R,...`/`S,L,...`
@@ -303,11 +310,11 @@ experimental PC after uploading.
 - [ ] Force-plate analog outputs connected to Arduino A0 (left) and A1 (right)
 - [ ] Digitimer DS8R trigger cables connected to Arduino pins 8 (right) and 9 (left)
 - [ ] Vicon sync cables connected to Arduino pins 11 (right) and 12 (left)
-- [ ] Run `LogForcesArduinoSerial.m` to verify force signal quality and gait
-      event detection before running a participant (see Troubleshooting below)
+- [ ] Run `LogForcesArduinoSerial.m` to verify force signal quality before
+      running a participant (see Troubleshooting below)
 - [ ] Confirm MATLAB serial port setting matches the Arduino COM port. Unlike
-      `LogForcesArduinoSerial.m` (a `comPort`/`namePort` variable at the top
-      of the file), `NirsHreflexArduinoOpenLoopWithAudio.m` hard-codes the
+      `LogForcesArduinoSerial.m` (a `namePort` variable at the top of the
+      file), `NirsHreflexArduinoOpenLoopWithAudio.m` hard-codes the
       port (`serialport('COM4',115200)`, no argument or global) — if the
       Arduino is not on COM4, edit that line directly.
 
@@ -315,18 +322,38 @@ experimental PC after uploading.
 
 ## Troubleshooting with `LogForcesArduinoSerial.m`
 
-Run this companion MATLAB script before an experiment to verify that the Arduino
-is correctly reading the force-plate signals.
+Run this companion MATLAB script before an experiment to verify that the
+Arduino is correctly reading the force-plate signals and that the signal is
+clean enough to drive the firmware's gait-event state machine.
 
-1. Set the `comPort` variable at the top of the script to match the Arduino COM
-   port (e.g., `'COM4'`).
-2. Run the script. A live two-panel plot shows left and right Fz traces in a
-   rolling 2-second window.
-3. Walk on the treadmill (or apply hand pressure to the force plates) and confirm
-   that the traces respond appropriately.
-4. The script saves a timestamped CSV and plot to the current working directory
-   on completion. Review these offline to assess signal noise, threshold
-   crossings, and detected event timing.
+**Firmware prerequisite:** in production, `logForceData()` — the function that
+streams raw force bits to MATLAB — is commented out at its call site inside
+`updateGaitEventStateMachine()` in
+`triggerStimWithGaitStateMachine_SpeedIndependent.ino` (currently line 297),
+so this script receives nothing against the production build. Before running
+it: uncomment that one line (**not** the differently named, argument-less
+`logForceCSV()` stub near the top of `loop()`, which does not exist as a
+function and will not compile) and re-flash. **Re-comment the line and
+re-flash the production build again before any participant session** — left
+streaming on, `logForceData()` sends a record every `intervalLog` (5 ms) from
+inside the stim control loop, and `Serial.print` blocks once the 64-byte UART
+TX buffer fills, which can stall `loop()` and `triggerStimulation()` — the same
+failure class as the timing incidents above. Run with the DS8R disconnected or
+at zero output current.
+
+1. Set the `namePort` variable at the top of the script to match the Arduino
+   COM port (e.g., `"COM4"`).
+2. Run the script. It prompts for a subject ID (or an experimenter's initials
+   for a bench check) to name the output files, then shows a live single-axes
+   plot of left and right Fz traces in a rolling 2-second window, with
+   `threshFzUp`/`threshFzDown` drawn as reference lines.
+3. Walk on the treadmill (or apply hand pressure to the force plates) and
+   confirm that the traces cross `threshFzUp` cleanly on stance.
+4. On completion the script prints a signal-quality summary — achieved sample
+   rate, per-leg baseline noise, and the margin between baseline noise and
+   `threshFzUp` — and saves a timestamped, subject-tagged CSV and plot PNG to
+   `HreflexStimArduino/forceChecks/`. Review these offline to assess signal
+   noise, threshold crossings, and event timing.
 
 If force traces look flat or noisy:
 - Check that the force-plate analog output cables are securely seated in the
@@ -337,25 +364,25 @@ If force traces look flat or noisy:
   reaching the Arduino (10-bit ADC; stances should reach ~30 bits above
   baseline).
 
-> **Open question (2026-09-14):** analysis of the 2026-09-08 pilot puts
-> the firmware's *effective* stance-entry threshold at roughly 280-320 N
-> of a ~940-1350 N peak stance force — i.e., `threshFzUp = 30` bits maps
-> to something like 280-320 N, not the "~30 bits above baseline" (implying
-> a threshold near full stance amplitude) stated just above. That figure
-> is inferred from two independent observables in a saved datlog (the
-> `estSS` bias and the miss rate), not measured on the bench. A genuine
-> bits-to-newtons calibration — step known loads on each plate while
-> logging raw `analogRead` bits from `LogForcesArduinoSerial.m` — is
-> still needed to settle this and to tune `threshFzUp` with confidence;
-> see `studies/SpinalAdapt/README.md`'s 2026-09-14 fix for the full
-> reasoning and the ~40 ms heel-strike registration lag this implies.
+**Bits-to-newtons calibration (open, 2026-09-14):** the "~30 bits above
+baseline" guidance above is a rough field estimate, not a bench measurement.
+Analysis of the 2026-09-08 pilot puts the firmware's *effective* stance-entry
+threshold at roughly 280-320 N of a ~940-1350 N peak stance force — i.e.,
+`threshFzUp = 30` bits maps to something like 280-320 N, much closer to full
+stance amplitude than "~30 bits above baseline" implies. That figure is
+inferred from two independent observables in a saved datlog (the `estSS` bias
+and the miss rate), not measured directly. A genuine bits-to-newtons
+calibration — step known loads onto each plate while logging raw `analogRead`
+bits with this script — is still needed to settle this and to tune
+`threshFzUp` with confidence; see `studies/SpinalAdapt/README.md`'s 2026-09-14
+fix for the full reasoning and the ~40 ms heel-strike registration lag this
+implies.
 
 ---
 
 ## Future Improvements
 
-The following enhancements are recommended for future development. None are
-implemented yet; this section is for planning purposes.
+The following enhancements are recommended for future development.
 
 1. **Configurable thresholds via serial** — Force thresholds (`threshFzUp`,
    `threshFzDown`), the exponential smoothing factor (α), and the single-stance
@@ -376,44 +403,13 @@ implemented yet; this section is for planning purposes.
    (`durSSMinValidMs`, `durSSMaxValidMs`) for its diagnostic estimate, so both
    sides must be kept in sync.
 
-2. **~~Two-way serial protocol with event echo~~ (implemented)** — On each
-   delivered pulse or dropped gate the SpeedIndependent firmware now echoes a
-   tagged record back to MATLAB
-   (`<S|D>,<leg>,<step>,<stimMs>,<toRefMs>,<estSS>`); see "Device stim echo"
-   below. MATLAB drains it non-blocking and logs the actual %-single-stance to
-   `datlog.stim.deviceEcho` (delivered) or `datlog.stim.deviceDrop` (dropped).
-   Remaining future work: also use the echoed step/timestamp to align
-   H-reflex events during post-processing.
+2. **Mid-experiment gating update (partial)** — MATLAB still sends per-stride
+   `1`/`2` commands proactively rather than a burst of future-stride flags. A
+   burst-ahead mechanism would reduce how often a stride is *skipped* under bad
+   MATLAB loop jitter — a skip is always safe (see "Device Stim Echo" above for
+   why), never mistimed, so this is a throughput improvement, not a
+   correctness one.
 
-3. **~~Mid-experiment gating update~~ (partially addressed)** — MATLAB still
-   sends per-stride `1`/`2` commands proactively rather than a burst of
-   future-stride flags, but a late-arriving or never-consumed gate is no
-   longer silently carried into a later stride: the firmware now drops it
-   (echoed as a `D` record) once it is past the ±5% acceptance window or its
-   single-stance onset never arrives (`durGateMaxAgeFactor × estSS`). A
-   burst-ahead mechanism would still reduce how often a stride is *skipped*
-   under bad MATLAB loop jitter, but a skip is now always safe rather than
-   mistimed. **Caveat (found 2026-09-14):** this guard only fires once a
-   gate is *pending*; it did not protect against the gait-event state
-   machine itself silently missing a toe-off (a blanked event, not a late or
-   unconsumed gate) and stalling `phase` for a stride, which is a different
-   failure mode with the same symptom (a carried-forward, wrong-stride
-   stim). See `studies/SpinalAdapt/README.md`'s 2026-09-14 fix for that root
-   cause and its own fix (per-leg debounce, deferred rather than discarded
-   stance transitions).
-
-4. **Startup handshake** — Add a request/acknowledge exchange at connection time
+3. **Startup handshake** — Add a request/acknowledge exchange at connection time
    so MATLAB can confirm Arduino firmware version and readiness before starting
    the trial, reducing silent miscommunication from stale serial buffers.
-
-5. **LogForcesArduinoSerial.m improvements** — Add a subject ID prompt for
-   better file naming; add auto-detection of active Arduino COM port (by
-   scanning available ports for the baud-rate handshake); add overlay of
-   detected gait-event markers on the force trace plot.
-
-6. **Inline documentation in the sketch** — The timing algorithm (how single-
-   stance duration is estimated via exponential smoothing, how the outlier
-   clamp rejects implausible durations, and how 50% is used as the delay
-   target) is only partially explained in comments. Expanding the block
-   comments at the key calculation steps would make the sketch auditable
-   without needing to refer back to design discussions.
