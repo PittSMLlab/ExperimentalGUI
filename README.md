@@ -83,7 +83,7 @@ studies/                    Protocol scripts for individual experiments
   C3/                       Active — stroke rehabilitation (~3 remaining)
   NirsAutomaticityProtocol/ Completed — fNIRS + H-reflex automaticity
   Perceptual Adaptation/    Completed — forced choice perceptual adaptation
-  SpinalAdapt/              Rebooting (~July 2026) — H-reflex adaptation
+  SpinalAdapt/              Rebooting (~Fall 2026) — H-reflex adaptation
   Weber Perception/         Completed — perceptual discrimination thresholds
 +utils/                     Utility functions (data transfer, speed extraction)
 HreflexStimArduino/         Arduino H-reflex stimulation interface

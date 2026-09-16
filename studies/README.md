@@ -16,5 +16,5 @@ guide, see [EXPERIMENT_SETUP.md](../EXPERIMENT_SETUP.md).
 | [C3/](C3/README.md) | **Active** (~3 participants remaining; est. July 2026) | Nate Brantly |
 | [NirsAutomaticityProtocol/](NirsAutomaticityProtocol/README.md) | **Completed** | Shuqi Liu |
 | [Perceptual Adaptation/](<Perceptual Adaptation/README.md>) | **Completed** | Marcela Gonzalez-Rubio |
-| [SpinalAdapt/](SpinalAdapt/README.md) | **Rebooting** (~July 2026) | Chase Rock |
+| [SpinalAdapt/](SpinalAdapt/README.md) | **Rebooting** (~Fall 2026) | Chase Rock |
 | [Weber Perception/](<Weber Perception/README.md>) | **Completed** | Marcela Gonzalez-Rubio |

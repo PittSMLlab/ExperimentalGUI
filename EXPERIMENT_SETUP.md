@@ -31,7 +31,7 @@ requirements, see [README.md](README.md).
 | [`C3/`](studies/C3/README.md) | **Active** (~3 remaining; est. July 2026) | Nate Brantly | Stroke rehabilitation split-belt | `RunProtocol_C3.m`, `RunProtocol_C3_Session2Bouts.m` |
 | [`NirsAutomaticityProtocol/`](studies/NirsAutomaticityProtocol/README.md) | **Completed** | Shuqi Liu | fNIRS + H-reflex + split-belt treadmill | `NirsAutomaticityStudyTMProtocol.m` |
 | [`Perceptual Adaptation/`](<studies/Perceptual Adaptation/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Two-alternative forced choice perceptual adaptation | `GeneratePartialProfile.m` |
-| [`SpinalAdapt/`](studies/SpinalAdapt/README.md) | **Rebooting** (~July 2026) | Chase Rock | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` (template; Pilot Study 2 original in `History-PilotStudy2/`) |
+| [`SpinalAdapt/`](studies/SpinalAdapt/README.md) | **Rebooting** (~Fall 2026) | Chase Rock | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` (template; Pilot Study 2 original in `History-PilotStudy2/`) |
 | [`Weber Perception/`](<studies/Weber Perception/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Perceptual discrimination thresholds | `GeneratePartialProfile.m` |
 
 ### BrainWalk — Stability Notice
@@ -49,7 +49,7 @@ acceptable; logic changes are not.
 
 **Lead experimenter:** Chase Rock (post-doctoral fellow).
 **Key experimenters:** Shuqi Liu, Nate Brantly. Data collection is
-planned to resume approximately July 2026; protocol software updates
+planned to resume approximately Fall 2026; protocol software updates
 may be required before collection resumes. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 

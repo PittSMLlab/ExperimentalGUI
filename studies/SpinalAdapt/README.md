@@ -8,7 +8,7 @@ stimulators at a fixed phase of the gait cycle.
 ## Status
 
 **Rebooting.** Data collection is planned to resume approximately
-July 2026. Protocol software updates may be required to ensure
+Fall 2026. Protocol software updates may be required to ensure
 precise H-reflex stimulation timing before collection resumes.
 
 ## Experimenters
@@ -270,8 +270,10 @@ confirm:
   light participant both shorten double support and are the conditions
   to watch.
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
-  with a short dummy profile at low treadmill speed and confirm every
-  intended stride fires once near mid-single-stance.
+  (see that folder's README for the firmware prerequisite) and confirm
+  the printed baseline-noise-to-`threshFzUp` margin is clean and stance
+  excursions cross `threshFzUp` reliably before trusting the state
+  machine's event detection in a live trial.
 
 [`diagnostics/auditHreflexStimTiming.m`](../../diagnostics/auditHreflexStimTiming.m)
 runs the missed-stims, stim-timing, loop-timing, and (given the matching
