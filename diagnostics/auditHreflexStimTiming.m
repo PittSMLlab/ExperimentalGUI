@@ -67,6 +67,10 @@ function report = auditHreflexStimTiming(datlogPath, options)
 %          .onTarget - per-delivered-pulse abs(dtStimMs - estSSms/2) and
 %                 summary stats (device-only; no C3D required)
 %          .loopTiming - loopSegMs percentiles and gateLeadMs* extrema
+%          .firmwareFingerprint - per-leg gate-to-drop-echo latency
+%                 against the pre-/post-2026-09-14 expiry bounds, to
+%                 confirm which firmware build actually produced this
+%                 datlog without needing lab access to the Arduino
 %          .groundTruth - [] if options.C3DPath was not given, else a
 %                 struct with per-leg stride-count deficit, true double
 %                 support, estSS bias, toe-off reference error, true
@@ -109,12 +113,26 @@ else
         'already-unwrapped struct with a ''stim'' field).'],datlogPath);
 end
 
+% A trial with zero delivered pulses (e.g., the Arduino never responding
+% -- see the 2026-09-16 incident in studies/SpinalAdapt/README.md) leaves
+% deviceEcho.data 0x0 from the controller's own initializer, which fails
+% column indexing below (e.g., echo(:,7)) the same way an absent
+% deviceDrop already did before that field existed; both are normalized
+% to the shared 10-column schema once here rather than at each call site.
+if ~isfield(datlog.stim,'deviceEcho') || isempty(datlog.stim.deviceEcho.data)
+    datlog.stim.deviceEcho.data = zeros(0,10);
+end
+if ~isfield(datlog.stim,'deviceDrop') || isempty(datlog.stim.deviceDrop.data)
+    datlog.stim.deviceDrop.data = zeros(0,10);
+end
+
 report = struct();
 report.datlogPath  = datlogPath;
 report.accounting  = checkAccounting(datlog);
 report.dropClassification = classifyDrops(datlog);
 report.onTarget    = checkOnTarget(datlog);
 report.loopTiming  = checkLoopTiming(datlog);
+report.firmwareFingerprint = checkFirmwareFingerprint(datlog);
 
 %% Ground-Truth Checks (Optional, Requires C3D)
 if isempty(options.C3DPath)
@@ -289,7 +307,13 @@ errMs    = abs(dtStimMs - estSSms / 2);
 onTarget.errMs   = errMs;
 onTarget.meanMs  = mean(errMs,'omitnan');
 onTarget.medianMs = median(errMs,'omitnan');
-onTarget.maxMs   = max(errMs,[],'omitnan');
+if isempty(errMs)
+    onTarget.maxMs = NaN; % max([]) returns [] rather than NaN; a zero-
+    % delivery trial must still print cleanly (mean/median already give
+    % NaN for an empty input, so this keeps the three fields consistent)
+else
+    onTarget.maxMs = max(errMs,[],'omitnan');
+end
 onTarget.nOutsideTolerance = sum(errMs > toleranceMs);
 
 end
@@ -326,9 +350,112 @@ gateLeadMs  = [datlog.diagnostics.gateLeadMsL(:); ...
 loopTiming.iterTotalMedianMs = median(iterTotalMs,'omitnan');
 loopTiming.iterTotalP95Ms    = prctile(iterTotalMs,95);
 loopTiming.iterTotalMaxMs    = max(iterTotalMs,[],'omitnan');
-loopTiming.gateLeadMinMs     = min(gateLeadMs,[],'omitnan');
+if isempty(gateLeadMs) % min([]) returns [] rather than NaN (see the
+    % matching onTarget.maxMs guard above); a zero-gate trial must still
+    % print cleanly
+    loopTiming.gateLeadMinMs = NaN;
+else
+    loopTiming.gateLeadMinMs = min(gateLeadMs,[],'omitnan');
+end
 loopTiming.gateLeadMeanMs    = mean(gateLeadMs,'omitnan');
 loopTiming.nGateLeadBelow30Ms = sum(gateLeadMs < lowMarginMs);
+
+end
+
+function fingerprint = checkFirmwareFingerprint(datlog)
+%CHECKFIRMWAREFINGERPRINT Infer which firmware build produced this datlog.
+%
+%   Distinguishes pre-2026-09-14 firmware (fixed 2000 ms gate-expiry
+%   bound) from the current firmware (durGateMaxAgeFactor * estSS, ~500-
+%   750 ms at typical single-stance durations) using only MATLAB-side
+%   timestamps already in the datlog -- no C3D or lab access to the
+%   Arduino needed. Per leg, deliveries and drops are merged and sorted
+%   into one chronological resolution sequence and matched positionally
+%   against that leg's gates (stim.L/R column 3, GateSendTime): gates
+%   resolve in the order sent, and CHECKACCOUNTING's nUnaccounted == 0 on
+%   a clean trial confirms this 1:1 pairing holds. Merging both kinds
+%   before matching (rather than matching drops alone against gates) is
+%   required whenever drops are a sparse subset of a mostly-successful
+%   trial -- otherwise the Nth drop lines up against the Nth GATE rather
+%   than the gate it actually resolves, which is wrong as soon as any
+%   earlier gate in that leg's sequence was delivered instead of dropped.
+%   Only the drop-derived latencies (deviceDrop.data column 10,
+%   matTimeSerial) are used for the fingerprint bands below -- a
+%   delivered pulse's latency reflects on-target ~50%-single-stance
+%   timing, a third band that is not diagnostic of firmware version. A
+%   trial with no drops on either leg cannot be fingerprinted this way
+%   and is reported inconclusive.
+%
+%   This is the direct generalization of the ad hoc check that diagnosed
+%   the 2026-09-16 pilot (see studies/SpinalAdapt/README.md): every
+%   dropped gate on both legs resolved at ~2000 ms, the old fixed bound,
+%   proving the 2026-09-14 per-leg-debounce fix had been committed to the
+%   repository but never re-flashed onto the physical Arduino.
+%
+% Inputs:
+%   datlog - struct with stim.L, stim.R, and stim.deviceDrop.data
+%          (already normalized to zeros(0,10) if empty by the caller)
+%
+% Outputs:
+%   fingerprint - struct: verdict (plain-language firmware guess),
+%          latencyMedianMsL/R, nInOldBandL/R (1800-2200 ms), nInNewBandL/R
+%          (400-800 ms)
+%
+% Toolbox Dependencies: None
+%
+% See also AUDITHREFLEXSTIMTIMING, CHECKACCOUNTING.
+
+oldBandMs = [1800 2200]; % ms; old firmware's fixed 2000 ms durGateMaxAge
+newBandMs = [400 800];   % ms; current firmware's ~1.5*estSS band at
+                          % typical (not pathologically stalled) estSS
+
+drop = datlog.stim.deviceDrop.data;
+echo = datlog.stim.deviceEcho.data;
+gateByLeg = {datlog.stim.L, datlog.stim.R};
+legLabel  = {'L','R'};
+
+fingerprint = struct();
+nOldTotal = 0;
+nNewTotal = 0;
+for legNum = 1:2
+    % tag each resolution isDrop=1/0 before merging so the drop-derived
+    % latencies can be recovered after the merged, chronologically
+    % matched sequence is built (see the isDrop-merge note above)
+    dropLeg = drop(drop(:,1) == legNum,:);
+    echoLeg = echo(echo(:,1) == legNum,:);
+    dropLeg = [dropLeg,  ones(size(dropLeg,1),1)]; %#ok<AGROW>
+    echoLeg = [echoLeg, zeros(size(echoLeg,1),1)]; %#ok<AGROW>
+    allResolved = sortrows([dropLeg; echoLeg],10);
+
+    gateRows = gateByLeg{legNum};
+    nMatch   = min(size(gateRows,1),size(allResolved,1));
+    if nMatch == 0
+        latencyMs = [];
+    else
+        latencyMsAll = (allResolved(1:nMatch,10) - gateRows(1:nMatch,3)) ...
+            * 86400 * 1000;
+        latencyMs = latencyMsAll(allResolved(1:nMatch,11) == 1);
+    end
+    nOldBand = sum(latencyMs >= oldBandMs(1) & latencyMs <= oldBandMs(2));
+    nNewBand = sum(latencyMs >= newBandMs(1) & latencyMs <= newBandMs(2));
+
+    fingerprint.(['latencyMedianMs' legLabel{legNum}]) = ...
+        median(latencyMs,'omitnan');
+    fingerprint.(['nInOldBand' legLabel{legNum}]) = nOldBand;
+    fingerprint.(['nInNewBand' legLabel{legNum}]) = nNewBand;
+    nOldTotal = nOldTotal + nOldBand;
+    nNewTotal = nNewTotal + nNewBand;
+end
+
+if nOldTotal == 0 && nNewTotal == 0
+    fingerprint.verdict = 'inconclusive (no drops in either timing band)';
+elseif nOldTotal > 0 && nNewTotal == 0
+    fingerprint.verdict = 'likely PRE-2026-09-14 firmware (fixed 2000 ms expiry) -- re-flash needed';
+elseif nNewTotal > 0 && nOldTotal == 0
+    fingerprint.verdict = 'likely current firmware (scaled 1.5*estSS expiry)';
+else
+    fingerprint.verdict = 'inconclusive (mixed old- and new-band latencies)';
+end
 
 end
 
@@ -719,6 +846,14 @@ fprintf('iterTotalMs: median=%.2f p95=%.1f max=%.1f\n', ...
     lt.iterTotalMedianMs,lt.iterTotalP95Ms,lt.iterTotalMaxMs);
 fprintf('gateLeadMs: mean=%.1f min=%.1f | below 30 ms: %d\n', ...
     lt.gateLeadMeanMs,lt.gateLeadMinMs,lt.nGateLeadBelow30Ms);
+
+fprintf('\n-- Firmware Fingerprint (gate-to-drop-echo latency) --\n');
+fp = report.firmwareFingerprint;
+fprintf('%s\n',fp.verdict);
+fprintf('L: median=%.0f ms | old-band(~2000ms)=%d new-band(~595ms)=%d\n', ...
+    fp.latencyMedianMsL,fp.nInOldBandL,fp.nInNewBandL);
+fprintf('R: median=%.0f ms | old-band(~2000ms)=%d new-band(~595ms)=%d\n', ...
+    fp.latencyMedianMsR,fp.nInOldBandR,fp.nInNewBandR);
 
 if isempty(report.groundTruth)
     fprintf('\n-- Ground Truth: skipped (no C3D path given) --\n');
