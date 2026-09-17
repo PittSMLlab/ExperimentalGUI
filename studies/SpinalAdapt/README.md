@@ -223,6 +223,44 @@ the participant walks at their own comfortable pace.
   (see `HreflexStimArduino/README.md`), and the dry-run checklist
   below, now including a fast-speed run and a light or
   short-double-support walker.
+- **Near-total stim loss, 2026-09-16 pilot (09-14 fix confirmed never
+  flashed):** a participant reported no felt stimulation during
+  `CalibrationFast`. `NirsHreflexArduinoOpenLoopWithAudio.m` sent all 132
+  gates normally (66/leg, matching the 09-02 good-session count), but the
+  Arduino delivered only 1 and dropped 131, every drop classified as
+  expiry, never lateness — `ardStep` reached only 1 (left) / 0 (right)
+  across the full 227 s trial, categorically worse than 09-08's partial
+  loss. Root cause: the physical Arduino was still running the
+  **pre-09-14 firmware** — the per-leg debounce fix above was committed
+  but never re-uploaded. This is confirmed directly, not inferred, from
+  the gate-to-drop-echo latency: both legs' drops cluster tightly at
+  ~2000 ms (the old fixed `durGateMaxAge`), none near the current
+  firmware's ~595 ms (`1.5 * estSSLInit`) band. This participant (52.0 kg)
+  also loaded the plates markedly more lightly than prior sessions (Vicon
+  `forces.data` |Fz| p99 ~560 N vs. ~940 N on 09-08 and ~1340 N on 09-02)
+  — still above the ~280-320 N effective `threshFzUp` inferred by the
+  09-14 fix's own reasoning, so the threshold was not simply unreachable;
+  rather, a lower peak force lengthens the heel-strike registration lag,
+  shortening *perceived* double support further on top of this
+  participant's already-short true double support at fast speed. The
+  already-committed per-leg debounce fix directly addresses this
+  mechanism; it was simply never deployed. This is not a reason to relax
+  the debounce further — the per-leg version is already minimal and was
+  not the firmware running at the time. Separately, `datlog.errormsgs`
+  was unexpectedly empty despite a deficit large enough that the 09-14
+  watchdog (see above) should have caught it almost immediately; reading
+  that watchdog's logic found no defect, so the likely explanation is
+  that the running MATLAB session had not picked up that fix either
+  (stale cached function or an older checkout) — the same "fix committed,
+  never deployed" failure as the firmware, on the MATLAB side. **Lesson
+  for both sides of the system:** restart MATLAB (clear cached function
+  definitions) after every `git pull`, the same way the firmware requires
+  a re-upload, and do not assume a committed fix is active without
+  runtime confirmation — `diagnostics/auditHreflexStimTiming.m`'s
+  firmware-fingerprint check (added after this incident) now provides
+  that confirmation from the datlog alone, no C3D required. Still
+  required before the next pilot: everything the 09-14 entry above
+  already listed, now confirmed outstanding rather than merely due.
 - **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
   calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
   `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
