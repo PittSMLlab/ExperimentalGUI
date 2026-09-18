@@ -271,12 +271,23 @@ restIdx = strcmp(nirsEventNames,'Rest');
 %this is safe to call even if there is no rest in the protocol.
 restSteps = nirsEventSteps(restIdx);
 
+%% Build the fNIRS Event Label Prefix
+% Condition label prefixed onto every fNIRS event's DISPLAY STRING only
+% (argument 3 of nirsEvent / the NIRSEVENTNAME helper below) so events
+% are attributable to a condition and epoch once logged in Oxysoft.
+% Argument 1 (the audio key) and argument 2 (the single-letter Oxysoft
+% code) stay unprefixed: nirsEvent looks argument 1 up with
+% isKey(instructions, ...), and a prefixed key silently fails to match,
+% so no audio cue plays -- a pilot-ruining failure with no error message.
+conditionLabel = profilename;   % e.g. 'PreAdaptSlow', 'AdaptSplit'
+
 %% Ask User for Train Index
 % Number of bouts in this profile equals the number of rest events (one
-% rest pad follows each bout; see GENERATEPROFILES_SPINALADAPTBOUTS): 5
-% bouts for a familiarization block, 10 bouts for a main Control/Split
-% block. Deriving nBouts here (rather than hard-coding it) keeps the
-% dialog range correct for whichever block is loaded.
+% rest pad follows each bout; see GENERATEPROFILES_SPINALADAPTBOUTS):
+% e.g. 1 bout for SpinalAdapt's TiedFastest trial, 10 bouts for its
+% other bout-based trials -- varies by profile and study. Deriving
+% nBouts here (rather than hard-coding it) keeps the dialog range
+% correct for whichever profile is loaded.
 nBouts = length(restSteps);
 if nBouts > 1 %at least 2 rest exist, then ask which one to start from.
     prompt = sprintf(['Which bout would you like to start from ' ...
@@ -548,7 +559,10 @@ try     % so that if something fails, communications are closed properly
             + startCueSettleSec);
         suppressFirstStartCue = true;
         % log it without saying "walk" again.
-        datlog = nirsEvent('Mid_noaudio','M',['Mid' num2str(nextRestIdx-1)],instructions,datlog,Oxysoft,oxysoft_present);
+        datlog = nirsEvent('Mid_noaudio', 'M', ...
+            nirsEventName(conditionLabel, 'Mid', ...
+            nextRestIdx + trainIdx), instructions, datlog, Oxysoft, ...
+            oxysoft_present);
     end
 
     % Send first speed command and log it. Both belts are stationary
@@ -1036,7 +1050,10 @@ try     % so that if something fails, communications are closed properly
                 else
                     audioKey = nirsEventString;
                 end
-                datlog = nirsEvent(audioKey, nirsEventString(1), [nirsEventString num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                datlog = nirsEvent(audioKey, nirsEventString(1), ...
+                    nirsEventName(conditionLabel, nirsEventString, ...
+                    nextRestIdx + trainIdx), instructions, datlog, ...
+                    Oxysoft, oxysoft_present);
                 % wait till 2 steps later to log event again to avoid same
                 % event logged multiple times.
                 need2LogEvent = false;
@@ -1059,7 +1076,11 @@ try     % so that if something fails, communications are closed properly
                     fprintf('Current step count L: %d, R:%d, countDownIdx: %d, idx offset: %d\n',LstepCount,RstepCount,countDownIdx, countDownIdxOffset)
 
                     %log in NIRS that audio count down is happening. FIXME
-                    datlog = nirsEvent('TMStopAudioCountDown', 'D', ['TMStopAudioCountDown_Train' num2str(nextRestIdx-1+trainIdx)], instructions, datlog, Oxysoft, oxysoft_present);
+                    datlog = nirsEvent('TMStopAudioCountDown', 'D', ...
+                        nirsEventName(conditionLabel, ...
+                        'TMStopAudioCountDown_Train', ...
+                        nextRestIdx + trainIdx), instructions, datlog, ...
+                        Oxysoft, oxysoft_present);
 
                     play(AudioTMChange3);
                     countDownPlayed(countDownIdx) = true; %This should only be run once
@@ -1140,13 +1161,17 @@ try     % so that if something fails, communications are closed properly
             % the stop/count-forward cues play below.
             % this function plays the 'stop' audio, sends event to NIRS,
             % and logs it in datlog
-            datlog = nirsEvent('stop','R',['Rest' num2str(nextRestIdx+trainIdx)],instructions,datlog,Oxysoft,oxysoft_present);
+            datlog = nirsEvent('stop', 'R', ...
+                nirsEventName(conditionLabel, 'Rest', ...
+                nextRestIdx + trainIdx), instructions, datlog, Oxysoft, ...
+                oxysoft_present);
             pause(stopCueSec); % block until 'stop' finishes playing so
             % 'silentlyCountForward' starts right after without overlap
             play(instructions('silentlyCountForward'));
             datlog.audioCues.start(end+1) = now(); %#ok<TNOW1>
             datlog.audioCues.audio_instruction_message{end+1} = ...
-                ['Rest' num2str(nextRestIdx+trainIdx) '_CountForward'];
+                [nirsEventName(conditionLabel, 'Rest', ...
+                nextRestIdx + trainIdx) '_CountForward'];
             %instead of a fixed pause, run a WHILE loop here so that the program wouldn't hang and would
             % respond to STOP in the rest break.
             restTic = tic;
@@ -1208,7 +1233,9 @@ try     % so that if something fails, communications are closed properly
     % is ok bc stopping usually could be perturbing and this probably marks a
     % better steady state ending.
     % audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below).
-    datlog = nirsEvent('relax_noaudio','O','Trial_End',instructions,datlog,Oxysoft,oxysoft_present);
+    datlog = nirsEvent('relax_noaudio', 'O', ...
+        nirsEventName(conditionLabel, 'Trial_End'), instructions, ...
+        datlog, Oxysoft, oxysoft_present);
 catch ME
     datlog.errormsgs{end+1} = 'Error occurred during the control loop';
     datlog.errormsgs{end+1} = ME;
@@ -1412,6 +1439,46 @@ end
 end
 
 %% Local Functions
+
+function name = nirsEventName(conditionLabel, eventName, boutNum)
+%NIRSEVENTNAME Compose a condition-qualified fNIRS event display string.
+%
+%   Prefixes eventName with conditionLabel so every fNIRS event marker
+%   logged in Oxysoft is attributable to a specific protocol condition
+%   and epoch (e.g., 'PreAdaptSlow_Rest03') instead of the bare,
+%   condition-agnostic 'Rest3' logged before this change. boutNum is
+%   zero-padded to 2 digits so names sort correctly; omit it for a
+%   once-per-trial event (e.g., trial end).
+%
+% Inputs:
+%   conditionLabel - char; profile/condition basename (e.g.
+%          'PreAdaptSlow'), see conditionLabel at the top of this file
+%   eventName - char; unprefixed event name from PARSEEVENTSFROMSPEEDS,
+%          or a literal such as 'Rest'/'Mid'/'Trial_End'
+%   boutNum - (optional) scalar double; 1-based bout number within the
+%          trial, zero-padded to 2 digits in the composed name
+%
+% Outputs:
+%   name - char; '<conditionLabel>_<eventName><boutNum>' (zero-padded),
+%          or '<conditionLabel>_<eventName>' if boutNum is omitted
+%
+% Toolbox Dependencies: None
+%
+% See also NIRSHREFLEXARDUINOOPENLOOPWITHAUDIO, NIRSEVENT.
+
+arguments
+    conditionLabel char
+    eventName char
+    boutNum double = []
+end
+
+if isempty(boutNum)
+    name = [conditionLabel '_' eventName];
+else
+    name = sprintf('%s_%s%02d', conditionLabel, eventName, boutNum);
+end
+
+end
 
 function [bufOut,recs] = drainStimEcho(port,bufIn)
 %DRAINSTIMECHO Non-blocking read of Arduino stim-echo records.
