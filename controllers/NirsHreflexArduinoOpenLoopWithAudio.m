@@ -284,8 +284,8 @@ conditionLabel = profilename;   % e.g. 'PreAdaptSlow', 'AdaptSplit'
 %% Ask User for Train Index
 % Number of bouts in this profile equals the number of rest events (one
 % rest pad follows each bout; see GENERATEPROFILES_SPINALADAPTBOUTS):
-% e.g. 1 bout for SpinalAdapt's TiedFastest trial, 10 bouts for its
-% other bout-based trials -- varies by profile and study. Deriving
+% e.g. 10 bouts for SpinalAdapt's pre-/post-adaptation and split
+% profiles -- varies by profile and study. Deriving
 % nBouts here (rather than hard-coding it) keeps the dialog range
 % correct for whichever profile is loaded.
 nBouts = length(restSteps);
@@ -1234,7 +1234,7 @@ try     % so that if something fails, communications are closed properly
     % better steady state ending.
     % audio cue here would be too early, so just log the event without saying anything yet (see Alt Option below).
     datlog = nirsEvent('relax_noaudio', 'O', ...
-        nirsEventName(conditionLabel, 'Trial_End'), instructions, ...
+        nirsEventName(conditionLabel, 'TrialEnd'), instructions, ...
         datlog, Oxysoft, oxysoft_present);
 catch ME
     datlog.errormsgs{end+1} = 'Error occurred during the control loop';
@@ -1454,7 +1454,7 @@ function name = nirsEventName(conditionLabel, eventName, boutNum)
 %   conditionLabel - char; profile/condition basename (e.g.
 %          'PreAdaptSlow'), see conditionLabel at the top of this file
 %   eventName - char; unprefixed event name from PARSEEVENTSFROMSPEEDS,
-%          or a literal such as 'Rest'/'Mid'/'Trial_End'
+%          or a literal such as 'Rest'/'Mid'/'TrialEnd'
 %   boutNum - (optional) scalar double; 1-based bout number within the
 %          trial, zero-padded to 2 digits in the composed name
 %
