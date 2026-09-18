@@ -97,20 +97,19 @@ ssStim  = ones(ssStrides, 1);
 restPad = zeros(boutRestStrides, 1);
 
 %% Build Tied Fastest Trial Profile (Tied Walking, No Ramp, No Stim)
-% Structure: 50 SS strides at fastestSpeed | rest pad. No ramp (straight
-% to steady state) and no stim — the only time in the session the
-% participant walks at this speed. The trailing rest pad is required
-% regardless: it is the controller's only clean self-termination path
-% after the final walking stride. Unlike every other block, this trial's
-% belt-stop uses a spoken "treadmill will stop in 3-2-1" warning instead
-% of the "stop" + silent-count-forward ending (RunProtocol_
-% SpinalAdaptBouts.m sets useStartStopCountdown = true only for this
-% trial), since fNIRS is not recording yet at this point in the session.
-velFastest  = ones(fastestStrides, 1) * fastestSpeed;
-stimFastest = zeros(fastestStrides, 1);
-velL  = [velFastest;  restPad];
+% Structure: 50 SS strides at fastestSpeed, no ramp (straight to steady
+% state), no rest pad, no stim -- the only time in the session the
+% participant walks at this speed. No trailing rest pad: this trial runs
+% on controlSpeedWithSteps_edit1_AudioCountDown (RUNPROTOCOL_
+% SPINALADAPTBOUTS case 1), not the NIRS/H-reflex controller used by
+% every other condition here -- there is no fNIRS or H-reflex during
+% this trial, so it needs neither a Rest event to self-terminate nor the
+% NIRS controller's own "stop in 3-2-1" cue; the audio-countdown
+% controller speaks its own "treadmill will start/stop in 3-2-1" warning
+% and stops cleanly once all 50 strides are taken.
+velL  = ones(fastestStrides, 1) * fastestSpeed;
 velR  = velL;
-stimL = [stimFastest; restPad];
+stimL = zeros(fastestStrides, 1);
 stimR = stimL;
 save(fullfile(profileDir, 'TiedFastest.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
