@@ -50,6 +50,12 @@ timeoutSerial  = 2; % s; readline timeout. Short enough to fail fast if
                      % no data ever arrives (see the no-data check
                      % below); long enough to tolerate normal jitter
                      % between the ~5 ms records logForceData() sends
+maxConsecutiveEmptyReads = 3; % readline timeouts (~6 s of silence)
+                     % tolerated once real data has started arriving,
+                     % before treating a gap as a genuine stall rather
+                     % than a transient hiccup; see the no-data check
+                     % below, which still fails on the very first
+                     % timeout if no data has arrived yet
 msPerSec = 1000; % unit conversion: ms -> s
 numSDMargin = 3; % bits; conservative multiplier for the noise-margin
                   % summary printed at teardown
@@ -146,22 +152,45 @@ try
                             % the CSV column format ('force3'/'force6')
     timeFirstMs   = [];
     numMalformed  = 0;
+    numConsecutiveEmptyReads = 0;
 
     while toc(tStart) < durationLog
         rawLine = readline(portArduino);
 
-        % readline does not throw on timeout -- it warns and returns an
-        % empty/missing string -- so a genuine "no data" condition must
-        % be checked explicitly rather than relying on try/catch
-        if ismissing(rawLine) || rawLine == ""
-            error(['No data received from the Arduino within %g s. ' ...
-                'Is logForceData(...) uncommented at line 297 of ' ...
-                'triggerStimWithGaitStateMachine_SpeedIndependent.ino,' ...
-                ' and has the sketch been re-flashed? (Do not confuse' ...
-                ' it with the misnamed, argument-less logForceCSV()' ...
-                ' stub at line 170 -- that function does not exist.)'], ...
-                timeoutSerial);
+        % readline does not throw on timeout -- it warns and returns a
+        % 0x0 string -- so a genuine "no data" condition must be checked
+        % explicitly, and isempty must come first: ismissing() and ==""
+        % both throw on a 0x0 operand to || ("Operands to the logical
+        % and (&&) and or (||) operators must be convertible to logical
+        % scalar values") before the intended message below is ever
+        % reached -- this masked, rather than caused, a genuine timeout.
+        if isempty(rawLine) || ismissing(rawLine) || rawLine == ""
+            numConsecutiveEmptyReads = numConsecutiveEmptyReads + 1;
+            % Fail fast if the firmware truly isn't streaming (no data
+            % has arrived at all) or once a run of empty reads is too
+            % long to be a transient hiccup. A single late record after
+            % data has already flowed is tolerated instead of aborting
+            % the whole run and discarding everything logged so far --
+            % printForceSummary/saveas below never ran on that path.
+            if isempty(timeBuf) || ...
+                    numConsecutiveEmptyReads > maxConsecutiveEmptyReads
+                error(['No data received from the Arduino for the ' ...
+                    'last %.0f s. Most likely cause: logForceData(...)' ...
+                    ' is commented out at line 297 of triggerStimWith' ...
+                    'GaitStateMachine_SpeedIndependent.ino (the ' ...
+                    'production default) and the sketch has not been ' ...
+                    're-flashed with it uncommented -- this is NOT a ' ...
+                    'serial port conflict, since a port already held ' ...
+                    'open elsewhere (e.g. the Arduino IDE serial ' ...
+                    'monitor) would have failed at serialport() above,' ...
+                    ' not here. (Do not confuse the disabled function' ...
+                    ' with the misnamed, argument-less logForceCSV()' ...
+                    ' stub at line 170 -- that function does not' ...
+                    ' exist.)'],numConsecutiveEmptyReads*timeoutSerial);
+            end
+            continue; % transient gap; keep waiting for the next line
         end
+        numConsecutiveEmptyReads = 0;
 
         [recordType,nums] = parseForceLine(rawLine);
 
