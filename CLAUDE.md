@@ -13,12 +13,16 @@ speed profile vectors (`velL`, `velR`), and calls the selected controller
 function, passing the profiles as arguments.
 
 ### Data Loading Pipeline
-Speed profiles (`velL`, `velR`) are Nx1 column vectors in mm/s generated
-by `generateProfiles_*` scripts inside each study's folder. A NaN value
+Speed profiles (`velL`, `velR`) are Nx1 column vectors in **m/s**
+generated and saved to disk by `generateProfiles_*` scripts inside each
+study's folder. `Execute_button_Callback` converts to mm/s
+(`round(velL*1000)`) only at the call-site boundary, immediately before
+passing the profiles as arguments to the selected controller function —
+controller functions themselves receive and operate on mm/s. A NaN value
 at position k means stride k is self-paced (the controller holds or
 queries treadmill speed rather than applying a predetermined value).
-Profiles are passed directly to controller functions as arguments — there
-is no file-based loading at runtime.
+There is no file-based loading at runtime beyond this load-and-convert
+step.
 
 ### Processing Pipeline
 Every controller function follows the same template:
@@ -94,10 +98,23 @@ Shuqi Liu, Nate Brantly. Primary protocol:
 2026-09-18: the session order runs the overground 6-minute walk test
 first (its speed sets every other trial's belt speed), then a tied
 fastest-speed trial, pre-adaptation, adaptation, and post-adaptation
-bouts; every fNIRS event `NirsHreflexArduinoOpenLoopWithAudio` logs to
-Oxysoft is now prefixed with its condition (e.g. `PreAdaptSlow_Rest01`)
-— see `studies/SpinalAdapt/README.md`'s Protocol Notes. H-reflex
-stimulation timing is controlled by an Arduino Uno running
+bouts, with a fixed ~2.5 min break after every bout-based condition
+except the last; every fNIRS event `NirsHreflexArduinoOpenLoopWithAudio`
+logs to Oxysoft is now prefixed with its condition (e.g.
+`PreAdaptSlow_Rest01`) — see `studies/SpinalAdapt/README.md`'s Protocol
+Notes. There is no fNIRS or H-reflex during the tied fastest-speed
+trial, so it does not use that controller at all: it runs on the plain
+`controlSpeedWithSteps_edit1_AudioCountDown` (slot 11, shared with
+C3/BrainWalk), which gives it its own spoken "treadmill will
+start/stop in 3-2-1" countdown instead of the usual cues. Stroke
+participants use a two-visit protocol (participant ID ending
+`V01`/`V02`): visit 1 runs the walk test and generates every profile,
+including both possible fast-leg assignments of the split profile
+(`AdaptSplitFastR.mat`/`AdaptSplitFastL.mat`); visit 2 skips the walk
+test and profile generation entirely, loading visit 1's profiles
+directly from visit 1's own profile folder, with the fast/slow leg
+assignment flipped. H-reflex stimulation timing is controlled by an
+Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
 (see `HreflexStimArduino/README.md` for upload and wiring details). Do
 not change the serial command protocol in MATLAB controllers without

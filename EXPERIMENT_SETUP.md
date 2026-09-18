@@ -53,17 +53,38 @@ planned to resume approximately Fall 2026; protocol software updates
 may be required before collection resumes. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
-Subject ID formats: `SABH##` (healthy controls), `SAS##V##` (stroke,
-two visits). Revised 2026-09-18: every belt speed in the session is
-now derived from the overground 6-minute walk test (6MWT) speed —
-slow = 0.5×, fast = 1.0×, fastest = 1.5× (`speedProportion` /
-`speedProportionFastest` in `RunProtocol_SpinalAdaptBouts.m`). Pilot
-Study 2 used a 0.7 slow:fast ratio (changed from 0.5 after participant
+Participant ID formats: `SABH##` (healthy controls), `SAS##V##`
+(stroke, two visits). Revised 2026-09-18: every belt speed in the
+session is now derived from the overground 6-minute walk test (6MWT)
+speed — slow = 0.5×, fast = 1.0×, fastest = 1.5× (`speedProportion` /
+`speedProportionFastest` in `RunProtocol_SpinalAdaptBouts.m`), computed
+via `utils.extractSpeedsNMWT`, whose walkway-distance default is 10 m
+(the current lab walkway). Historical walkway distances used before
+this default was introduced, kept here for reference: 12.2 m (Schenley
+Place gym) and 11.5824 m (an earlier, longer lab walkway). Pilot Study
+2 used a 0.7 slow:fast ratio (changed from 0.5 after participant
 SABH16, July 2024) with an abrupt tied-to-split transition (no ramp).
 The current design's "abrupt split" refers to the same thing — no
 separate ramp-to-split phase — and is distinct from the per-bout
 3-stride ramp from rest to target speed at the start of every bout
 (tied or split); see `studies/SpinalAdapt/README.md`'s Protocol Notes.
+
+Stroke participants (`SAS##V01`/`SAS##V02`) use a two-visit protocol:
+visit 1 completes the 6MWT and generates every profile for both
+possible fast-leg assignments; visit 2 skips the 6MWT and profile
+generation entirely, loading visit 1's profiles directly from visit
+1's own profile folder (see `RunProtocol_SpinalAdaptBouts.m`), with the
+fast/slow leg assignment flipped (paretic leg slow in visit 1,
+non-paretic leg slow in visit 2). Visit 2 never writes its own profile
+folder, so the speed profiles are transferred to the server only once,
+at the end of visit 1. A fixed ~2.5 min break follows every bout-based
+condition except the last. There is no fNIRS or H-reflex during the
+tied fastest-speed trial (150% of 6MWT, no ramp, no stim), so it runs
+on the plain open-loop audio-countdown controller
+(`controlSpeedWithSteps_edit1_AudioCountDown`, shared with C3/
+BrainWalk) instead of the NIRS/H-reflex controller used by every other
+condition, and gets that controller's own spoken "treadmill will
+start/stop in 3-2-1" countdown instead of the usual cues.
 
 H-reflex stimulation requires an Arduino Uno running the firmware in
 `HreflexStimArduino/`. See `HreflexStimArduino/README.md` for the

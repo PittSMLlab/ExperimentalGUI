@@ -19,7 +19,7 @@ precise H-reflex stimulation timing before collection resumes.
 | Key | Shuqi Liu |
 | Key | Nate Brantly |
 
-## Subject IDs
+## Participant IDs
 
 | Format | Population |
 |---|---|
@@ -36,7 +36,14 @@ below): slow = 0.5×, fast = 1.0×, fastest = 1.5× `speedNMWT`
 `RunProtocol_SpinalAdaptBouts.m`). Pilot Study 2 used a 0.7 slow:fast
 ratio, changed from 0.5 after participant SABH16 (July 2024) — see
 Study History below. The 1.5× "fastest" speed was added 2026-09-18 for
-the single tied trial described below.
+the single tied trial described below. `extractSpeedsNMWT`'s default
+walkway distance is 10 m (the SpinalAdapt lab walkway) as of
+2026-09-18 — this function is currently called only from this study's
+protocol script. Earlier walkway distances (12.2 m, Schenley Place
+gym; 11.5824 m, an earlier/longer lab walkway) are no longer offered
+as dialog defaults but are recorded in
+[EXPERIMENT_SETUP.md](../../EXPERIMENT_SETUP.md)'s SpinalAdapt section
+for reference.
 
 **Current protocol design (revised 2026-09-18):**
 
@@ -50,79 +57,160 @@ the single tied trial described below.
 
 Total: 50 + 130 + 130 + 5×130 + 5×130 = **1,610 strides**. Profile
 files: `TiedFastest.mat`, `PreAdaptFast.mat`, `PreAdaptSlow.mat`,
-`AdaptSplit.mat`, `PostAdaptSlow.mat`. Familiarization trials
-(`FamBoutsSlow.mat`/`FamBoutsFast.mat`, part of the 2026-08-13 design)
-were removed. H-reflex walking calibration (`CalibrationFast.mat`,
-`CalibrationSlow.mat`, 400 strides each) runs separately before and
-after the main protocol via `runWalkingCalibrations`, not as a
-numbered condition — the pre-session loop now defaults to slow first,
-then fast, matching the protocol's own speed order. There are no
-TM/OG baseline conditions or profiles in the current design — the
-previous protocol version used the TM baseline step length asymmetry
-to determine each stroke participant's fast/slow leg assignment; the
-current design takes `fastLeg` as a direct experimenter input instead
+`AdaptSplitFastR.mat`, `AdaptSplitFastL.mat`, `PostAdaptSlow.mat`.
+Familiarization trials (`FamBoutsSlow.mat`/`FamBoutsFast.mat`, part of
+the 2026-08-13 design) were removed. H-reflex walking calibration
+(`CalibrationFast.mat`, `CalibrationSlow.mat`, 400 strides each) runs
+separately before and after the main protocol via
+`runWalkingCalibrations`, not as a numbered condition — the
+pre-session loop now defaults to slow first, then fast, matching the
+protocol's own speed order. There are no TM/OG baseline conditions or
+profiles in the current design — the previous protocol version used
+the TM baseline step length asymmetry to determine each stroke
+participant's fast/slow leg assignment; the current design takes
+`fastLeg` as a direct experimenter input instead
 (`RunProtocol_SpinalAdaptBouts.m`).
+
+**Breaks (added 2026-09-18):** a fixed ~2.5 min break
+(`pauseBetweenTrials = 115` s, plus the ~35 s Vicon stop/start delay)
+follows every bout-based condition (2, 3, and the numbered Adaptation
+Split / Post-Adaptation Slow blocks) except the very last condition in
+the session. There is no break between the 6MWT, the pre-session
+H-reflex calibration trials, or after the Tied Fastest trial (condition
+1) — the protocol proceeds straight into condition 2 after it.
+
+**Adaptation split profile, both fast-leg assignments (added
+2026-09-18 for the two-visit protocol):** `generateProfiles_
+SpinalAdaptBouts` generates BOTH `AdaptSplitFastR.mat` (right belt
+fast) and `AdaptSplitFastL.mat` (left belt fast) up front, rather than
+taking a `fastLeg` input and generating only one. `RunProtocol_
+SpinalAdaptBouts.m` selects the file matching the confirmed `fastLeg`
+at run time. This lets a stroke participant's visit 2 reuse every
+profile generated in visit 1 with the fast/slow leg assignment simply
+flipped, without regenerating anything (see Two-Visit Protocol below).
+
+**Two-visit protocol for participants with stroke (added 2026-09-18):**
+participant IDs ending `V01`/`V02` (`SAS##V01`/`SAS##V02`) trigger
+visit-specific behavior in `RunProtocol_SpinalAdaptBouts.m`. Visit 1
+runs the 6-minute walk test, computes speeds, and generates every
+profile (both fast-leg split variants above) into its own profile
+folder, keyed by the full, visit-suffixed participant ID exactly as
+before this revision. Visit 2 skips the walk test and profile
+regeneration entirely — it loads visit 1's profiles directly from
+visit 1's own profile folder (`dirProfile` is built from the
+participant ID with its `V02` suffix replaced by `V01`), verifying
+they exist before proceeding rather than silently pointing at an empty
+folder — and confirms the (now flipped) fast-leg assignment: the
+paretic leg is slow in visit 1 (fast leg = non-paretic/dominant) and
+the non-paretic leg is slow in visit 2 (fast leg = paretic). Visit 2
+never writes a profile folder of its own, so
+`transferData_SpinalAdaptBouts.m` (called unmodified, with the full
+visit-suffixed participant ID, at the end of each visit) naturally
+transfers the speed profiles to the server only once, at the end of
+visit 1 — at the end of visit 2 it finds no local profile folder under
+the `V02` ID and logs a harmless warning for that one item while every
+other transfer (Vicon, NIRS, datlogs) proceeds normally.
 
 **Overground 6-minute walk test:** the first trial of the session
 (added 2026-09-01; moved to run *before* speed computation 2026-09-18,
 since its result now sets every other trial's belt speed — previously
 `utils.extractSpeedsNMWT()` was called before this trial had run,
 which cannot have been correct). Not one of the 13 numbered conditions
-above. Uses `HreflexOGWithAudio` (slot 8, `hreflex_present = false`,
+above, and skipped entirely in visit 2 of the two-visit protocol (see
+above). Uses `HreflexOGWithAudio` (slot 8, `hreflex_present = false`,
 no stim), profile `SixMinuteWalk.mat` (`velL`/`velR` all-`NaN`, 1,000
 strides — self-paced, sized only as a generous safety margin since the
 trial length is controlled by the experimenter pressing Stop in the
 GUI, not by the profile). Answer **No** to the "Should audio feedback
 on speed be provided?" prompt so the participant walks at their own
-comfortable pace. Generated by its own
-`generateProfile_SixMinuteWalk.m`, called both standalone (from
-`RunProtocol_SpinalAdaptBouts.m`, before speeds are known) and from
-within `generateProfiles_SpinalAdaptBouts.m` (so a full profile
-regeneration remains a single call). The walk-test trial and the
-profile-regeneration dialog are both guarded by a resume prompt, so
-restarting a session mid-way does not force a redundant six-minute
-walk or NMWT re-entry.
+comfortable pace. Generated by its own `generateProfile_
+SixMinuteWalk.m`, called directly and only from `RunProtocol_
+SpinalAdaptBouts.m` before speeds are known — `generateProfiles_
+SpinalAdaptBouts.m` no longer calls it internally (it would just
+rewrite an identical, already-present file, since the protocol script
+guarantees `SixMinuteWalk.mat` exists before ever reaching profile
+regeneration). The walk-test trial and the profile-regeneration dialog
+are both guarded by a resume prompt, so restarting a session mid-way
+does not force a redundant six-minute walk or NMWT re-entry.
+
+**Tied Fastest trial: a different controller entirely (revised
+2026-09-18):** there is no fNIRS or H-reflex during this trial, so
+unlike every other condition in the session it does not run on
+`NirsHreflexArduinoOpenLoopWithAudio` (GUI slot 14) at all — it runs on
+the plain `controlSpeedWithSteps_edit1_AudioCountDown` (GUI slot 11),
+the same controller C3 and BrainWalk use for their own tied trials.
+With the default `numAudioCountDown = -1`, that controller speaks its
+own "treadmill will start in 3-2-1" countdown before the belts move and
+a stride-synced "treadmill will stop in 3-2-1" countdown before they
+stop — there is no "stop"/"silently count forward" rest cue and no
+silent-counting wait at all for this trial, since that comparison
+condition only applies once fNIRS is recording. The profile
+(`TiedFastest.mat`) is 50 steady-state strides with no ramp and no
+trailing rest pad: `controlSpeedWithSteps_edit1_AudioCountDown` has no
+rest-event handling and terminates cleanly once all 50 strides are
+taken, unlike the NIRS/H-reflex controller used by every other
+condition, which needs a rest event as its self-termination path. **Belt
+acceleration is not the same as other trials**, and was not
+deliberately changed: `controlSpeedWithSteps_edit1_AudioCountDown`
+hardcodes `acc = 3500` mm/s² (vs. the ~500 mm/s² the NIRS/H-reflex
+controller used for this trial in an earlier design), which shortens
+the dead-stop ramp to 150% of comfortable speed from roughly 3 s to
+well under 1 s. This controller is shared with C3/BrainWalk and not
+this study's to edit; flag it to the lead experimenter if a gentler
+ramp is wanted for this trial specifically.
 
 **fNIRS event naming (added 2026-09-18):** every event
 `NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is now prefixed
 with its condition — e.g. `PreAdaptSlow_Rest01`,
-`AdaptSplit_DccRamp2Split05`, `TiedFastest_Trial_End` — instead of the
-bare, condition-agnostic `Rest1` logged before this change, so a
+`AdaptSplitFastR_DccRamp2Split05`, `PostAdaptSlow_TrialEnd` — instead
+of the bare, condition-agnostic `Rest1` logged before this change, so a
 marker in Oxysoft is directly attributable to a condition and epoch
-without cross-referencing the run sheet by wall-clock time. The
-condition label is the loaded profile's basename (e.g.
-`PreAdaptSlow`), and only the event's *display string* is prefixed —
-never the audio-cue key or the single-letter Oxysoft code, since
-`nirsEvent` looks the audio key up with `isKey` and a prefixed key
-would silently fail to match, dropping the cue with no error. See the
-new local `nirsEventName` helper in
-`NirsHreflexArduinoOpenLoopWithAudio.m`. This pass also normalized the
-bout numbering: ramp/steady-state events previously logged one bout
-number lower than that same bout's rest event (e.g. `AccRamp0` next to
-`Rest1`); both now use the same 1-based bout number.
+without cross-referencing the run sheet by wall-clock time. This
+controller (and hence this naming scheme) covers the ramp-start
+(`AccRamp`/`DccRamp2Split`), steady-state (`Mid`/`Split`), and
+rest/"stand and silently count forward" (`Rest`) events for every
+bout-based condition; the Tied Fastest trial has no fNIRS events at
+all, since it does not use this controller (see above). The condition
+label is the loaded profile's basename (e.g. `PreAdaptSlow`, or
+`AdaptSplitFastR`/`AdaptSplitFastL` per the per-leg split files
+above), and only the event's *display string* is prefixed — never the
+audio-cue key or the single-letter Oxysoft code, since `nirsEvent`
+looks the audio key up with `isKey` and a prefixed key would silently
+fail to match, dropping the cue with no error. Composed names are
+underscore-free CamelCase (`TrialEnd`, not `Trial_End`) so the
+condition prefix stays the only `_` separator in the string; the
+`Rest` event name itself comes from the shared `parseEventsFromSpeeds`
+(also used by BrainWalk controllers) and was left as-is. See the local
+`nirsEventName` helper in `NirsHreflexArduinoOpenLoopWithAudio.m`. The
+2026-09-18 pass also normalized the bout numbering: ramp/steady-state
+events previously logged one bout number lower than that same bout's
+rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
+1-based bout number.
 
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
 - Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
   2026-08-13, cue split 2026-09-02): the inter-bout rest is a fixed
   ~10 s SILENT window (`restSilentSec`, belts stopped, timer padded by
   the `silentlyCountForward` cue's own length so it excludes the cue),
-  applied to every run of this controller including fNIRS/H-reflex
-  sessions. Every bout start (tied ramp = `AccRamp`, split ramp =
-  `DccRamp2Split`) announces "Walk" exactly once, with no 3-2-1
-  countdown; bout 1 gets the same "Walk" cue from the pre-loop block,
-  and the ramp-event cue is suppressed only for that first bout to
-  avoid a duplicate. Every belt stop (each inter-bout rest and the
-  trial end) plays `stop.mp3` then, once it finishes,
-  `silentlyCountForward.mp3` — sequenced with a blocking `pause` on the
-  first cue's own duration so the two never overlap — also with no
-  countdown. The speed ramp at each bout start is 3 strides
-  (`rampStrides` in
+  applied to every bout-based trial. Every bout start (tied ramp =
+  `AccRamp`, split ramp = `DccRamp2Split`) announces "Walk" exactly
+  once, with no 3-2-1 countdown; bout 1 gets the same "Walk" cue from
+  the pre-loop block, and the ramp-event cue is suppressed only for
+  that first bout to avoid a duplicate. Every belt stop (each
+  inter-bout rest and the trial end) plays `stop.mp3` then, once it
+  finishes, `silentlyCountForward.mp3` — sequenced with a blocking
+  `pause` on the first cue's own duration so the two never overlap —
+  also with no countdown. This entire bullet describes
+  `NirsHreflexArduinoOpenLoopWithAudio` only; the Tied Fastest trial
+  does not use this controller at all (see Tied Fastest trial above).
+  The speed ramp at each bout start is 3 strides (`rampStrides` in
   `generateProfiles_SpinalAdaptBouts.m`, reduced from 10). The "which
   bout to start from" dialog range and default are derived from the
-  loaded profile's bout count (5 for familiarization, 10 for
-  Control/Split), not hard-coded. The break between trials
-  (`pauseBetweenTrials` in `RunProtocol_SpinalAdaptBouts.m`) targets
-  ~90 s wall clock, reduced from ~150 s.
+  loaded profile's bout count (10 for every bout-based condition), not
+  hard-coded. The break
+  between trials (`pauseBetweenTrials` in
+  `RunProtocol_SpinalAdaptBouts.m`) targets ~2.5 min wall clock — see
+  Breaks above.
 - **Stop cue wording and split into two files (revised 2026-09-02):**
   the 2026-08 dry run's single `stopAndRest.mp3` was too wordy; it is
   replaced by two shorter cues played back-to-back — `stop.mp3`

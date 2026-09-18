@@ -61,9 +61,15 @@ caller-composed prefix — `eventAudioKey` (argument 1) is looked up
 with `isKey` against the fixed `instructions` map, and a prefixed key
 silently fails to match, so no cue plays.
 `NirsHreflexArduinoOpenLoopWithAudio` composes its condition-qualified
-display strings (e.g., `PreAdaptSlow_Rest01`) via its own local
-`nirsEventName` helper before calling `nirsEvent`, so every fNIRS
-marker is attributable to a protocol condition and epoch.
+display strings (e.g., `PreAdaptSlow_Rest01`, `PreAdaptSlow_TrialEnd`)
+via its own local `nirsEventName` helper before calling `nirsEvent`, so
+every fNIRS marker is attributable to a protocol condition and epoch;
+event names are underscore-free CamelCase (`TrialEnd`, not
+`Trial_End`) so the condition prefix stays the only `_` separator.
+SpinalAdapt's `TiedFastest` trial has no fNIRS or H-reflex, so it does
+not use this controller at all — it runs on the plain
+`controlSpeedWithSteps_edit1_AudioCountDown` (slot 11) instead (see
+`studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`).
 
 ## Deprecated/
 
