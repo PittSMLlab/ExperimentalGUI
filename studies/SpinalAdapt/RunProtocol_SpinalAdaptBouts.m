@@ -4,10 +4,28 @@
 %   pre-adaptation bouts trials, 5 adaptation split bouts trials, 5
 %   post-adaptation bouts trials). The overground 6-minute walk test now
 %   runs first and sets the belt speeds for every other trial (via
-%   utils.extractSpeedsNMWT). Familiarization trials were removed.
-%   Verify all conditions against the final approved protocol before
-%   data collection. See History-PilotStudy2/ for the Pilot Study 2
-%   original.
+%   utils.extractSpeedsNMWT). Familiarization trials were removed. The
+%   tied fastest-speed trial runs on the plain open-loop audio-countdown
+%   controller (no fNIRS or H-reflex at that point in the session) and
+%   is followed immediately by the next condition, with no break; every
+%   other bout-based trial is followed by a fixed ~2.5 min break (none
+%   after the final condition). Verify all conditions against the final
+%   approved protocol before data collection. See History-PilotStudy2/
+%   for the Pilot Study 2 original.
+%
+%   Revised again 2026-09-18 for the two-visit stroke protocol
+%   (participant ID ending 'V01'/'V02'): visit 1 runs the 6-minute walk
+%   test and generates every profile, including both possible fast-leg
+%   assignments of the adaptation split profile
+%   (AdaptSplitFastR.mat/AdaptSplitFastL.mat -- see
+%   GENERATEPROFILES_SPINALADAPTBOUTS). Visit 2 skips the walk test and
+%   profile regeneration entirely and loads visit 1's profiles directly
+%   from visit 1's own profile folder, selecting whichever split profile
+%   matches its own (flipped) fast-leg confirmation. Visit 2 never
+%   writes a profile folder of its own, so
+%   TRANSFERDATA_SPINALADAPTBOUTS (called unmodified at the end of each
+%   visit) naturally transfers the speed profiles to the server only
+%   once, at the end of visit 1.
 %
 %   Guides the experimenter through the 6-minute walk test, profile
 %   generation, pre- and post-session H-reflex calibration trials, all
