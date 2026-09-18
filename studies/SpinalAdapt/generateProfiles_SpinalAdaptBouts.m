@@ -1,24 +1,28 @@
 function profileDir = generateProfiles_SpinalAdaptBouts( ...
-    slowSpeed, fastSpeed, profileDir, fastLeg)
+    slowSpeed, fastSpeed, fastestSpeed, profileDir, fastLeg)
 %GENERATEPROFILES_SPINALADAPTBOUTS Generate speed and stim profiles for
 % the SpinalAdapt protocol and save them to disk.
 %
 %   Generates speed (velL, velR) and H-reflex stimulus (stimL, stimR)
 %   profiles for each condition in the SpinalAdapt bout-based protocol:
-%   the overground 6-minute walk test, H-reflex walking calibration,
-%   familiarization, control, and split bouts.
+%   the overground 6-minute walk test, H-reflex walking calibration, the
+%   tied fastest-speed trial, pre-adaptation, adaptation, and
+%   post-adaptation bouts.
 %
-%   TEMPLATE — Updated with new SpinalAdapt protocol bout structure
-%   (3-stride ramp + 10-stride SS per bout, 10 bouts per trial,
-%   8 split trials). Verify all parameters against the final approved
-%   protocol specification before data collection begins.
-%   See History-PilotStudy2/ for the Pilot Study 2 original.
+%   Revised 2026-09-18: familiarization removed; added a 50-stride tied
+%   trial at fastestSpeed (150% of 6MWT); control bouts renamed/split
+%   into PreAdaptFast (tied, 100%) and PreAdaptSlow (tied, 50%); split
+%   bouts renamed AdaptSplit; PostAdaptSlow (5 blocks, tied, 50%) added.
+%   Verify all parameters against the final approved protocol before
+%   data collection begins. See History-PilotStudy2/ for the Pilot
+%   Study 2 original.
 %
 % Inputs:
-%   slowSpeed  - double; slow belt speed (m/s)
-%   fastSpeed  - double; fast belt speed (m/s)
-%   profileDir - char; path to directory where profiles are saved
-%   fastLeg    - char; 'R' or 'L' — which leg uses the fast belt speed
+%   slowSpeed    - double; slow belt speed (m/s), 50% of 6MWT speed
+%   fastSpeed    - double; fast belt speed (m/s), 100% of 6MWT speed
+%   fastestSpeed - double; fastest belt speed (m/s), 150% of 6MWT speed
+%   profileDir   - char; path to directory where profiles are saved
+%   fastLeg      - char; 'R' or 'L' — which leg uses the fast belt speed
 %
 % Outputs:
 %   profileDir - char; path where profiles were saved (same as input)
@@ -26,23 +30,26 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 % Toolbox Dependencies:
 %   None
 %
-% See also RUNPROTOCOL_SPINALADAPTBOUTS, RUNWALKINGCALIBRATIONS.
+% See also GENERATEPROFILE_SIXMINUTEWALK, RUNPROTOCOL_SPINALADAPTBOUTS,
+%   RUNWALKINGCALIBRATIONS.
+
+arguments
+    slowSpeed    (1,1) double
+    fastSpeed    (1,1) double
+    fastestSpeed (1,1) double
+    profileDir   (1,:) char
+    fastLeg      (1,:) char {mustBeMember(fastLeg, {'R', 'L'})}
+end
 
 if ~exist(profileDir, 'dir')
     mkdir(profileDir);
 end
 
 %% Generate Overground 6-Minute Walk Test Profile
-% Self-paced (NaN) strides: this trial has no belt to control and no
-% target pace, so the profile only needs to preallocate enough stride
-% slots that indexing never runs out before the experimenter manually
-% stops the trial via the GUI Stop button at six minutes.
-sixMinWalkStrides = 1000;   % strides; margin above a fast per-leg
-% cadence (~140 steps/min for 6 min = 840 steps) since trial length is
-% experimenter-controlled, not profile-controlled
-velL = nan(sixMinWalkStrides, 1);
-velR = velL;
-save(fullfile(profileDir, 'SixMinuteWalk.mat'), 'velL', 'velR');
+% Speed-independent (all-NaN, self-paced), so it is factored into its own
+% function that the protocol script can call before speeds are known.
+% Called here too so a full profile regeneration stays a single call.
+generateProfile_SixMinuteWalk(profileDir);
 
 %% Define H-Reflex Walking Calibration Constants
 calibStrides       = 400;   % strides; H-reflex calib trial length
@@ -72,85 +79,117 @@ save(fullfile(profileDir, 'CalibrationSlow.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
 
 %% Define Training Protocol Constants
-boutsPerTrialFam = 5;    % bouts per familiarization trial
-boutsPerTrial    = 10;   % bouts per training trial
-rampStrides      = 3;    % strides; speed ramp from rest at bout start
-ssStrides        = 10;   % strides; steady-state walking per bout
-boutRestStrides  = 30;   % strides; max rest-pad between bouts
-boutStimPeriod   = 5;    % strides; H-reflex stim cycle during SS
+boutsPerTrial   = 10;   % bouts per training trial
+rampStrides     = 3;    % strides; speed ramp from rest at bout start
+ssStrides       = 10;   % strides; steady-state walking per bout
+boutRestStrides = 30;   % strides; max rest-pad between bouts
+fastestStrides  = 50;   % strides; TiedFastest trial length, no ramp
 
 %% Build Per-Bout Speed and Stim Vectors
 % Ramp: linear increase from rest to target speed over rampStrides.
 rampFastBelt = (1:rampStrides)' / rampStrides * fastSpeed;
 rampSlowBelt = (1:rampStrides)' / rampStrides * slowSpeed;
 
-% Stim during SS: one pulse at the start of each boutStimPeriod.
-boutStimCycle = ones(boutStimPeriod,1);
-ssStim = repmat(boutStimCycle, ssStrides / boutStimPeriod, 1);
+% Stim during SS: every steady-state stride is stimulated on both legs.
+ssStim  = ones(ssStrides, 1);
 restPad = zeros(boutRestStrides, 1);
 
-%% Build Familiarization Bouts Profile (Tied Walking)
-% Structure per bout: ramp to tied | SS at tied | rest pad.
-boutVelSlowFam  = [rampSlowBelt; ones(ssStrides, 1) * slowSpeed];
-boutVelFastFam  = [rampFastBelt; ones(ssStrides, 1) * fastSpeed];
-boutStimFam = [zeros(rampStrides, 1); ssStim];
-
-velL = [];  stimL = [];
-for ii = 1:boutsPerTrialFam
-    velL  = [velL;  boutVelSlowFam; restPad];
-    stimL = [stimL; boutStimFam; restPad];
-end
+%% Build Tied Fastest Trial Profile (Tied Walking, No Ramp, No Stim)
+% Structure: 50 SS strides at fastestSpeed | rest pad. No ramp (straight
+% to steady state) and no stim — the only time in the session the
+% participant walks at this speed. The trailing rest pad is required:
+% it gives the trial the same stop + silent-count ending as every other
+% block and is the controller's only clean self-termination path after
+% the final walking stride.
+velFastest  = ones(fastestStrides, 1) * fastestSpeed;
+stimFastest = zeros(fastestStrides, 1);
+velL  = [velFastest;  restPad];
 velR  = velL;
+stimL = [stimFastest; restPad];
 stimR = stimL;
-save(fullfile(profileDir, 'FamBoutsSlow.mat'), ...
+save(fullfile(profileDir, 'TiedFastest.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
 
-velL = [];  stimL = [];
-for ii = 1:boutsPerTrialFam
-    velL  = [velL;  boutVelFastFam; restPad];
-    stimL = [stimL; boutStimFam; restPad];
-end
-velR  = velL;
-stimR = stimL;
-save(fullfile(profileDir, 'FamBoutsFast.mat'), ...
-    'velL', 'velR', 'stimL', 'stimR');
-
-%% Build Control Bouts Profile (Tied Walking)
+%% Build Pre-Adaptation Fast Bouts Profile (Tied Walking, 100%)
 % Structure per bout: ramp to fastSpeed | SS at fastSpeed | rest pad.
-boutVelCtrl  = [rampFastBelt; ones(ssStrides, 1) * fastSpeed];
-boutStimCtrl = [zeros(rampStrides, 1); ssStim];
+boutVelFast  = [rampFastBelt; ones(ssStrides, 1) * fastSpeed];
+boutStimFast = [zeros(rampStrides, 1); ssStim];
 
-velL = [];  stimL = [];
-for ii = 1:boutsPerTrial
-    velL  = [velL;  boutVelCtrl; restPad];
-    stimL = [stimL; boutStimCtrl; restPad];
-end
+[velL, stimL] = buildBoutTrial(boutVelFast, boutStimFast, restPad, ...
+    boutsPerTrial);
 velR  = velL;
 stimR = stimL;
-save(fullfile(profileDir, 'CtrlBouts.mat'), ...
+save(fullfile(profileDir, 'PreAdaptFast.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
 
-%% Build Split Bouts Profile
+%% Build Pre-Adaptation Slow Bouts Profile (Tied Walking, 50%)
+% Structure per bout: ramp to slowSpeed | SS at slowSpeed | rest pad.
+boutVelSlow  = [rampSlowBelt; ones(ssStrides, 1) * slowSpeed];
+boutStimSlow = [zeros(rampStrides, 1); ssStim];
+
+[velL, stimL] = buildBoutTrial(boutVelSlow, boutStimSlow, restPad, ...
+    boutsPerTrial);
+velR  = velL;
+stimR = stimL;
+save(fullfile(profileDir, 'PreAdaptSlow.mat'), ...
+    'velL', 'velR', 'stimL', 'stimR');
+
+%% Build Post-Adaptation Slow Bouts Profile (Tied Walking, 50%)
+% Identical in content to PreAdaptSlow, saved as a separate file so its
+% fNIRS event labels are distinguishable by epoch (pre- vs. post-
+% adaptation) even though the belt-speed structure is the same.
+[velL, stimL] = buildBoutTrial(boutVelSlow, boutStimSlow, restPad, ...
+    boutsPerTrial);
+velR  = velL;
+stimR = stimL;
+save(fullfile(profileDir, 'PostAdaptSlow.mat'), ...
+    'velL', 'velR', 'stimL', 'stimR');
+
+%% Build Adaptation Split Bouts Profile
 % Structure per bout: split ramp | SS at fast/slow speeds | rest pad.
 % Default: right belt fast, left belt slow; swap if fastLeg = 'L'.
-boutVelFast  = [rampFastBelt; ones(ssStrides, 1) * fastSpeed];
-boutVelSlow  = [rampSlowBelt; ones(ssStrides, 1) * slowSpeed];
 boutStimSplit = [zeros(rampStrides, 1); ssStim];
 
-velL = [];  velR = [];  stimL = [];
-for ii = 1:boutsPerTrial
-    velL  = [velL;  boutVelSlow; restPad];
-    velR  = [velR;  boutVelFast; restPad];
-    stimL = [stimL; boutStimSplit; restPad];
-end
-stimR = stimL;
+[velL, stimL] = buildBoutTrial(boutVelSlow, boutStimSplit, restPad, ...
+    boutsPerTrial);
+[velR, stimR] = buildBoutTrial(boutVelFast, boutStimSplit, restPad, ...
+    boutsPerTrial);
 
 if strcmp(fastLeg, 'L')     % swap leg profiles if left is fast
     temp = velR;
     velR = velL;
     velL = temp;
 end
-save(fullfile(profileDir, 'SplitBouts.mat'), ...
+save(fullfile(profileDir, 'AdaptSplit.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
+
+end
+
+%% Local Functions
+
+function [vel, stim] = buildBoutTrial(boutVel, boutStim, restPad, nBouts)
+%BUILDBOUTTRIAL Concatenate nBouts repetitions of a single bout's speed
+% and stim pattern, each followed by a rest pad.
+%
+%   Factors out the repeated ramp | SS | rest-pad accumulation shared by
+%   every bout-based trial in this file.
+%
+% Inputs:
+%   boutVel  - Mx1 double; one bout's speed pattern (ramp + SS)
+%   boutStim - Mx1 double; one bout's stim pattern (ramp + SS)
+%   restPad  - Px1 double; rest-pad appended after every bout
+%   nBouts   - scalar double; number of bouts to concatenate
+%
+% Outputs:
+%   vel  - (nBouts*(M+P))x1 double; full-trial speed profile
+%   stim - (nBouts*(M+P))x1 double; full-trial stim profile
+%
+% Toolbox Dependencies:
+%   None
+%
+% See also GENERATEPROFILES_SPINALADAPTBOUTS.
+
+vel  = repmat([boutVel;  restPad], nBouts, 1);
+stim = repmat([boutStim; restPad], nBouts, 1);
 
 end
