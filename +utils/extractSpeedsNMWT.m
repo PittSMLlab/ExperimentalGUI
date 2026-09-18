@@ -1,5 +1,5 @@
-function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
-    shouldAdd,distWalkway,duration,times_10MWT)
+function [speedNMWT, speed10MWT] = extractSpeedsNMWT(numLaps, ...
+    distInches, shouldAdd, distWalkway, durationMin, times_10MWT)
 %EXTRACTSPEEDSNMWT Extracts the speed(s) from an NMWT (with 10MWT embedded)
 %
 %   This function accepts as input (via GUI if no arguments are provided)
@@ -18,7 +18,7 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 %       distance should be added or subtracted from the computed laps
 %   distWalkway - walkway distance in meters (default: 12.2 for
 %       Schenley Place gym)
-%   duration    - length of time of the NMWT in minutes (default: 6)
+%   durationMin - length of time of the NMWT in minutes (default: 6)
 %   times_10MWT - 1 x N array of 10MWT times to be averaged to compute
 %       a fast OG walking speed (default: NaN, speed not computed)
 %
@@ -26,14 +26,17 @@ function [speedNMWT,speed10MWT] = extractSpeedsNMWT(numLaps,distInches, ...
 %   speedNMWT  - the (comfortable) OG walking speed (in meters / second)
 %   speed10MWT - (optional) the fast OG walking speed (in m / second)
 %
-% Toolbox Dependencies: None
+% Toolbox Dependencies:
+%   None
+%
+% See also RUNPROTOCOL_SPINALADAPTBOUTS, RUNPROTOCOL_C3.
 
 arguments
     numLaps     double                   = []
     distInches  double                   = []
     shouldAdd   {mustBeNumericOrLogical} = []
     distWalkway (1,1) double             = 12.2 % default: Schenley gym (m)
-    duration    (1,1) double             = 6    % default: 6MWT
+    durationMin (1,1) double             = 6    % default: 6MWT
     times_10MWT double                   = NaN  % default: not computed
 end
 
@@ -45,6 +48,8 @@ dist10MWT  = 10;                % 10-Meter Walk Test distance (m)
 % arguments or passing arguments in different order using 'varargin'
 % TODO: is there a way to make this work for Marcela's experiment also
 % (where they only collect 10MWT trials)?
+
+%% Collect Walk-Test Measurements
 if isempty(numLaps)             % if no input arguments, ...
     % retrieve N-Minute/10-Meter Walk Test data from experimenter via GUI
     prompt = { ...
@@ -68,26 +73,26 @@ if isempty(numLaps)             % if no input arguments, ...
         '6', ...                            number of minutes (walk test)
         ...                                 10MWT times (in seconds) list
         '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00'};
-    answer = inputdlg(prompt,dlgtitle,fieldsize,definput);
+    answer = inputdlg(prompt, dlgtitle, fieldsize, definput);
 
     % extract NMWT/10MWT experimental parameters
     numLaps     = str2double(answer{1});        % number of NMWT laps
     distInches  = str2double(answer{2});        % measure distance (inches)
     shouldAdd   = logical(str2double(answer{3})); % should + or - distance?
     distWalkway = str2double(answer{4});        % walkway distance (meters)
-    duration    = str2double(answer{5});        % walk test duration (min.)
-    times_10MWT = strsplit(answer{6},' ');      % list 10MWT times (secs)
-    if strcmp(times_10MWT{1},'NA')              % if no lap times, ...
+    durationMin = str2double(answer{5});        % walk test duration (min.)
+    times_10MWT = strsplit(answer{6}, ' ');     % list 10MWT times (secs)
+    if strcmp(times_10MWT{1}, 'NA')             % if no lap times, ...
         times_10MWT = NaN;                      % set to NaN
     else                                        % otherwise, extract times
-        times_10MWT = cellfun(@(x) str2double(x),times_10MWT);
+        times_10MWT = str2double(times_10MWT);
     end
 elseif isempty(distInches) || isempty(shouldAdd)
     error(['extractSpeedsNMWT: provide 0 or at ' ...
         'least 3 arguments.']);
 end
 
-% compute NMWT speed
+%% Compute Walking Speeds
 if shouldAdd                            % if should add distance, ...
     % compute NMWT distance as sum of # of laps times walkway distance plus
     % remainder distance in inches converted to meters
@@ -96,15 +101,12 @@ else                                    % otherwise, subtract distance
     dist_NMWT = (numLaps * distWalkway) - (distInches * inch2Meter);
 end
 % convert walk test duration to seconds for speed in meters per second
-speedNMWT = dist_NMWT / (duration * secsPerMin); % NMWT speed (comfortable)
+speedNMWT = dist_NMWT / (durationMin * secsPerMin); % comfortable speed
 
-if nargout == 2                         % if user requests both speeds, ...
-    if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
-        speed10MWT = dist10MWT / mean(times_10MWT); % fast OG speed
-    else
-        speed10MWT = NaN;               % default to 'NaN'
-    end
+if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
+    speed10MWT = dist10MWT / mean(times_10MWT); % fast OG speed
+else
+    speed10MWT = NaN;               % default to 'NaN'
 end
 
 end
-
