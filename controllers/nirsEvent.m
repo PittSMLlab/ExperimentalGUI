@@ -1,4 +1,5 @@
-function datlog = nirsEvent(eventAudioKey, eventIdNirs, eventDisplayString, instructions, datlog, Oxysoft, nirsPresent)
+function datlog = nirsEvent(eventAudioKey, eventIdNirs, ...
+    eventDisplayString, instructions, datlog, Oxysoft, nirsPresent)
 %NIRSEVENT Log an fNIRS event marker and play its audio cue.
 %
 %   Plays the audio cue keyed by eventAudioKey (if one is mapped in
@@ -29,6 +30,19 @@ function datlog = nirsEvent(eventAudioKey, eventIdNirs, eventDisplayString, inst
 %
 % See also NIRSHREFLEXARDUINOOPENLOOPWITHAUDIO, PARSEEVENTSFROMSPEEDS.
 
+arguments
+    eventAudioKey char
+    eventIdNirs char
+    eventDisplayString char
+    instructions containers.Map
+    datlog struct
+    Oxysoft
+    nirsPresent {mustBeNumericOrLogical}
+end
+
+% Display the current event name and time. Useful if participant is
+% using headphones so we can tell where we are at, but commenting out to
+% limit print statement and speed up runtime
 %     disp(eventDisplayString)
 %     clock
     
