@@ -16,8 +16,8 @@ function [speedNMWT, speed10MWT] = extractSpeedsNMWT(numLaps, ...
 %       the future that is metric can change this to distance in m or cm)
 %   shouldAdd   - logical true or false indicating whether the above
 %       distance should be added or subtracted from the computed laps
-%   distWalkway - walkway distance in meters (default: 12.2 for
-%       Schenley Place gym)
+%   distWalkway - walkway distance in meters (default: 10, the
+%       SpinalAdapt lab walkway; this function's only current caller)
 %   durationMin - length of time of the NMWT in minutes (default: 6)
 %   times_10MWT - 1 x N array of 10MWT times to be averaged to compute
 %       a fast OG walking speed (default: NaN, speed not computed)
@@ -35,7 +35,7 @@ arguments
     numLaps     double                   = []
     distInches  double                   = []
     shouldAdd   {mustBeNumericOrLogical} = []
-    distWalkway (1,1) double             = 12.2 % default: Schenley gym (m)
+    distWalkway (1,1) double             = 10   % default: SpinalAdapt lab (m)
     durationMin (1,1) double             = 6    % default: 6MWT
     times_10MWT double                   = NaN  % default: not computed
 end
@@ -69,7 +69,7 @@ if isempty(numLaps)             % if no input arguments, ...
         '30', ...                           number of NMWT laps
         '0', ...                            tape measure distance (inches)
         '1', ...                            should add above distance?
-        '12.2', ...                         walkway distance (in meters)
+        '10', ...                           walkway distance (in meters)
         '6', ...                            number of minutes (walk test)
         ...                                 10MWT times (in seconds) list
         '7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00 7.00'};
