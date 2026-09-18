@@ -1,28 +1,37 @@
 function profileDir = generateProfiles_SpinalAdaptBouts( ...
-    slowSpeed, fastSpeed, fastestSpeed, profileDir, fastLeg)
+    slowSpeed, fastSpeed, fastestSpeed, profileDir)
 %GENERATEPROFILES_SPINALADAPTBOUTS Generate speed and stim profiles for
 % the SpinalAdapt protocol and save them to disk.
 %
 %   Generates speed (velL, velR) and H-reflex stimulus (stimL, stimR)
 %   profiles for each condition in the SpinalAdapt bout-based protocol:
-%   the overground 6-minute walk test, H-reflex walking calibration, the
-%   tied fastest-speed trial, pre-adaptation, adaptation, and
-%   post-adaptation bouts.
+%   H-reflex walking calibration, the tied fastest-speed trial,
+%   pre-adaptation, adaptation, and post-adaptation bouts. Does NOT
+%   generate the overground 6-minute walk test profile -- that is
+%   speed-independent and generated separately, earlier, by
+%   GENERATEPROFILE_SIXMINUTEWALK (called directly from
+%   RUNPROTOCOL_SPINALADAPTBOUTS, before this function, since the walk
+%   test must run before these speeds are even known).
 %
 %   Revised 2026-09-18: familiarization removed; added a 50-stride tied
 %   trial at fastestSpeed (150% of 6MWT); control bouts renamed/split
 %   into PreAdaptFast (tied, 100%) and PreAdaptSlow (tied, 50%); split
 %   bouts renamed AdaptSplit; PostAdaptSlow (5 blocks, tied, 50%) added.
-%   Verify all parameters against the final approved protocol before
-%   data collection begins. See History-PilotStudy2/ for the Pilot
-%   Study 2 original.
+%   Revised again 2026-09-18 for the two-visit protocol: the adaptation
+%   split profile is generated for BOTH possible fast-leg assignments
+%   (AdaptSplitFastR.mat, AdaptSplitFastL.mat) rather than taking a
+%   fastLeg input, since visit 2 reuses visit 1's profiles with the fast
+%   leg flipped and must not need to regenerate anything --
+%   RUNPROTOCOL_SPINALADAPTBOUTS picks the file matching each visit's
+%   confirmed fast leg at run time. Verify all parameters against the
+%   final approved protocol before data collection begins. See
+%   History-PilotStudy2/ for the Pilot Study 2 original.
 %
 % Inputs:
 %   slowSpeed    - double; slow belt speed (m/s), 50% of 6MWT speed
 %   fastSpeed    - double; fast belt speed (m/s), 100% of 6MWT speed
 %   fastestSpeed - double; fastest belt speed (m/s), 150% of 6MWT speed
 %   profileDir   - char; path to directory where profiles are saved
-%   fastLeg      - char; 'R' or 'L' — which leg uses the fast belt speed
 %
 % Outputs:
 %   profileDir - char; path where profiles were saved (same as input)
@@ -38,7 +47,6 @@ arguments
     fastSpeed    (1,1) double
     fastestSpeed (1,1) double
     profileDir   (1,:) char
-    fastLeg      (1,:) char {mustBeMember(fastLeg, {'R', 'L'})}
 end
 
 if ~exist(profileDir, 'dir')
@@ -91,10 +99,13 @@ restPad = zeros(boutRestStrides, 1);
 %% Build Tied Fastest Trial Profile (Tied Walking, No Ramp, No Stim)
 % Structure: 50 SS strides at fastestSpeed | rest pad. No ramp (straight
 % to steady state) and no stim — the only time in the session the
-% participant walks at this speed. The trailing rest pad is required:
-% it gives the trial the same stop + silent-count ending as every other
-% block and is the controller's only clean self-termination path after
-% the final walking stride.
+% participant walks at this speed. The trailing rest pad is required
+% regardless: it is the controller's only clean self-termination path
+% after the final walking stride. Unlike every other block, this trial's
+% belt-stop uses a spoken "treadmill will stop in 3-2-1" warning instead
+% of the "stop" + silent-count-forward ending (RunProtocol_
+% SpinalAdaptBouts.m sets useStartStopCountdown = true only for this
+% trial), since fNIRS is not recording yet at this point in the session.
 velFastest  = ones(fastestStrides, 1) * fastestSpeed;
 stimFastest = zeros(fastestStrides, 1);
 velL  = [velFastest;  restPad];
@@ -139,22 +150,32 @@ stimR = stimL;
 save(fullfile(profileDir, 'PostAdaptSlow.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
 
-%% Build Adaptation Split Bouts Profile
+%% Build Adaptation Split Bouts Profiles (Both Fast-Leg Assignments)
 % Structure per bout: split ramp | SS at fast/slow speeds | rest pad.
-% Default: right belt fast, left belt slow; swap if fastLeg = 'L'.
+% Both possible fast-leg assignments are generated up front, as separate
+% files, rather than taking a fastLeg input: the two-visit protocol
+% flips which leg is fast between visit 1 and visit 2 (paretic slow in
+% visit 1, non-paretic slow in visit 2) while reusing every other
+% profile, so RUNPROTOCOL_SPINALADAPTBOUTS just selects the file
+% matching each visit's confirmed fast leg at run time and neither visit
+% ever needs to regenerate anything.
 boutStimSplit = [zeros(rampStrides, 1); ssStim];
 
-[velL, stimL] = buildBoutTrial(boutVelSlow, boutStimSplit, restPad, ...
-    boutsPerTrial);
-[velR, stimR] = buildBoutTrial(boutVelFast, boutStimSplit, restPad, ...
+[velSlow, stimSplit] = buildBoutTrial(boutVelSlow, boutStimSplit, ...
+    restPad, boutsPerTrial);
+velFast = buildBoutTrial(boutVelFast, boutStimSplit, restPad, ...
     boutsPerTrial);
 
-if strcmp(fastLeg, 'L')     % swap leg profiles if left is fast
-    temp = velR;
-    velR = velL;
-    velL = temp;
-end
-save(fullfile(profileDir, 'AdaptSplit.mat'), ...
+velR = velFast;    % right belt fast, left belt slow
+velL = velSlow;
+stimL = stimSplit;
+stimR = stimSplit;
+save(fullfile(profileDir, 'AdaptSplitFastR.mat'), ...
+    'velL', 'velR', 'stimL', 'stimR');
+
+velL = velFast;    % left belt fast, right belt slow
+velR = velSlow;
+save(fullfile(profileDir, 'AdaptSplitFastL.mat'), ...
     'velL', 'velR', 'stimL', 'stimR');
 
 end
