@@ -33,12 +33,17 @@ try
     t = 0:length(velL) - 1;
     set(handles.profileaxes, 'NextPlot', 'replace');
     plot(handles.profileaxes, t, velL, 'b', t, velR, 'r', 'LineWidth', 2);
-    if isrow(velL) && isrow(velR)
-        set(handles.profileaxes, 'ylim', ...
-            [min([velL velR]) - 1, max([velL velR]) + 1]);
-    else
-        set(handles.profileaxes, 'ylim', ...
-            [min([velL; velR]) - 1, max([velL; velR]) + 1]);
+    % All-NaN profiles (e.g., the self-paced 6-minute walk test) have no
+    % meaningful min/max to use as axis limits; skip and let the axes
+    % auto-scale instead of throwing into the catch below.
+    if ~(all(isnan(velL(:))) && all(isnan(velR(:))))
+        if isrow(velL) && isrow(velR)
+            set(handles.profileaxes, 'ylim', ...
+                [min([velL velR]) - 1, max([velL velR]) + 1]);
+        else
+            set(handles.profileaxes, 'ylim', ...
+                [min([velL; velR]) - 1, max([velL; velR]) + 1]);
+        end
     end
     % ylim([0 2.0]);
     % set(handles.Status_textbox, 'String', 'Ready');
