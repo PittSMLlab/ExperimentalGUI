@@ -28,43 +28,78 @@ precise H-reflex stimulation timing before collection resumes.
 
 ## Protocol Notes
 
-**Fast speed** is computed from the N-Minute Walk Test comfortable
-overground walking speed via `utils.extractSpeedsNMWT()`. Slow speed
-= fast × 0.5 for the current protocol design (`speedProportion` in
-`RunProtocol_SpinalAdaptBouts.m`); Pilot Study 2 used 0.7, changed from
-0.5 after participant SABH16 (July 2024) — see Study History below.
+**Speeds** are all derived from the overground N-Minute (6-minute)
+Walk Test comfortable walking speed (`speedNMWT`), computed via
+`utils.extractSpeedsNMWT()` immediately after the walk test trial (see
+below): slow = 0.5×, fast = 1.0×, fastest = 1.5× `speedNMWT`
+(`speedProportion` / `speedProportionFastest` in
+`RunProtocol_SpinalAdaptBouts.m`). Pilot Study 2 used a 0.7 slow:fast
+ratio, changed from 0.5 after participant SABH16 (July 2024) — see
+Study History below. The 1.5× "fastest" speed was added 2026-09-18 for
+the single tied trial described below.
 
-**Current protocol design (revised 2026-08-13, subject to further
-revision):**
+**Current protocol design (revised 2026-09-18):**
 
-| Condition | # | Strides (excl. rest pads) |
+| Condition | # | Structure |
 |---|---|---|
-| Familiarization Slow / Fast (tied, 5 bouts × 3 ramp + 10 SS) | 2 | 65 each |
-| Control Bouts (tied, 10 bouts × 3 ramp + 10 SS) | 6 | 130 each |
-| Split Bouts (10 bouts × 3 ramp + 10 SS per trial) | 5 | 130 each |
+| Tied Fastest (tied, no ramp, 150% of 6MWT) | 1 | 50 SS strides |
+| Pre-Adaptation Fast (tied, 100% of 6MWT, 10 bouts × 3 ramp + 10 SS) | 1 | 130 strides |
+| Pre-Adaptation Slow (tied, 50% of 6MWT, 10 bouts × 3 ramp + 10 SS) | 1 | 130 strides |
+| Adaptation Split (100%/50% split, 10 bouts × 3 ramp + 10 SS per trial) | 5 | 130 strides each |
+| Post-Adaptation Slow (tied, 50% of 6MWT, 10 bouts × 3 ramp + 10 SS) | 5 | 130 strides each |
 
-Total: 2×65 + 6×130 + 5×130 = **1,560 strides**. Profile files:
-`FamBoutsSlow.mat`, `FamBoutsFast.mat`, `CtrlBouts.mat`,
-`SplitBouts.mat`. H-reflex walking calibration
-(`CalibrationFast.mat`, `CalibrationSlow.mat`, 400 strides each) runs
-separately before and after the main protocol via
-`runWalkingCalibrations`, not as a numbered condition. There are no
-TM/OG baseline or post-adapt conditions or profiles in the current
-design — the previous protocol version used the TM baseline step
-length asymmetry to determine each stroke participant's fast/slow leg
-assignment; the current design takes `fastLeg` as a direct
-experimenter input instead (`RunProtocol_SpinalAdaptBouts.m`), so
-those profiles were removed from `generateProfiles_SpinalAdaptBouts`.
+Total: 50 + 130 + 130 + 5×130 + 5×130 = **1,610 strides**. Profile
+files: `TiedFastest.mat`, `PreAdaptFast.mat`, `PreAdaptSlow.mat`,
+`AdaptSplit.mat`, `PostAdaptSlow.mat`. Familiarization trials
+(`FamBoutsSlow.mat`/`FamBoutsFast.mat`, part of the 2026-08-13 design)
+were removed. H-reflex walking calibration (`CalibrationFast.mat`,
+`CalibrationSlow.mat`, 400 strides each) runs separately before and
+after the main protocol via `runWalkingCalibrations`, not as a
+numbered condition — the pre-session loop now defaults to slow first,
+then fast, matching the protocol's own speed order. There are no
+TM/OG baseline conditions or profiles in the current design — the
+previous protocol version used the TM baseline step length asymmetry
+to determine each stroke participant's fast/slow leg assignment; the
+current design takes `fastLeg` as a direct experimenter input instead
+(`RunProtocol_SpinalAdaptBouts.m`).
 
-**Overground 6-minute walk test (added 2026-09-01):** a one-time
-trial at the very start of the session, before H-reflex calibration —
-not one of the 13 numbered conditions above. Uses `HreflexOGWithAudio`
-(slot 8, `hreflex_present = false`, no stim), profile `SixMinuteWalk.mat`
-(`velL`/`velR` all-`NaN`, 1,000 strides — self-paced, sized only as a
-generous safety margin since the trial length is controlled by the
-experimenter pressing Stop in the GUI, not by the profile). Answer
-**No** to the "Should audio feedback on speed be provided?" prompt so
-the participant walks at their own comfortable pace.
+**Overground 6-minute walk test:** the first trial of the session
+(added 2026-09-01; moved to run *before* speed computation 2026-09-18,
+since its result now sets every other trial's belt speed — previously
+`utils.extractSpeedsNMWT()` was called before this trial had run,
+which cannot have been correct). Not one of the 13 numbered conditions
+above. Uses `HreflexOGWithAudio` (slot 8, `hreflex_present = false`,
+no stim), profile `SixMinuteWalk.mat` (`velL`/`velR` all-`NaN`, 1,000
+strides — self-paced, sized only as a generous safety margin since the
+trial length is controlled by the experimenter pressing Stop in the
+GUI, not by the profile). Answer **No** to the "Should audio feedback
+on speed be provided?" prompt so the participant walks at their own
+comfortable pace. Generated by its own
+`generateProfile_SixMinuteWalk.m`, called both standalone (from
+`RunProtocol_SpinalAdaptBouts.m`, before speeds are known) and from
+within `generateProfiles_SpinalAdaptBouts.m` (so a full profile
+regeneration remains a single call). The walk-test trial and the
+profile-regeneration dialog are both guarded by a resume prompt, so
+restarting a session mid-way does not force a redundant six-minute
+walk or NMWT re-entry.
+
+**fNIRS event naming (added 2026-09-18):** every event
+`NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is now prefixed
+with its condition — e.g. `PreAdaptSlow_Rest01`,
+`AdaptSplit_DccRamp2Split05`, `TiedFastest_Trial_End` — instead of the
+bare, condition-agnostic `Rest1` logged before this change, so a
+marker in Oxysoft is directly attributable to a condition and epoch
+without cross-referencing the run sheet by wall-clock time. The
+condition label is the loaded profile's basename (e.g.
+`PreAdaptSlow`), and only the event's *display string* is prefixed —
+never the audio-cue key or the single-letter Oxysoft code, since
+`nirsEvent` looks the audio key up with `isKey` and a prefixed key
+would silently fail to match, dropping the cue with no error. See the
+new local `nirsEventName` helper in
+`NirsHreflexArduinoOpenLoopWithAudio.m`. This pass also normalized the
+bout numbering: ramp/steady-state events previously logged one bout
+number lower than that same bout's rest event (e.g. `AccRamp0` next to
+`Rest1`); both now use the same 1-based bout number.
 
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
 - Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
@@ -555,6 +590,7 @@ verify all parameters against the final approved protocol before collection.
 |---|---|---|
 | `RunProtocol_SpinalAdaptBouts.m` | Template | Main protocol runner |
 | `generateProfiles_SpinalAdaptBouts.m` | Template | Speed and stim profile generator |
+| `generateProfile_SixMinuteWalk.m` | Active | Speed-independent 6MWT profile generator |
 | `runWalkingCalibrations.m` | Active | H-reflex walking calibration helper |
 | `transferData_SpinalAdaptBouts.m` | Active | Data transfer and archival |
 

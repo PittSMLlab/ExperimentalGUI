@@ -53,6 +53,18 @@ recommended as starting points for new protocols.
 | `generateNirsRestEventString.m` | `NirsAutomaticityAssessment` |
 | `nirsEvent.m` | `OGNBackTask`, `NirsAutomaticityAssessment`, `NirsHreflexArduinoOpenLoopWithAudio` |
 
+`nirsEvent(eventAudioKey, eventIdNirs, eventDisplayString, ...)` plays
+the audio cue keyed by `eventAudioKey`, logs `eventDisplayString` to
+`datlog.audioCues`, and (if fNIRS is present) sends it to Oxysoft.
+Only `eventDisplayString` (argument 3) should ever carry a
+caller-composed prefix — `eventAudioKey` (argument 1) is looked up
+with `isKey` against the fixed `instructions` map, and a prefixed key
+silently fails to match, so no cue plays.
+`NirsHreflexArduinoOpenLoopWithAudio` composes its condition-qualified
+display strings (e.g., `PreAdaptSlow_Rest01`) via its own local
+`nirsEventName` helper before calling `nirsEvent`, so every fNIRS
+marker is attributable to a protocol condition and epoch.
+
 ## Deprecated/
 
 Inactive backup variants and experimental branches. Files are preserved here

@@ -54,15 +54,16 @@ may be required before collection resumes. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
 Subject ID formats: `SABH##` (healthy controls), `SAS##V##` (stroke,
-two visits). Speed parameters default to a fast:slow ratio of 0.5
-(i.e., slow = 0.5 × fast speed) in the current protocol design
-(`speedProportion` in `RunProtocol_SpinalAdaptBouts.m`). Pilot Study 2
-used a 0.7 ratio (changed from 0.5 after participant SABH16, July
-2024) with an abrupt tied-to-split transition (no ramp). The current
-design's "abrupt split" refers to the same thing — no separate
-ramp-to-split phase — and is distinct from the per-bout 3-stride ramp
-from rest to target speed at the start of every bout (tied or split);
-see `studies/SpinalAdapt/README.md`'s Protocol Notes.
+two visits). Revised 2026-09-18: every belt speed in the session is
+now derived from the overground 6-minute walk test (6MWT) speed —
+slow = 0.5×, fast = 1.0×, fastest = 1.5× (`speedProportion` /
+`speedProportionFastest` in `RunProtocol_SpinalAdaptBouts.m`). Pilot
+Study 2 used a 0.7 slow:fast ratio (changed from 0.5 after participant
+SABH16, July 2024) with an abrupt tied-to-split transition (no ramp).
+The current design's "abrupt split" refers to the same thing — no
+separate ramp-to-split phase — and is distinct from the per-bout
+3-stride ramp from rest to target speed at the start of every bout
+(tied or split); see `studies/SpinalAdapt/README.md`'s Protocol Notes.
 
 H-reflex stimulation requires an Arduino Uno running the firmware in
 `HreflexStimArduino/`. See `HreflexStimArduino/README.md` for the
@@ -82,11 +83,13 @@ MATLAB-only, no firmware change). It also sends the start (`0`)/stop
 timing contract and the validation checklist to run before resuming
 collection.
 
-Overground (OG) baseline trials use `HreflexOGWithAudio` (menu slot
-16). The speed feedback range in that controller must be adjusted
-manually between participants because the comfortable overground
-walking speed varies. Calibration trials use
-`NirsHreflexArduinoOpenLoopWithAudio` (menu slot 14).
+The overground 6-minute walk test (6MWT) — the first trial of the
+session, whose speed sets every other trial's belt speed — uses
+`HreflexOGWithAudio` (menu slot 8) self-paced (`hreflex_present =
+false`, no stim, audio feedback answered "No"). H-reflex walking
+calibration and all bout-based conditions use
+`NirsHreflexArduinoOpenLoopWithAudio` (menu slot 14). There is no
+separate OG baseline trial in the current protocol design.
 
 **H-reflex calibration processing:** After each walking dynamic
 calibration trial, a Vicon Nexus 2.12 processing pipeline runs
@@ -152,8 +155,8 @@ GUI menu slot numbers correspond to `case` labels in
 | 11 | `controlSpeedWithSteps_edit1_AudioCountDown` | Split-belt controller with audio countdown cue at trial start. | BrainWalk (TM trials), C3 (TM trials) |
 | 15 | `controlSpeedWithSteps_WeberPerceptionFaster` | Weber perception variant; faster inter-stride update for threshold estimation. | Weber Perception |
 | 8 | `HreflexOGWithAudio` | Overground (no belt control) with H-reflex triggers and audio speed feedback. | BrainWalk (OG baseline), C3 (OG baseline), SpinalAdapt (6-min walk test) |
-| 16 | `HreflexOGWithAudio` | Same controller, second menu entry; used for H-reflex OG trials with audio in SpinalAdapt. | SpinalAdapt |
-| 14 | `NirsHreflexArduinoOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback. | NirsAutomaticityProtocol, SpinalAdapt (calibration) |
+| 16 | `HreflexOGWithAudio` | Same controller, second menu entry. Not currently used by an active study — SpinalAdapt's OG baseline trials were removed from the protocol design. | (unused) |
+| 14 | `NirsHreflexArduinoOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback. | NirsAutomaticityProtocol, SpinalAdapt (calibration + all bout-based conditions) |
 | 10 | `NirsAutomaticityAssessment` | Overground alphabet dual-task assessment. Records responses and logs events. | BrainWalk, NirsAutomaticityProtocol |
 | 12 | `Dulce_grad_betarev2` | H-reflex gradient computation tool (grad project). | Standalone H-reflex analysis |
 | 13 | `OGNBackTask` | Overground N-back cognitive dual-task; plays audio stimuli and records Wii-remote responses. | BrainWalk |

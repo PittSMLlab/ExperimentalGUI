@@ -90,7 +90,13 @@ protocol scripts.
 **SpinalAdapt** — rebooting; data collection planned to resume ~July
 2026. Lead: Chase Rock (post-doctoral fellow); key experimenters:
 Shuqi Liu, Nate Brantly. Primary protocol:
-`studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. H-reflex
+`studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. Revised
+2026-09-18: the session order runs the overground 6-minute walk test
+first (its speed sets every other trial's belt speed), then a tied
+fastest-speed trial, pre-adaptation, adaptation, and post-adaptation
+bouts; every fNIRS event `NirsHreflexArduinoOpenLoopWithAudio` logs to
+Oxysoft is now prefixed with its condition (e.g. `PreAdaptSlow_Rest01`)
+— see `studies/SpinalAdapt/README.md`'s Protocol Notes. H-reflex
 stimulation timing is controlled by an Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
 (see `HreflexStimArduino/README.md` for upload and wiring details). Do
