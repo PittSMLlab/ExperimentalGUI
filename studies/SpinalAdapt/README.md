@@ -257,10 +257,130 @@ the participant walks at their own comfortable pace.
   definitions) after every `git pull`, the same way the firmware requires
   a re-upload, and do not assume a committed fix is active without
   runtime confirmation — `diagnostics/auditHreflexStimTiming.m`'s
-  firmware-fingerprint check (added after this incident) now provides
-  that confirmation from the datlog alone, no C3D required. Still
-  required before the next pilot: everything the 09-14 entry above
-  already listed, now confirmed outstanding rather than merely due.
+  firmware-fingerprint check (added after this incident) can provide
+  that confirmation from the datlog alone, no C3D required, **but only
+  when the trial has drops on either leg** (the fingerprint classifies
+  gate-to-drop-echo latency into old-vs-new-firmware bands; with zero
+  drops there is nothing to classify and it reports "inconclusive" by
+  design — see the 09-17 entry below, where a clean trial could not
+  self-certify its own firmware this way). Still required before the
+  next pilot: everything the 09-14 entry above already listed, now
+  confirmed outstanding rather than merely due.
+- **Per-leg debounce fix validated, 2026-09-17 pilot:** the first pilot
+  run on a freshly re-flashed Arduino carrying the 09-14 per-leg debounce
+  fix, deliberately run as a stress test — a light participant (52.5 kg)
+  at fast speed (1.525 m/s) is the exact condition that broke 09-08 (15%
+  stride loss) and 09-16 (131/132 gates dropped, unflashed firmware).
+  Result: **120/120 gates delivered, 0 dropped, `errormsgs` empty,
+  `ardStep` monotonic on both legs** — confirmed with
+  `diagnostics/auditHreflexStimTiming.m` and by direct inspection of the
+  saved datlog. A direct per-leg cross-check (`diff(ardStep)` vs.
+  `diff(matStep)` between consecutive delivered pulses, the same
+  comparison the stride-count-deficit watchdog makes internally) found
+  exactly one -1 mismatch on **each** leg, at the identical pair of
+  echoes on both legs (ardStep +8 vs. matStep +7, ~7.8 s apart) — the
+  signature of a rest break, where the Arduino's gait-event state
+  machine can register one spurious stance-change while both feet are
+  stationary (the exact scenario the EWMA outlier clamp already exists
+  to keep out of `estSS`; see the 2026-06-28 fix). Not a genuine dropped
+  or duplicated walking stride, and not what the existing deficit
+  watchdog would flag (it only warns when the Arduino falls *behind*
+  MATLAB, i.e. a positive deficit; this was the opposite sign). MATLAB-
+  perceived double support this session had a median of 49 ms, roughly
+  *half* `timeDebounce` (100 ms) — under the old cross-leg debounce this
+  would have blanked nearly every toe-off; the per-leg version lost
+  nothing. The fix is now validated under a harder condition than any
+  prior session. (`auditHreflexStimTiming`'s firmware
+  fingerprint reports "inconclusive" for this trial, as expected for a
+  zero-drop session — see the fingerprint caveat in the 09-16 entry
+  above; the behavioral evidence above is the confirmation instead.)
+
+  Two unrelated tooling bugs surfaced during this session's analysis,
+  both fixed (no firmware change, no re-flash needed):
+  - `Hreflex.plotCal` (labTools `fun/+Hreflex/plotCal.m`) crashed with
+    *"Vectors must be the same length"* plotting the right leg's
+    normalized recruitment curve. Cause: the right-leg M-wave fit did
+    not saturate within the delivered 5–26 mA range (R² = 0.88, below
+    the caller's own 0.95 trust threshold, with `nlinfit`
+    rank-deficiency warnings); an unsaturated fit's third derivative is
+    monotonic over that range, so `findpeaks` legitimately returns empty
+    and the downstream `I_star`/`M_star` annotation lines had no guard
+    for it. Fixed by skipping the I\*/M\* annotation (with a
+    once-per-leg warning) when no third-derivative peak exists, and by
+    guarding every `fit.M.(legID)`/`fit.H.(legID)` dereference in the
+    file on the leg's fields actually existing — `Hreflex.fitCal` skips
+    a leg with no stimulation data entirely, so a one-leg session hit
+    the same class of "Reference to non-existent field" crash before
+    this fix.
+  - `LogForcesArduinoSerial.m`'s `readline` timeout guard
+    (`ismissing(rawLine) || rawLine == ""`) itself crashed with a `||`
+    non-scalar-operand error on a genuine timeout, before its own
+    intended, actionable error message could print. Root cause was
+    **not** a serial port conflict (ruled out: `serialport()` — which a
+    port already held open elsewhere would have failed instead —
+    succeeded; only the subsequent read timed out) but the ordinary,
+    expected case: `logForceData()` is commented out in production
+    firmware, so an as-flashed Arduino streams nothing for this script
+    to read. Fixed by checking `isempty` first, wording the error around
+    the actual cause, and tolerating a single transient gap (once real
+    data has started flowing) instead of aborting the whole run and
+    discarding everything already logged.
+
+  **Stim-timing precision:** the device-only on-target metric
+  (`|dtStimMs - estSSms/2|`, i.e. how precisely the Arduino hits its own
+  scheduled target) was sub-millisecond on every session with delivered
+  pulses (09-17: mean 0.49 ms, median 0.50 ms, max 0.95 ms, n = 120) —
+  this reflects the control loop's own scheduling precision, not true
+  placement within physiological single stance, since it compares the
+  fire time against the Arduino's own estimate rather than a ground-truth
+  boundary. **No Vicon capture of this session's walking trial exists**
+  to compute true %-single-stance placement: the only C3D produced today
+  (`Trial01.c3d` in TEST11's Nexus session) is the separate, standing
+  EMG-based recruitment-curve trial used by `GenerateHreflexRecruitmentCurves`,
+  not a capture of the gait-triggered `CalibrationFast` walking bout. The
+  best available proxy is the stored `pctSS` column (`deviceEcho` data,
+  one-stride-stale denominator — see the 09-14 entry above): left leg
+  mean 51.9%, median 50.3%, sd 6.4 pp (IQR [47.8, 54.6], n = 60, KS
+  normal, p = 0.28); right leg mean 52.0%, median 51.4%, sd 4.2 pp (IQR
+  [49.6, 53.5], n = 60, KS normal, p = 0.13). Per the 09-14 entry, this
+  denominator lag inflates apparent spread over the true value, so these
+  are upper bounds on placement variability, not the acceptance number.
+  Across every session with delivered pulses, the Arduino's smoothed
+  `estSS` ran longer than the immediately preceding measured `durSS` by
+  +13 to +51 ms (09-17: +13.1 ms L, mirrored on R); this is consistent
+  with (but not proven to be caused by) the `threshFzUp` heel-strike
+  registration lag discussed under 09-14, and could equally be ordinary
+  EWMA lag if stride duration trends within a trial. Resolving which
+  needs the Vicon ground truth this session doesn't have — **capture a
+  Vicon trial of the walking `CalibrationFast` bout itself**, not only
+  the standing recruitment-curve trial, at the next pilot.
+- **Firmware threshold analysis (2026-09-17, no `.ino` change made):**
+  quantified the open bits-to-newtons calibration item below using the
+  one archived Arduino bit-domain log
+  (`HreflexStimArduino/Troubleshooting_Arduino/force_data.csv`, July
+  2025): baseline noise is negligible (sd 0.09 bits, `threshFzDown = 2`
+  sits ~20 sd above it), and `threshFzUp = 30` bits is **~25.5% of
+  median peak stance force** (117–119 bits), not "~30 bits above
+  baseline" as the prior guidance implied — corroborating the 09-14
+  entry's inferred 280–320 N effective threshold at roughly 10 N/bit.
+  Because the threshold is a fixed bit value, that fraction of peak
+  scales inversely with participant weight across sessions: ~22% (09-02
+  fast, 1377 N peak) to ~54% (09-16, 563 N peak) to ~42% (09-17, 723 N
+  peak). At ~54% of peak, heel-strike registration lag grows and
+  perceived double support collapses — the same mechanism as the 09-14
+  fix, now with numbers attached. **Deliberately not changed this
+  pass:** today's flash is the first build validated under the
+  fast/light stress case, and any `.ino` edit forces a re-flash and the
+  full dry-run checklist below; the threshold change is deferred to land
+  together with a genuine bench bits-to-newtons calibration (step known
+  loads onto each plate while logging raw bits — see
+  `HreflexStimArduino/README.md`), so re-flash/re-validation happens
+  once, not twice. Decision rule for that pass: target `threshFzUp` at
+  ≤15% of the lightest expected participant's peak stance force, floored
+  at ≥10× the bench-measured baseline sd of the *current* plates
+  (the archived 0.09-bit figure is 14 months old and `.ino:31-33`'s own
+  TODO warns left-plate noise may now be worse), and re-check the
+  `estSS`-vs-`durSS` bias above after any change.
 - **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
   calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
   `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
@@ -306,7 +426,18 @@ confirm:
   the debounce risks blanking a genuine toe-off (see the
   margin-sensitivity table above); fast walking and a short-statured or
   light participant both shorten double support and are the conditions
-  to watch.
+  to watch. **Possibly obsolete for the per-leg debounce (open, as of
+  2026-09-17):** this margin was derived for the old *cross-leg*
+  debounce, which coupled the blanking risk to double-support duration
+  directly. The 2026-09-17 pilot delivered 120/120 gates with 0 drops
+  despite a MATLAB-*perceived* double support median of only 49 ms —
+  well under this check's implied floor — which is suggestive but not
+  conclusive, since perceived DS (frame-quantized, MATLAB clock) is not
+  the true (C3D) DS this check actually specifies, and that session has
+  no matching Vicon capture (see Study History). Re-evaluate this
+  threshold once a walking trial with matching ground truth confirms
+  true DS at a comparably short margin with 0 drops; don't relax it on
+  perceived-DS evidence alone.
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
   (see that folder's README for the firmware prerequisite) and confirm
   the printed baseline-noise-to-`threshFzUp` margin is clean and stance

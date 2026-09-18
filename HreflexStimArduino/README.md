@@ -361,22 +361,51 @@ If force traces look flat or noisy:
 - Confirm that the Bertec Sync software is running and the force plates are
   zeroed.
 - If the signal range is very small, the voltage may need to be amplified before
-  reaching the Arduino (10-bit ADC; stances should reach ~30 bits above
-  baseline).
+  reaching the Arduino (10-bit ADC; stances should reach roughly a quarter of
+  full peak-stance amplitude above baseline — see the calibration note below;
+  do not use a fixed bit count as the target, since the equivalent force it
+  represents scales with participant weight).
 
-**Bits-to-newtons calibration (open, 2026-09-14):** the "~30 bits above
-baseline" guidance above is a rough field estimate, not a bench measurement.
-Analysis of the 2026-09-08 pilot puts the firmware's *effective* stance-entry
-threshold at roughly 280-320 N of a ~940-1350 N peak stance force — i.e.,
-`threshFzUp = 30` bits maps to something like 280-320 N, much closer to full
-stance amplitude than "~30 bits above baseline" implies. That figure is
-inferred from two independent observables in a saved datlog (the `estSS` bias
-and the miss rate), not measured directly. A genuine bits-to-newtons
-calibration — step known loads onto each plate while logging raw `analogRead`
-bits with this script — is still needed to settle this and to tune
-`threshFzUp` with confidence; see `studies/SpinalAdapt/README.md`'s 2026-09-14
-fix for the full reasoning and the ~40 ms heel-strike registration lag this
-implies.
+**Bits-to-newtons calibration (open, updated 2026-09-17):** `threshFzUp = 30`
+bits is **not** "~30 bits above baseline" — analysis of the archived bench log
+`Troubleshooting_Arduino/force_data.csv` (July 2025, 42/43 clean stances) puts
+it at **~25.5% of that log's median peak stance force** (117-119 bits; 30/118
+= 25.4%), with negligible baseline noise (sd 0.09 bits, so `threshFzDown = 2`
+sits ~20 sd above it — noise is not the binding constraint in that log).
+Converting to newtons needs a scale estimate: the Arduino Uno's ADC is 10-bit
+(0-5 V, 1024 counts), and if the force-plate DAQ's analog conditioning maps
+its full range to that span, each count is roughly (range in N) / 1024 — for
+a ±10 kN Bertec Fz range, ~9.8 N/bit, call it **~10 N/bit**. Applying that
+scale to the threshold itself (not to peak stance, which was 118 bits, not
+30): `threshFzUp` = 30 bits x ~10 N/bit =~ 300 N, matching the 09-08-pilot-
+derived estimate below (280-320 N, from `estSS` bias and miss rate — an
+independent method) to within its own uncertainty. Because `threshFzUp` is
+fixed in bits, the fraction of peak force at which stance registers scales
+*inversely* with participant weight: ~22% of peak for a heavy/fast walker
+(09-02, 1377 N peak) up to ~54% for a light one (09-16, 563 N peak) — at ~54%
+of peak, heel-strike registration lag grows and perceived double support
+collapses (see `studies/SpinalAdapt/README.md`'s 2026-09-14 and 2026-09-17
+entries).
+
+Analysis of the 2026-09-08 pilot separately puts the firmware's *effective*
+stance-entry threshold at roughly 280-320 N of a ~940-1350 N peak stance
+force — inferred from two independent observables in a saved datlog (the
+`estSS` bias and the miss rate), not measured directly, but consistent with
+the ADC-spec estimate above (9.3-10.7 N/bit implied by 280-320 N over 30
+bits, versus ~9.8 N/bit from the ADC range alone). A
+genuine bits-to-newtons calibration — step known loads onto each plate while
+logging raw `analogRead` bits with this script — is still needed to settle
+this and to tune `threshFzUp` with confidence; see
+`studies/SpinalAdapt/README.md`'s 2026-09-14 fix for the full reasoning and
+the ~40 ms heel-strike registration lag this implies. **Decision rule for
+that calibration pass** (not yet applied — see
+`studies/SpinalAdapt/README.md`'s 2026-09-17 entry for why the change is
+deferred): target `threshFzUp` at no more than 15% of the *lightest* expected
+participant's peak stance force, floored at no less than 10x the
+bench-measured baseline sd of the *current* plates (the 0.09-bit figure above
+is 14 months old; the sketch's own `threshFzUp` comment warns left-plate noise
+may now be higher) — then re-check the `estSS`-vs-measured-single-stance bias
+after any change.
 
 ---
 
