@@ -1,24 +1,29 @@
 %RUNPROTOCOL_SPINALADAPTBOUTS Run the SpinalAdapt experimental session.
 %
-%   Current SpinalAdapt protocol structure: 13 conditions (2
-%   familiarization, 6 control bouts trials, 5 split bouts trials).
+%   Revised 2026-09-18: 13 conditions (1 tied fastest-speed trial, 2
+%   pre-adaptation bouts trials, 5 adaptation split bouts trials, 5
+%   post-adaptation bouts trials). The overground 6-minute walk test now
+%   runs first and sets the belt speeds for every other trial (via
+%   utils.extractSpeedsNMWT). Familiarization trials were removed.
 %   Verify all conditions against the final approved protocol before
-%   data collection.
-%   See History-PilotStudy2/ for the Pilot Study 2 original.
+%   data collection. See History-PilotStudy2/ for the Pilot Study 2
+%   original.
 %
-%   Guides the experimenter through profile generation, pre- and post-
-%   session H-reflex calibration trials, all conditions in sequence, and
-%   post-session data transfer to the server. Edit the EXPERIMENTER
-%   section below before each session run.
+%   Guides the experimenter through the 6-minute walk test, profile
+%   generation, pre- and post-session H-reflex calibration trials, all
+%   conditions in sequence, and post-session data transfer to the
+%   server. Edit the EXPERIMENTER section below before each session run.
 %
 % Toolbox Dependencies:
 %   None (external: AdaptationGUI, Vicon Nexus, labTools dataMotion)
 %
-% See also GENERATEPROFILES_SPINALADAPTBOUTS, RUNWALKINGCALIBRATIONS,
+% See also GENERATEPROFILES_SPINALADAPTBOUTS,
+%   GENERATEPROFILE_SIXMINUTEWALK, RUNWALKINGCALIBRATIONS,
 %   TRANSFERDATA_SPINALADAPTBOUTS.
 
 %% EXPERIMENTER: Enter Subject-Specific Parameters Before Each Session
-speedProportion = 0.5;  % slow / fast speed ratio
+speedProportion        = 0.5;  % slow / 6MWT speed ratio
+speedProportionFastest = 1.5;  % fastest / 6MWT speed ratio
 
 % for stroke participants use SASS01V01 (Sub##V## format)
 subjectID = 'SAYA01';   % SAYA##V## for young, SASS##V## for stroke, SAMC
@@ -26,19 +31,14 @@ subjectID = 'SAYA01';   % SAYA##V## for young, SASS##V## for stroke, SAMC
 fastLeg = 'R'; % 'R' or 'L'; for healthy: dominant leg; for stroke:
 % non-paretic (session 1) or paretic (session 2).
 
-% Compute fastSpeed from the N-Minute Walk Test (NMWT): opens a dialog
-% to collect raw walk test measurements and returns the participant's
-% comfortable overground walking speed (m/s), used as the fast belt speed.
-fastSpeed = utils.extractSpeedsNMWT();
-slowSpeed = fastSpeed * speedProportion;
+dirProfile = fullfile( ...
+    'C:\Users\Public\Documents\MATLAB\ExperimentalGUI', ...
+    'profiles', 'SpinalAdaptNirsStudy', subjectID);
 
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now', 'InputFormat', 'dd-MMM-yyyy HH:mm:ss');
 
-%% Generate Speed Profiles From Experimenter Input
-dirProfile = fullfile( ...
-    'C:\Users\Public\Documents\MATLAB\ExperimentalGUI', ...
-    'profiles', 'SpinalAdaptNirsStudy', subjectID);
+%% Confirm Fast Leg Assignment
 answer = 'Yes';                     % default to 'yes', don't check it
 if contains(subjectID, 'V01')
     answer = questdlg(['Visit 1: Fast leg should be NON-paretic / ' ...
@@ -49,27 +49,6 @@ elseif contains(subjectID, 'V02')
 end
 if ~strcmp(answer, 'Yes')
     return;         % abort: fix the fast leg assignment first
-end
-
-opts.Interpreter = 'tex';
-opts.Default     = 'No, I generated them already';
-profileToGen = questdlg(['Regenerate profile? Confirm speed and ' ...
-    'subject ID are correct in RunProtocol_SpinalAdaptBouts.m '], ...
-    'RegenProfile', 'Yes', 'No, I generated them already', opts);
-switch profileToGen
-    case 'Yes'
-        answer = questdlg(['Just to double check: now create profile ' ...
-            'where the fast leg is ' fastLeg ' Is that correct?']);
-        if ~strcmp(answer, 'Yes')
-            return;     % abort: fix fast leg assignment
-        end
-        generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
-            dirProfile, fastLeg);
-    case 'No, I generated them already'
-        disp('Profile generated already. Continue with the experiments');
-    otherwise
-        disp('No response given, quit the script now.');
-        return;
 end
 
 %% Set Up the GUI and Define Session Constants
@@ -91,27 +70,74 @@ ctrlSlotOgWalkTest  = 8;    % GUI slot: HreflexOGWithAudio, no stim
 pauseTransferSec    = 60;   % s; allows Vicon to stop and save last trial
 
 %% Complete Overground 6-Minute Walk Test
-% One-time trial at the very start of the session; not part of the
-% numbered condition switch below since it isn't one of the 13 main
-% protocol conditions. Self-paced (NaN profile) — answer 'No' to the
-% audio feedback prompt below so the participant walks at their own pace.
-handles.popupmenu2.set('Value', ctrlSlotOgWalkTest);
-profilename = fullfile(dirProfile, 'SixMinuteWalk.mat');
-manualLoadProfile([], [], handles, profilename);
-answer = questdlg(['Confirm controller is Overground audio speed ' ...
-    'feedback and profile is SixMinuteWalk. When prompted for audio ' ...
-    'feedback, answer No (self-paced 6-minute walk test).']);
-if ~strcmp(answer, 'Yes')
-    return;
+% First trial of the session: sets the belt speeds used for every other
+% trial (see Compute Speeds and Generate Speed Profiles below). Not one
+% of the 13 numbered conditions in the switch further down. Guarded by a
+% questdlg so resuming a session mid-way does not force a redundant
+% six-minute walk. Self-paced (NaN profile) -- answer 'No' to the audio
+% feedback prompt below so the participant walks at their own pace.
+runWalkTest = questdlg(['Run the overground 6-minute walk test now? ' ...
+    'Select No if resuming a session and it is already done.']);
+if strcmp(runWalkTest, 'Yes')
+    generateProfile_SixMinuteWalk(dirProfile);
+    handles.popupmenu2.set('Value', ctrlSlotOgWalkTest);
+    profilename = fullfile(dirProfile, 'SixMinuteWalk.mat');
+    manualLoadProfile([], [], handles, profilename);
+    answer = questdlg(['Confirm controller is Overground audio speed ' ...
+        'feedback and profile is SixMinuteWalk. When prompted for ' ...
+        'audio feedback, answer No (self-paced 6-minute walk test).']);
+    if ~strcmp(answer, 'Yes')
+        return;
+    end
+    AdaptationGUI('Execute_button_Callback', ...
+        handles.Execute_button, [], handles);
+    % manually stop in the GUI once six minutes of walking have elapsed
+elseif isempty(runWalkTest)
+    return;         % Cancel/closed: end the experiment
 end
-AdaptationGUI('Execute_button_Callback', ...
-    handles.Execute_button, [], handles);
-% manually stop in the GUI once six minutes of walking have elapsed
+% 'No' falls through here: skip the walk test, continue to speed setup
+
+%% Compute Speeds and Generate Speed Profiles
+% The walk-test speeds are only needed to (re)generate profiles, so
+% 'utils.extractSpeedsNMWT' is called only in the 'Yes' branch below
+% (after the walk test above), not unconditionally at the top of the
+% script -- letting a resumed session skip this dialog entirely.
+opts.Interpreter = 'none';
+opts.Default     = 'No, I generated them already';
+profileToGen = questdlg(['Regenerate profile? Confirm subject ID ' ...
+    'and fast leg are correct in RunProtocol_SpinalAdaptBouts.m, ' ...
+    'and that the 6-minute walk test above is complete.'], ...
+    'RegenProfile', 'Yes', 'No, I generated them already', opts);
+switch profileToGen
+    case 'Yes'
+        answer = questdlg(['Just to double check: now create profile ' ...
+            'where the fast leg is ' fastLeg ' Is that correct?']);
+        if ~strcmp(answer, 'Yes')
+            return;     % abort: fix fast leg assignment
+        end
+        speedNMWT    = utils.extractSpeedsNMWT();
+        slowSpeed    = speedNMWT * speedProportion;
+        fastSpeed    = speedNMWT;
+        fastestSpeed = speedNMWT * speedProportionFastest;
+        fprintf(['NMWT speed: %.3f m/s | slow: %.3f m/s | fast: ' ...
+            '%.3f m/s | fastest: %.3f m/s\n'], speedNMWT, slowSpeed, ...
+            fastSpeed, fastestSpeed);
+        generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
+            fastestSpeed, dirProfile, fastLeg);
+    case 'No, I generated them already'
+        disp('Profile generated already. Continue with the experiments');
+    otherwise
+        disp('No response given, quit the script now.');
+        return;
+end
 
 %% Complete Pre-Session H-Reflex Walking Calibration Trials
+speedDefault  = 'Slow'; % protocol order: slow calibration trial first
 isCalibration = true;   % run at least once (slow & fast speeds)
 while isCalibration     % repeat until experimenter selects 'No'
-    isCalibration = runWalkingCalibrations(handles, dirProfile);
+    isCalibration = runWalkingCalibrations(handles, dirProfile, ...
+        speedDefault);
+    speedDefault = 'Fast'; % after the slow trial, default to fast
 end
 
 %% Run the Main SpinalAdapt Protocol Conditions
@@ -127,9 +153,10 @@ while currCon < maxCon
             currCon = currCon + 1;
         elseif strcmp(nextConButton, 'No')
             currCon = inputdlg(['Which condition do you want to start' ...
-                ' from (1 = Familiarization slow, 2 = Familiarization ' ...
-                'fast, 3 = 1st control trial, 4 = 1st split trial, ' ...
-                'enter the number from the 1st col on the data sheet)?']);
+                ' from (1 = Tied fastest, 2 = Pre-adapt fast, ' ...
+                '3 = Pre-adapt slow, 4 = 1st adaptation split, ' ...
+                '9 = 1st post-adaptation, enter the number from the ' ...
+                '1st col on the data sheet)?']);
             disp(['Starting from condition #' currCon{1}]);
             currCon = str2double(currCon{1});
         else
@@ -138,46 +165,21 @@ while currCon < maxCon
     else
         isFirstCon = false;
         currCon = inputdlg(['Which condition do you want to start' ...
-            ' from (1 = Familiarization slow, 2 = Familiarization ' ...
-            'fast, 3 = 1st control trial, 4 = 1st split trial, ' ...
-            'enter the number from the 1st col on the data sheet)?']);
+            ' from (1 = Tied fastest, 2 = Pre-adapt fast, ' ...
+            '3 = Pre-adapt slow, 4 = 1st adaptation split, ' ...
+            '9 = 1st post-adaptation, enter the number from the 1st ' ...
+            'col on the data sheet)?']);
         disp(['Starting from condition #' currCon{1}]);
         currCon = str2double(currCon{1});
     end
 
     switch currCon
-        case 1          % Familiarization Slow (Tied)
+        case 1          % Tied Fastest (150% of 6MWT, no ramp, no stim)
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'FamBoutsSlow.mat');
+            profilename = fullfile(dirProfile, 'TiedFastest.mat');
             manualLoadProfile([], [], handles, profilename);
             answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop with audio countdown and profile is ' ...
-                'FamBoutsSlow']);
-            if ~strcmp(answer, 'Yes')
-                return;
-            end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button, [], handles);
-            % no fixed break here — proceed immediately in GUI
-        case 2          % Familiarization Fast (Tied)
-            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'FamBoutsFast.mat');
-            manualLoadProfile([], [], handles, profilename);
-            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop with audio countdown and profile is ' ...
-                'FamBoutsFast']);
-            if ~strcmp(answer, 'Yes')
-                return;
-            end
-            AdaptationGUI('Execute_button_Callback', ...
-                handles.Execute_button, [], handles);
-            % no fixed break here — proceed immediately in GUI
-        case {3, 9, 10, 11, 12, 13} % Control Bouts (Tied)
-            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'CtrlBouts.mat');
-            manualLoadProfile([], [], handles, profilename);
-            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop with audio and profile is CtrlBouts']);
+                'Open loop with audio and profile is TiedFastest']);
             if ~strcmp(answer, 'Yes')
                 return;
             end
@@ -185,12 +187,51 @@ while currCon < maxCon
                 handles.Execute_button, [], handles);
             pause(pauseBetweenTrials);  % break for ~90 s wall clock
             play(AudioTimeUp);
-        case {4, 5, 6, 7, 8}        % Split Bouts Trials 1-8
+        case 2          % Pre-Adaptation Fast (tied, 100% of 6MWT)
             handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
-            profilename = fullfile(dirProfile, 'SplitBouts.mat');
+            profilename = fullfile(dirProfile, 'PreAdaptFast.mat');
             manualLoadProfile([], [], handles, profilename);
             answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
-                'Open loop with audio and profile is SplitBouts']);
+                'Open loop with audio and profile is PreAdaptFast']);
+            if ~strcmp(answer, 'Yes')
+                return;
+            end
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button, [], handles);
+            pause(pauseBetweenTrials);  % break for ~90 s wall clock
+            play(AudioTimeUp);
+        case 3          % Pre-Adaptation Slow (tied, 50% of 6MWT)
+            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
+            profilename = fullfile(dirProfile, 'PreAdaptSlow.mat');
+            manualLoadProfile([], [], handles, profilename);
+            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
+                'Open loop with audio and profile is PreAdaptSlow']);
+            if ~strcmp(answer, 'Yes')
+                return;
+            end
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button, [], handles);
+            pause(pauseBetweenTrials);  % break for ~90 s wall clock
+            play(AudioTimeUp);
+        case {4, 5, 6, 7, 8}    % Adaptation Split Bouts 1-5
+            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
+            profilename = fullfile(dirProfile, 'AdaptSplit.mat');
+            manualLoadProfile([], [], handles, profilename);
+            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
+                'Open loop with audio and profile is AdaptSplit']);
+            if ~strcmp(answer, 'Yes')
+                return;
+            end
+            AdaptationGUI('Execute_button_Callback', ...
+                handles.Execute_button, [], handles);
+            pause(pauseBetweenTrials);  % break for ~90 s wall clock
+            play(AudioTimeUp);
+        case {9, 10, 11, 12, 13}   % Post-Adaptation Slow Bouts 1-5
+            handles.popupmenu2.set('Value', ctrlSlotNirsHreflex);
+            profilename = fullfile(dirProfile, 'PostAdaptSlow.mat');
+            manualLoadProfile([], [], handles, profilename);
+            answer = questdlg(['Confirm controller is Nirs, Hreflex, ' ...
+                'Open loop with audio and profile is PostAdaptSlow']);
             if ~strcmp(answer, 'Yes')
                 return;
             end
@@ -202,7 +243,7 @@ while currCon < maxCon
 end
 
 %% Complete End-of-Session H-Reflex Walking Calibration Trials
-isCalibration = runWalkingCalibrations(handles, dirProfile);
+isCalibration = runWalkingCalibrations(handles, dirProfile, 'Slow');
 
 %% Transfer Session Data to Server
 % pauseTransferSec allows Vicon Nexus to stop and save the last C3D file
