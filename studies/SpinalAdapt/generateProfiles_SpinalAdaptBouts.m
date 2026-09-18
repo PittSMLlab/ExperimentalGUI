@@ -45,12 +45,6 @@ if ~exist(profileDir, 'dir')
     mkdir(profileDir);
 end
 
-%% Generate Overground 6-Minute Walk Test Profile
-% Speed-independent (all-NaN, self-paced), so it is factored into its own
-% function that the protocol script can call before speeds are known.
-% Called here too so a full profile regeneration stays a single call.
-generateProfile_SixMinuteWalk(profileDir);
-
 %% Define H-Reflex Walking Calibration Constants
 calibStrides       = 400;   % strides; H-reflex calib trial length
 calibSettleStrides = 5;     % strides; no-stim period at calib start
