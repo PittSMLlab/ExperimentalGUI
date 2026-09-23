@@ -118,6 +118,8 @@ ctrlSlotAudioCountDown = 11;  % GUI slot: audio-countdown controller,
                                % AudioCountDown)
 ctrlSlotOgWalkTest     = 8;   % GUI slot: HreflexOGWithAudio, no stim
 pauseTransferSec       = 60;  % s; allows Vicon to stop and save last trial
+mmPerM                 = 1000; % m/s to mm/s, as AdaptationGUI converts
+                               % profiles (round(v * 1000)) for display
 
 %% Complete Overground 6-Minute Walk Test
 % First trial of the session: sets the belt speeds used for every other
@@ -194,13 +196,27 @@ else
         'RegenProfile', 'Yes', 'No, I generated them already', opts);
     switch profileToGen
         case 'Yes'
-            speedNMWT    = utils.extractSpeedsNMWT();
+            [speedNMWT, ~, inputsNMWT] = utils.extractSpeedsNMWT();
             slowSpeed    = speedNMWT * speedProportion;
             fastSpeed    = speedNMWT;
             fastestSpeed = speedNMWT * speedProportionFastest;
-            fprintf(['NMWT speed: %.3f m/s | slow: %.3f m/s | fast: ' ...
-                '%.3f m/s | fastest: %.3f m/s\n'], speedNMWT, ...
-                slowSpeed, fastSpeed, fastestSpeed);
+            % echo the walk-test arithmetic, so a lap- or tape-unit entry
+            % error is visible at entry time, then each derived belt
+            % speed in m/s and in the integer mm/s actually commanded
+            signTape = '+';
+            if ~inputsNMWT.shouldAdd
+                signTape = '-';
+            end
+            fprintf(['6MWT: %g laps x %g m %s %g in = %.2f m in %g ' ...
+                'min -> %.3f m/s\n'], inputsNMWT.numLaps, ...
+                inputsNMWT.distWalkway, signTape, ...
+                inputsNMWT.distInches, inputsNMWT.distNMWT, ...
+                inputsNMWT.durationMin, speedNMWT);
+            fprintf(['slow %.3f m/s (%d mm/s) | fast %.3f m/s (%d ' ...
+                'mm/s) | fastest %.3f m/s (%d mm/s)\n'], slowSpeed, ...
+                round(slowSpeed * mmPerM), fastSpeed, ...
+                round(fastSpeed * mmPerM), fastestSpeed, ...
+                round(fastestSpeed * mmPerM));
             generateProfiles_SpinalAdaptBouts(slowSpeed, fastSpeed, ...
                 fastestSpeed, dirProfile);
         case 'No, I generated them already'
