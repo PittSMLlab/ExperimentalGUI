@@ -2,12 +2,14 @@ function transferData_SpinalAdaptBouts(participantID, threshTime)
 %TRANSFERDATA_SPINALADAPTBOUTS Transfer PC1 data for the SpinalAdapt study.
 %
 %   Recursively copies Vicon, NIRS, speed profile, and data-log files to
-%   the server (W:\SpinalAdaptStudy\), creating non-existent destination
-%   folders as needed, then creates analysis-ready subdirectories for
-%   future processing.
+%   the server (W:\Chase\SpinalAdapt\, study root since 2026-09-22),
+%   creating non-existent destination folders as needed, then creates
+%   the Results analysis folder. The Vicon Nexus session folder must be
+%   named after the participant, i.e.,
+%   ...\Vicon Training\SpinalAdaptStudy\<participantID>\<participantID>.
 %
 % Inputs:
-%   participantID - char or string; participant ID (e.g., 'SABH08',
+%   participantID - char or string; participant ID (e.g., 'SAYA01',
 %                   'SAS01V01')
 %   threshTime    - datetime; only files newer than this timestamp are
 %                   transferred (typically set at session start)
@@ -16,7 +18,7 @@ function transferData_SpinalAdaptBouts(participantID, threshTime)
 %   None
 %
 % Toolbox Dependencies:
-%   None (calls utils.transferDataSess from labTools)
+%   None (calls UTILS.TRANSFERDATASESS in this repository's +utils)
 %
 % See also RUNPROTOCOL_SPINALADAPTBOUTS, UTILS.TRANSFERDATASESS.
 
@@ -30,9 +32,11 @@ dirExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
 dirProfiles = fullfile(dirExpGUI, 'profiles', 'SpinalAdaptNirsStudy', ...
     participantID);
 dirNIRS = 'C:\Users\cntctsml\Documents\Oxysoft Data\SpinalAdaptStudy';
+% Nexus session folder is named after the participant (it was 'New
+% Session' before 2026-09-22; SAYA90's was already SAYA90\SAYA90)
 dirData = fullfile(['C:\Users\Public\Documents\Vicon Training\' ...
-    'SpinalAdaptStudy'], participantID, 'New Session');
-dirSrvrSpinalAdapt = 'W:\SpinalAdaptStudy';
+    'SpinalAdaptStudy'], participantID, participantID);
+dirSrvrSpinalAdapt = 'W:\Chase\SpinalAdapt';
 dirSrvrData        = fullfile(dirSrvrSpinalAdapt, 'Data', participantID);
 dirSrvrRaw         = fullfile(dirSrvrSpinalAdapt, 'RawBackupData', ...
     participantID);
@@ -67,10 +71,10 @@ end
 % TODO: update to automatically rename data logs by trial name for C3D2MAT
 
 %% Create Analysis Directories
+% SyncFiles/ and NASATLX/ were dropped 2026-09-22 (not used by the
+% rebooted study)
 pathsCreate = {
     fullfile(dirSrvrData, 'Results')
-    fullfile(dirSrvrData, 'SyncFiles')
-    fullfile(dirSrvrData, 'NASATLX')
     };
 
 for ii = 1:length(pathsCreate)

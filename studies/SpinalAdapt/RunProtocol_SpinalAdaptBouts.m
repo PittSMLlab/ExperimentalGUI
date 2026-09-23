@@ -27,6 +27,14 @@
 %   visit) naturally transfers the speed profiles to the server only
 %   once, at the end of visit 1.
 %
+%   Revised 2026-09-22: before every numbered condition, a local guard
+%   (checkProfileBeforeExecute, end of file) reads the controller
+%   actually selected in the GUI and the profile's stim schedule from
+%   disk, refuses a pairing that would misbehave (e.g., a no-stim
+%   profile on the NIRS/H-reflex controller), and shows the
+%   experimenter the controller, belt speeds, and stim-stride counts to
+%   confirm before the trial starts.
+%
 %   Guides the experimenter through the 6-minute walk test, profile
 %   generation, pre- and post-session H-reflex calibration trials, all
 %   conditions in sequence, and post-session data transfer to the
@@ -43,8 +51,13 @@
 speedProportion        = 0.5;  % slow / 6MWT speed ratio
 speedProportionFastest = 1.5;  % fastest / 6MWT speed ratio
 
-% for stroke participants use SASS01V01 (Part##V## format)
-participantID = 'SAYA01'; % SAYA##V## young, SASS##V## stroke, SAMC
+% Participant ID formats: SAYA## (neurologically intact young adults),
+% SAS##V## (stroke, two visits -- the V01/V02 suffix drives the
+% two-visit logic below), SAMC. SABH## identifies Pilot Study 2 and
+% earlier data. Name the Vicon Nexus session folder after the
+% participant ID too (...\SpinalAdaptStudy\<ID>\<ID>), which
+% TRANSFERDATA_SPINALADAPTBOUTS expects at the end of the session.
+participantID = 'SAYA01';
 
 fastLeg = 'R'; % 'R' or 'L'; for healthy: dominant leg; for stroke:
 % non-paretic (visit 1) or paretic (visit 2).
@@ -344,6 +357,7 @@ toc;
 % visit for the two-visit stroke protocol, matching
 % TRANSFERDATA_SPINALADAPTBOUTS's own per-visit dirSrvrData.
 tic;
-dirSrvrData = fullfile('W:\SpinalAdaptStudy\Data', participantID, 'Vicon');
+dirSrvrData = fullfile('W:\Chase\SpinalAdapt\Data', participantID, ...
+    'Vicon');
 dataMotion.processAndFillMarkerGapsSession(dirSrvrData);
 toc;
