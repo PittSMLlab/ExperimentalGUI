@@ -614,9 +614,10 @@ switch(selection)
             round(velR*1000), forceThreshold, shortName, mode, ...
             [], [], [], trialOptions{currTrial});
 
-    case 14 % open-loop NIRS logging; Arduino stim every 10 strides
-        % (stim cadence set inside the controller); optionally has timed
-        % rest breaks; event timing auto-generated from velL and velR.
+    case 14 % open-loop NIRS logging; Arduino stim per the profile's
+        % stimL/stimR schedule (every 10th stride only if the profile has
+        % no schedule at all); optionally has timed rest breaks; event
+        % timing auto-generated from velL and velR.
         disp('Short Split Train Nirs Protocol');
         global numAudioCountDown % default [-1] (Shuqi 1/19/2022)
         global isCalibration % default false, not calibration (SL 5/7/2024)
