@@ -62,7 +62,10 @@ function report = auditHreflexStimTiming(datlogPath, options)
 %
 % Outputs:
 %   report - struct:
-%          .accounting - per-leg/total gates vs delivered vs dropped
+%          .accounting - per-leg/total gates vs delivered vs dropped, with
+%                 a per-leg isFinalGateEchoLost flag for the known
+%                 teardown signature (one unaccounted gate, the leg's
+%                 last, sent after its last echo)
 %          .dropClassification - per-drop-row leg/ardStep/dtStimMs/kind
 %          .onTarget - per-delivered-pulse abs(dtStimMs - estSSms/2) and
 %                 summary stats (device-only; no C3D required)
@@ -72,12 +75,13 @@ function report = auditHreflexStimTiming(datlogPath, options)
 %                 confirm which firmware build actually produced this
 %                 datlog without needing lab access to the Arduino
 %          .groundTruth - [] if options.C3DPath was not given, else a
-%                 struct with per-leg stride-count deficit, true double
-%                 support, estSS bias, toe-off reference error, true
-%                 placement (%SS), and a corrected stim-to-stride
-%                 mapping (ardStep/trueStrideIdx/pctSS per delivered
-%                 pulse) for re-deriving an intensity schedule from
-%                 actual stride index rather than an assumed one
+%                 struct with per-leg stride-count deficit (within
+%                 walking bouts only; rest-spanning gaps reported
+%                 separately), true double support, estSS bias, toe-off
+%                 reference error, true placement (%SS), and a corrected
+%                 stim-to-stride mapping (ardStep/trueStrideIdx/pctSS per
+%                 delivered pulse) for re-deriving an intensity schedule
+%                 from actual stride index rather than an assumed one
 %
 % Toolbox Dependencies: BTK (btkReadAcquisition, btkGetAnalogs,
 %          btkGetAnalogFrequency, btkDeleteAcquisition) if
@@ -206,7 +210,9 @@ function legOut = legAccounting(gateRows,echo,drop,legNum)
 %   legNum   - 1 (left) or 2 (right); matches echo/drop column 1
 %
 % Outputs:
-%   legOut - struct with nGates, nDelivered, nDropped, nUnaccounted
+%   legOut - struct with nGates, nDelivered, nDropped, nUnaccounted, and
+%          isFinalGateEchoLost (true when the one unaccounted gate is the
+%          leg's last, sent after its last echo: the teardown signature)
 %
 % Toolbox Dependencies: None
 %
@@ -216,6 +222,22 @@ legOut.nGates       = size(gateRows,1);
 legOut.nDelivered   = sum(echo(:,1) == legNum);
 legOut.nDropped     = sum(drop(:,1) == legNum);
 legOut.nUnaccounted = legOut.nGates - legOut.nDelivered - legOut.nDropped;
+
+% A single unaccounted gate sent after the last echo MATLAB read for this
+% leg is the known teardown signature (2026-09-18 pilot, every bout
+% trial): the final bout's pulse fires during the controller's blocking
+% final rest, and before the 2026-09-22 teardown drain its echo was then
+% discarded by the closing flush(portArduino). A logging loss, not a
+% skipped stim -- confirm with the C3D trigger-sync edge count
+% (groundTruth.legL/R.nPulses). Needs the resolution timestamp column
+% (10), which datlogs before 2026-08-06 lack.
+legOut.isFinalGateEchoLost = false;
+if legOut.nUnaccounted == 1 && size(echo,2) >= 10 && size(drop,2) >= 10
+    resolvedTimes = [echo(echo(:,1) == legNum,10); ...
+        drop(drop(:,1) == legNum,10)];
+    legOut.isFinalGateEchoLost = isempty(resolvedTimes) || ...
+        gateRows(end,3) > max(resolvedTimes);
+end
 
 end
 
@@ -348,7 +370,7 @@ gateLeadMs  = [datlog.diagnostics.gateLeadMsL(:); ...
     datlog.diagnostics.gateLeadMsR(:)];
 
 loopTiming.iterTotalMedianMs = median(iterTotalMs,'omitnan');
-loopTiming.iterTotalP95Ms    = prctile(iterTotalMs,95);
+loopTiming.iterTotalP95Ms    = percentileCore(iterTotalMs,95);
 loopTiming.iterTotalMaxMs    = max(iterTotalMs,[],'omitnan');
 if isempty(gateLeadMs) % min([]) returns [] rather than NaN (see the
     % matching onTarget.maxMs guard above); a zero-gate trial must still
@@ -359,6 +381,40 @@ else
 end
 loopTiming.gateLeadMeanMs    = mean(gateLeadMs,'omitnan');
 loopTiming.nGateLeadBelow30Ms = sum(gateLeadMs < lowMarginMs);
+
+end
+
+function q = percentileCore(x,p)
+%PERCENTILECORE Percentile of a vector using core MATLAB only.
+%
+%   Reproduces prctile's default method for a vector -- each sorted value
+%   sits at the 100*(k - 0.5)/n percentile, with linear interpolation
+%   between them and the minimum/maximum returned outside that range --
+%   so this tool needs no Statistics and Machine Learning Toolbox on the
+%   older MATLAB releases in the supported R2021a+ window. NaNs are
+%   ignored.
+%
+% Inputs:
+%   x - numeric vector
+%   p - scalar percentile in [0, 100]
+%
+% Outputs:
+%   q - scalar percentile of x (NaN if x has no non-NaN values)
+%
+% Toolbox Dependencies: None
+%
+% See also CHECKLOOPTIMING.
+
+x = sort(x(~isnan(x(:))));
+n = numel(x);
+if n == 0
+    q = NaN;
+elseif n == 1
+    q = x;
+else
+    pctAt = 100 * ((1:n)' - 0.5) / n;  % percentile at each sorted value
+    q = interp1(pctAt,x,min(max(p,pctAt(1)),pctAt(end)));
+end
 
 end
 
@@ -413,6 +469,16 @@ drop = datlog.stim.deviceDrop.data;
 echo = datlog.stim.deviceEcho.data;
 gateByLeg = {datlog.stim.L, datlog.stim.R};
 legLabel  = {'L','R'};
+
+% a datlog from before 2026-08-06 has no resolution timestamp (column 10)
+% to pair gates with echoes, so it cannot be fingerprinted
+if size(echo,2) < 10 || size(drop,2) < 10
+    fingerprint = struct('latencyMedianMsL',NaN,'nInOldBandL',0, ...
+        'nInNewBandL',0,'latencyMedianMsR',NaN,'nInOldBandR',0, ...
+        'nInNewBandR',0,'verdict',['inconclusive (datlog predates ' ...
+        'resolution timestamps, before 2026-08-06)']);
+    return;
+end
 
 fingerprint = struct();
 nOldTotal = 0;
@@ -533,13 +599,68 @@ groundTruth.doubleSupportMs.nBelowDebounce = ...
 ss1 = extractIntervals(load1 & ~load2,fsHz,0.15);
 ss2 = extractIntervals(load2 & ~load1,fsHz,0.15);
 
+% profile strides with both belts stopped (the bout-to-bout rest pads);
+% empty for continuous-walking profiles such as the calibration trials
+restStrides = find(datlog.speedprofile.velL(:) == 0 & ...
+    datlog.speedprofile.velR(:) == 0);
+
 echo = datlog.stim.deviceEcho.data;
-groundTruth.legL = matchLegGroundTruth(echo,1,pulseL,ss1,ss2,fsHz);
-groundTruth.legR = matchLegGroundTruth(echo,2,pulseR,ss1,ss2,fsHz);
+groundTruth.legL = matchLegGroundTruth(echo,1,pulseL,ss1,ss2,fsHz, ...
+    deliveredGateSteps(datlog,1),restStrides);
+groundTruth.legR = matchLegGroundTruth(echo,2,pulseR,ss1,ss2,fsHz, ...
+    deliveredGateSteps(datlog,2),restStrides);
 
 trueSSAll = [groundTruth.legL.trueSSDurMs; groundTruth.legR.trueSSDurMs];
 estSSAll  = [echo(echo(:,1) == 1,6); echo(echo(:,1) == 2,6)];
 groundTruth.estSSBiasMs = mean(estSSAll,'omitnan') - mean(trueSSAll,'omitnan');
+
+end
+
+function gateSteps = deliveredGateSteps(datlog,legNum)
+%DELIVEREDGATESTEPS Profile stride index of the gate behind each echo.
+%
+%   A delivered echo's own MATLAB step (deviceEcho column 3) is read when
+%   the echo is DRAINED, which for a bout's last pulse happens only after
+%   the controller's blocking rest -- by then the step count has already
+%   jumped to the next bout. The gate's step (stim.L/R column 1, logged
+%   when the gate is sent) is the stride the pulse actually belongs to.
+%   Gates resolve in the order sent, so deliveries and drops are merged
+%   chronologically (column 10, the echo read time) and matched
+%   positionally to the leg's gates -- the same pairing
+%   CHECKFIRMWAREFINGERPRINT uses. A datlog without column 10 (before
+%   2026-08-06) falls back to column 3.
+%
+% Inputs:
+%   datlog - struct with stim.L, stim.R, stim.deviceEcho.data, and
+%          stim.deviceDrop.data (normalized to zeros(0,10) if empty)
+%   legNum - 1 (left) or 2 (right)
+%
+% Outputs:
+%   gateSteps - Kx1 gate step for each of this leg's delivered echoes,
+%          in echo order (K = number of those echoes matched to a gate)
+%
+% Toolbox Dependencies: None
+%
+% See also CHECKGROUNDTRUTH, STRIDECOUNTDEFICIT.
+
+echo = datlog.stim.deviceEcho.data;
+drop = datlog.stim.deviceDrop.data;
+echoLeg = echo(echo(:,1) == legNum,:);
+if size(echo,2) < 10 || size(drop,2) < 10
+    gateSteps = echoLeg(:,3);
+    return;
+end
+if legNum == 1
+    gateRows = datlog.stim.L;
+else
+    gateRows = datlog.stim.R;
+end
+dropLeg = drop(drop(:,1) == legNum,:);
+resolved = sortrows([echoLeg(:,10) ones(size(echoLeg,1),1); ...
+    dropLeg(:,10) zeros(size(dropLeg,1),1)],1);
+nMatch = min(size(gateRows,1),size(resolved,1));
+isDelivered = resolved(1:nMatch,2) == 1;
+gateSteps = gateRows(isDelivered,1);
 
 end
 
@@ -632,7 +753,8 @@ iv   = [startIdx(keep) endIdx(keep)];
 
 end
 
-function legOut = matchLegGroundTruth(echo,legNum,pulses,ss1,ss2,fsHz)
+function legOut = matchLegGroundTruth(echo,legNum,pulses,ss1,ss2,fsHz, ...
+    gateSteps,restStrides)
 %MATCHLEGGROUNDTRUTH One leg's ground-truth checks against its stim pulses.
 %
 %   Auto-detects which of the two candidate single-stance interval sets
@@ -656,6 +778,11 @@ function legOut = matchLegGroundTruth(echo,legNum,pulses,ss1,ss2,fsHz)
 %   ss1, ss2 - Px2 / Qx2 candidate single-stance interval sets (samples),
 %          one derived from each force plate
 %   fsHz   - C3D analog sample rate (Hz)
+%   gateSteps - profile stride index of the gate behind each of this
+%          leg's delivered echoes, in echo order (see DELIVEREDGATESTEPS)
+%   restStrides - profile stride indices with both belts stopped (rest
+%          pads); gaps between pulses that span one are excluded from the
+%          stride-count deficit (see STRIDECOUNTDEFICIT)
 %
 % Outputs:
 %   legOut - struct:
@@ -672,8 +799,14 @@ function legOut = matchLegGroundTruth(echo,legNum,pulses,ss1,ss2,fsHz)
 %                 clock) minus (true single-stance onset time), ms
 %          .strideDeficit, .strideTotal - the Arduino stride-count
 %                 deficit (see AUDITHREFLEXSTIMTIMING) and its
-%                 denominator (true strides elapsed between the first
-%                 and last delivered pulse)
+%                 denominator (true strides elapsed between consecutive
+%                 delivered pulses), both over gaps WITHIN a walking bout
+%                 only -- the acceptance number
+%          .restGaps - struct for gaps that span a rest pad, which are
+%                 excluded above: n, sumPositive, nNegative (standing
+%                 weight shifts at a rest can register as a spurious
+%                 stance change on either the Arduino or the force-plate
+%                 side, in either direction; not walking strides)
 %          .strideMap - Kx3 [ardStep trueStrideIdx pctSS], for
 %                 re-deriving a stimulus schedule from true stride index
 %
@@ -718,8 +851,11 @@ legOut.trueSSDurMs(valid) = ...
     diff(ssThisLeg(strideIdx(valid),:),1,2) / fsHz * 1000;
 
 ardSteps = echoLeg(1:nMatch,2);
-[legOut.strideDeficit,legOut.strideTotal] = ...
-    strideCountDeficit(ardSteps,strideIdx);
+pulseSteps = nan(nMatch,1);             % gate step, profile stride index
+nSteps = min(nMatch,numel(gateSteps));
+pulseSteps(1:nSteps) = gateSteps(1:nSteps);
+[legOut.strideDeficit,legOut.strideTotal,legOut.restGaps] = ...
+    strideCountDeficit(ardSteps,strideIdx,pulseSteps,restStrides);
 
 legOut.strideMap = [ardSteps strideIdx legOut.pctSS];
 
@@ -763,39 +899,66 @@ pct = 100 * sum(~isnan(pctSS)) / numel(pctSS);
 
 end
 
-function [deficit,totalStrides] = strideCountDeficit(ardSteps,strideIdx)
+function [deficit,totalStrides,restGaps] = strideCountDeficit( ...
+    ardSteps,strideIdx,pulseSteps,restStrides)
 %STRIDECOUNTDEFICIT Strides the Arduino failed to count between pulses.
 %
 %   For each pair of consecutive delivered pulses, the number of true
 %   strides that elapsed (diff(strideIdx)) should equal the Arduino's own
 %   stride count increment (diff(ardSteps)). A positive difference is a
 %   stride the firmware's gait-event state machine silently missed (see
-%   the module doc comment).
+%   the module doc comment). Only gaps WITHIN a walking bout count: a gap
+%   spans a rest when some rest-pad stride index lies between the two
+%   pulses' gate steps (deterministic, from the profile itself -- no
+%   time or ardStep-increment heuristic, which would misfire on the
+%   calibration profiles' 7-stride intensity gaps or on slow walking).
+%   Across a rest, standing weight shifts can register as a spurious
+%   stance change on either side, in either direction (the 2026-09-17
+%   and 2026-09-18 pilots show both signs), so those gaps are reported
+%   separately and excluded from the deficit.
 %
 % Inputs:
-%   ardSteps  - Nx1 Arduino ardStep at each delivered pulse, in order
-%   strideIdx - Nx1 true stride index at each delivered pulse, in order
+%   ardSteps    - Nx1 Arduino ardStep at each delivered pulse, in order
+%   strideIdx   - Nx1 true stride index at each delivered pulse, in order
 %          (NaN where a pulse could not be matched to a true stride)
+%   pulseSteps  - Nx1 profile stride index of each delivered pulse's gate
+%          (NaN if unknown; that pulse's gaps are then skipped)
+%   restStrides - profile stride indices with both belts stopped
 %
 % Outputs:
-%   deficit      - total strides missed (sum of positive deficits only)
-%   totalStrides - total true strides elapsed between consecutive
-%          matched pulses (the deficit's denominator)
+%   deficit      - strides missed within bouts (sum of positive
+%          per-gap deficits only)
+%   totalStrides - true strides elapsed over within-bout gaps (the
+%          deficit's denominator)
+%   restGaps     - struct: n (rest-spanning gaps excluded), sumPositive,
+%          nNegative
 %
 % Toolbox Dependencies: None
 %
 % See also MATCHLEGGROUNDTRUTH.
 
-valid = ~isnan(strideIdx);
-ardSteps  = ardSteps(valid);
-strideIdx = strideIdx(valid);
+valid = ~isnan(strideIdx) & ~isnan(pulseSteps);
+ardSteps   = ardSteps(valid);
+strideIdx  = strideIdx(valid);
+pulseSteps = pulseSteps(valid);
 
 dTrue = diff(strideIdx);
 dArd  = diff(ardSteps);
 perGapDeficit = dTrue - dArd;
 
-deficit      = sum(perGapDeficit(perGapDeficit > 0));
-totalStrides = sum(dTrue);
+spansRest = false(size(perGapDeficit));
+for gg = 1:numel(perGapDeficit)
+    spansRest(gg) = any(restStrides > pulseSteps(gg) & ...
+        restStrides <= pulseSteps(gg + 1));
+end
+within = ~spansRest;
+
+deficit      = sum(perGapDeficit(within & perGapDeficit > 0));
+totalStrides = sum(dTrue(within));
+
+restGaps.n           = sum(spansRest);
+restGaps.sumPositive = sum(perGapDeficit(spansRest & perGapDeficit > 0));
+restGaps.nNegative   = sum(spansRest & perGapDeficit < 0);
 
 end
 
@@ -888,6 +1051,11 @@ function printLegAccounting(legLabel,legOut)
 fprintf('%s: %d gates, %d delivered, %d dropped, %d unaccounted\n', ...
     legLabel,legOut.nGates,legOut.nDelivered,legOut.nDropped, ...
     legOut.nUnaccounted);
+if legOut.isFinalGateEchoLost
+    fprintf(['%s:   the unaccounted gate is the last one, sent after ' ...
+        'the last echo read: echo lost at teardown (confirm the pulse ' ...
+        'with the C3D edge count)\n'],legLabel);
+end
 
 end
 
@@ -915,8 +1083,14 @@ fprintf(['%s: %d C3D pulses, %d echoes, plate containment=%.1f%% ' ...
 fprintf('%s: true placement %%SS mean=%.1f sd=%.1f range %.1f-%.1f\n', ...
     legLabel,mean(legOut.pctSS,'omitnan'),std(legOut.pctSS,'omitnan'), ...
     min(legOut.pctSS,[],'omitnan'),max(legOut.pctSS,[],'omitnan'));
-fprintf('%s: Arduino stride-count deficit: %d of %d true strides\n', ...
-    legLabel,legOut.strideDeficit,legOut.strideTotal);
+fprintf(['%s: Arduino stride-count deficit (within bouts): %d of %d ' ...
+    'true strides\n'],legLabel,legOut.strideDeficit,legOut.strideTotal);
+if legOut.restGaps.n > 0
+    fprintf(['%s:   %d rest-spanning gaps excluded (+%d / %d negative; ' ...
+        'standing artifacts, not walking strides)\n'],legLabel, ...
+        legOut.restGaps.n,legOut.restGaps.sumPositive, ...
+        legOut.restGaps.nNegative);
+end
 fprintf('%s: toe-off reference error: mean=%+.1f ms max|.|=%.1f ms\n', ...
     legLabel,mean(legOut.toeOffRefErrMs,'omitnan'), ...
     max(abs(legOut.toeOffRefErrMs),[],'omitnan'));
