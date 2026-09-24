@@ -1,5 +1,5 @@
-function [speedNMWT, speed10MWT] = extractSpeedsNMWT(numLaps, ...
-    distInches, shouldAdd, distWalkway, durationMin, times_10MWT)
+function [speedNMWT, speed10MWT, inputsNMWT] = extractSpeedsNMWT( ...
+    numLaps, distInches, shouldAdd, distWalkway, durationMin, times_10MWT)
 %EXTRACTSPEEDSNMWT Extracts the speed(s) from an NMWT (with 10MWT embedded)
 %
 %   This function accepts as input (via GUI if no arguments are provided)
@@ -25,6 +25,10 @@ function [speedNMWT, speed10MWT] = extractSpeedsNMWT(numLaps, ...
 % Outputs:
 %   speedNMWT  - the (comfortable) OG walking speed (in meters / second)
 %   speed10MWT - (optional) the fast OG walking speed (in m / second)
+%   inputsNMWT - (optional) struct of the walk-test inputs actually used
+%       (numLaps, distInches, shouldAdd, distWalkway, durationMin) and
+%       the resulting total distance distNMWT (m), so a caller can echo
+%       the arithmetic behind speedNMWT to the experimenter
 %
 % Toolbox Dependencies:
 %   None
@@ -108,5 +112,14 @@ if all(~isnan(times_10MWT))         % 10MWT times array is not 'NaN'
 else
     speed10MWT = NaN;               % default to 'NaN'
 end
+
+%% Record the Walk-Test Inputs Used
+% NOTE: returned so the caller can echo the arithmetic behind speedNMWT;
+% a lap- or tape-unit mismatch between a paper datasheet and this
+% function's convention (laps of distWalkway, tape in inches) is
+% otherwise invisible once only the speed is printed
+inputsNMWT = struct('numLaps', numLaps, 'distInches', distInches, ...
+    'shouldAdd', logical(shouldAdd), 'distWalkway', distWalkway, ...
+    'durationMin', durationMin, 'distNMWT', dist_NMWT);
 
 end
