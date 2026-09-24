@@ -79,11 +79,13 @@ if isempty(subjectIdRaw)
     error('Subject ID cannot be empty.');
 end
 subjectID = regexprep(subjectIdRaw,'[^A-Za-z0-9_-]','_'); % filename-safe
-studyIdPattern = '^(SABH\d{2}|SAS\d{2}V\d{2})$'; % SpinalAdapt formats
+% SpinalAdapt formats: SAYA## (young adults), SAS##V## (stroke), and the
+% historical Pilot Study 2 SABH##
+studyIdPattern = '^(SAYA\d{2}|SAS\d{2}V\d{2}|SABH\d{2})$';
 if isempty(regexpi(subjectID,studyIdPattern,'once'))
     warning(['Subject ID "%s" does not match a recognized study ID ' ...
-        'format (SABH##, SAS##V##). Proceeding anyway -- expected ' ...
-        'for a bench check using initials.'],subjectID);
+        'format (SAYA##, SAS##V##, SABH##). Proceeding anyway -- ' ...
+        'expected for a bench check using initials.'],subjectID);
 end
 
 %% OUTPUT PATHS
