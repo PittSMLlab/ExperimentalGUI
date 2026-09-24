@@ -1265,6 +1265,24 @@ if hreflex_present      % if hreflex, stop the Arduino state machine and close c
             'command to Arduino: %s'],ME.message);
     end
 
+    % Drain any stim echoes still waiting before the flush below discards
+    % them (added 2026-09-22): a bout profile's final pulse fires during
+    % the blocking final rest, so its echo was never read in the loop,
+    % and the accounting identity (gates = deviceEcho + deviceDrop) came
+    % up one short on every bout trial of the 2026-09-18 pilot. The short
+    % settle also lets the firmware's 'D' echo for a gate still pending
+    % at the stop command above arrive. Logging only; the loop's ardStep
+    % watchdogs are not rerun here.
+    try
+        pause(echoSettleSec);
+        [~,echoRecs] = drainStimEcho(portArduino,echoBuf);
+        datlog = appendStimEchoRows(datlog,echoRecs,RstepCount, ...
+            LstepCount,durSSL,durSSR);
+    catch ME
+        datlog.errormsgs{end+1} = ['Teardown stim echo drain error: ' ...
+            ME.message];
+    end
+
     datlog.messages(end+1,:) = {'Closing Arduino port...',now()}; %#ok<TNOW1>
     fprintf('Closing Arduino serial port...\n');
     try
@@ -1509,6 +1527,55 @@ if nAvail == 0      % nothing waiting (also the no-echo-firmware no-op path)
     return;
 end
 [bufOut,recs] = parseStimEcho([bufIn char(read(port,nAvail,'char'))]);
+
+end
+
+function datlog = appendStimEchoRows(datlog,echoRecs,stepCountR, ...
+    stepCountL,durSSL,durSSR)
+%APPENDSTIMECHOROWS Log stim-echo records drained outside the main loop.
+%
+%   Builds each record's datlog row exactly as the main loop's echo-drain
+%   block does (the same 10-column layout: legNum ardStep matStep stimMs
+%   toRefMs estSSms dtStimMs durSSms pctSS matTimeSerial) and routes it
+%   to datlog.stim.deviceEcho (delivered) or datlog.stim.deviceDrop
+%   (dropped). Used only at teardown, so it skips that block's ardStep
+%   watchdogs and live console readout.
+%
+% Inputs:
+%   datlog - the data log struct
+%   echoRecs - Px6 records from DRAINSTIMECHO: [leg(1=L,2=R), ardStep,
+%          stimMs, toRefMs, estSSms, isDelivered]
+%   stepCountR - MATLAB right step count (a left record's matStep)
+%   stepCountL - MATLAB left step count (a right record's matStep)
+%   durSSL - most recent measured left single-stance duration (ms)
+%   durSSR - most recent measured right single-stance duration (ms)
+%
+% Outputs:
+%   datlog - the data log struct with the records appended
+%
+% Toolbox Dependencies: None
+%
+% See also DRAINSTIMECHO, NIRSHREFLEXARDUINOOPENLOOPWITHAUDIO.
+
+for er = 1:size(echoRecs,1)
+    legNum   = echoRecs(er,1);
+    dtStimMs = echoRecs(er,3) - echoRecs(er,4); % elapsed into single stance
+    if legNum == 1          % left record: single stance L
+        matStep = stepCountR;
+        durSSms = durSSL;
+    else                    % right record: single stance R
+        matStep = stepCountL;
+        durSSms = durSSR;
+    end
+    stimRow = [legNum echoRecs(er,2) matStep echoRecs(er,3) ...
+        echoRecs(er,4) echoRecs(er,5) dtStimMs durSSms ...
+        100 * dtStimMs / durSSms now()]; %#ok<TNOW1>
+    if echoRecs(er,6)
+        datlog.stim.deviceEcho.data(end+1,:) = stimRow;
+    else
+        datlog.stim.deviceDrop.data(end+1,:) = stimRow;
+    end
+end
 
 end
 
