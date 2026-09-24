@@ -61,9 +61,10 @@ function [RTOTime,LTOTime,RHSTime,LHSTime,commSendTime,commSendFrame] = ...
 %   hreflex_present - true to open the Arduino serial port and run
 %          H-reflex stimulation
 %   stimL - Nx1 logical/numeric flag of which left strides to stimulate;
-%          empty selects every 10th stride
+%          empty (no schedule for either leg) selects every 10th stride,
+%          while an explicit all-zero schedule stimulates no stride
 %   stimR - Nx1 logical/numeric flag of which right strides to
-%          stimulate; empty selects every 10th stride
+%          stimulate; empty/all-zero behave as for stimL
 %
 % Outputs:
 %   RTOTime - right toe-off timestamps (datenum) per stride
@@ -93,6 +94,15 @@ arguments
     stimL             (:,1) double = []
     stimR             (:,1) double = []
 end
+
+% An explicit stim schedule -- including an all-zero one, which means
+% "never stimulate" -- is distinct from no schedule at all (the legacy
+% every-10th-stride default, see stimInterval below). Record which one
+% was given BEFORE the empty defaults below erase the difference: until
+% 2026-09-22 an all-zero schedule was treated as none, so the 2026-09-18
+% pilot's no-stim Tied Fastest trial was stimulated every 10th stride
+% (see studies/SpinalAdapt/README.md).
+isStimScheduleGiven = ~isempty(stimL) || ~isempty(stimR);
 
 % argument-dependent defaults: an empty stimL/stimR means "no explicit
 % per-stride stim schedule was provided", handled below via stimInterval
@@ -125,6 +135,10 @@ estSSRInit     = 396.6;
 % estSS keeps tracking the device. Tunable starting values (see sketch).
 durSSMinValidMs = 100;  % reject < 100 ms (double-detect / debounce floor)
 durSSMaxValidMs = 1000; % reject > 1000 ms (missed event / rest artifact)
+% teardown only: wait before the final echo drain so a 'D' record the
+% firmware sends in response to the stop command can arrive; one record
+% (~40 chars) takes ~4 ms at 115200 baud, plus one firmware loop() pass
+echoSettleSec = 0.05;   % s
 
 if hreflex_present
     try
@@ -151,8 +165,9 @@ if hreflex_present
         CalibAudioR = audioplayer(audio_data,audio_fs);
     end
 
-    if any(stimL) || any(stimR)
-        % an explicit per-stride stim schedule was provided
+    if isStimScheduleGiven
+        % an explicit per-stride stim schedule was provided; an all-zero
+        % schedule stimulates no stride at all
         stimInterval = nan;
     else
         stimInterval = 10;  % stimulate every 10 strides
@@ -339,11 +354,12 @@ stopCuePlayer  = instructions('stop');
 stopCueSec     = stopCuePlayer.TotalSamples / stopCuePlayer.SampleRate;
 countCuePlayer = instructions('silentlyCountForward');
 countCueSec    = countCuePlayer.TotalSamples / countCuePlayer.SampleRate;
-% the rest handler below plays 'stop', blocks for stopCueSec so the two
-% cues don't overlap, then plays 'silentlyCountForward' and starts the
-% rest timer together with THAT cue — padding the target by only the
-% second cue's own length keeps the silent remainder at ~restSilentSec
-% after counting instructions finish
+% the rest handler below plays 'stop' as the belts begin to decelerate,
+% holds 'silentlyCountForward' until 1.5 s + stopCueSec after that (its
+% pre-2026-09-22 start, which also rules out the two cues overlapping),
+% then starts the rest timer together with THAT cue — padding the target
+% by only the second cue's own length keeps the silent remainder at
+% ~restSilentSec after counting instructions finish
 restDuration = restSilentSec + countCueSec;
 
 if ~isempty(nirsEventSteps)
@@ -855,6 +871,8 @@ try     % so that if something fails, communications are closed properly
                     end
                     pctSS = 100 * dtStimMs / durSSms;
                     matTimeSerial = now(); %#ok<TNOW1>
+                    % NOTE: APPENDSTIMECHOROWS (teardown drain) builds
+                    % this same row; keep the two layouts in step
                     stimRow = [legNum ardStep matStep stimMs toRefMs ...
                         estSSms dtStimMs durSSms pctSS matTimeSerial];
 
@@ -1157,16 +1175,32 @@ try     % so that if something fails, communications are closed properly
             % make sure TM is at zero and hold it there.
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            pause(1.5); % give the belts a moment to settle at zero before
-            % the stop/count-forward cues play below.
-            % this function plays the 'stop' audio, sends event to NIRS,
-            % and logs it in datlog
-            datlog = nirsEvent('stop', 'R', ...
+            % Say "stop" now, as the belts begin to decelerate, so the word
+            % lands with the participant's last step rather than after the
+            % belts have already stopped (until 2026-09-22 it played after
+            % the settle pause below). Non-blocking, and deliberately no
+            % audioCues row of its own: it fires in the same loop
+            % iteration as this bout's zero-speed TreadmillCommands.sent
+            % row, which timestamps it, and an extra 'Rest' message would
+            % add a split point for labTools' SepCondsInExpByAudioCue.
+            play(instructions('stop'));
+            % NOTE: this pause is kept deliberately: it holds the Rest
+            % fNIRS marker and the count-forward cue below at their
+            % pre-2026-09-22 times (belts settled at zero), so rest epochs
+            % stay comparable across sessions; 'stop' has finished by now
+            pause(1.5);
+            % this function sends the Rest event to NIRS and logs it in
+            % datlog; the '_noaudio' key is not in instructions, so it
+            % plays nothing ('stop' was already played above)
+            datlog = nirsEvent('stop_noaudio', 'R', ...
                 nirsEventName(conditionLabel, 'Rest', ...
                 nextRestIdx + trainIdx), instructions, datlog, Oxysoft, ...
                 oxysoft_present);
-            pause(stopCueSec); % block until 'stop' finishes playing so
-            % 'silentlyCountForward' starts right after without overlap
+            % NOTE: this pause is kept deliberately: it holds
+            % 'silentlyCountForward' at its pre-2026-09-22 start (1.5 s +
+            % stopCueSec after the zero-speed command), which also rules
+            % out overlapping 'stop'
+            pause(stopCueSec);
             play(instructions('silentlyCountForward'));
             datlog.audioCues.start(end+1) = now(); %#ok<TNOW1>
             datlog.audioCues.audio_instruction_message{end+1} = ...
