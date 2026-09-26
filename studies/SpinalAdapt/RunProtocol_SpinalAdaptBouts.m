@@ -40,27 +40,15 @@
 %   GENERATEPROFILE_SIXMINUTEWALK, RUNWALKINGCALIBRATIONS,
 %   TRANSFERDATA_SPINALADAPTBOUTS.
 
-%% EXPERIMENTER: Enter Participant-Specific Parameters Before Each Session
+%% EXPERIMENTER: Enter Visit-Specific Parameters
 speedProportion        = 0.5;  % slow / 6MWT speed ratio
 speedProportionFastest = 1.5;  % fastest / 6MWT speed ratio
 
-% Participant ID formats: SAYA## (neurologically intact young adults),
-% SAS##V## (stroke, two visits -- the V01/V02 suffix drives the
-% two-visit logic below), SAMC. SABH## identifies Pilot Study 2 and
-% earlier data. Name the Vicon Nexus session folder after the
-% participant ID too (...\SpinalAdaptStudy\<ID>\<ID>), which
-% TRANSFERDATA_SPINALADAPTBOUTS expects at the end of the session.
 participantID = 'SAYA01';
 
 fastLeg = 'R'; % 'R' or 'L'; for healthy: dominant leg; for stroke:
 % non-paretic (visit 1) or paretic (visit 2).
 
-% Two-visit stroke protocol: visit 2 reuses visit 1's profiles (speeds
-% and both fast-leg split variants) directly from visit 1's own profile
-% folder, so it never generates or writes a profile folder of its own.
-% participantID itself (WITH the visit suffix) is kept for datlog/
-% session naming and server transfer, since each visit's raw capture is
-% its own session.
 isVisit2 = contains(participantID, 'V02');
 dirExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
 if isVisit2
@@ -69,7 +57,18 @@ if isVisit2
 else
     dirProfile = fullfile(dirExpGUI, 'profiles', 'SpinalAdaptNirsStudy', ...
         participantID);
+% The visit participant ID and fast leg are entered by dialog at the
+% start of every visit rather than by editing this file (an edited-in ID
+% was forgotten during a 2026-09 pilot). The ID's '_V01'/'_V02' suffix
+% sets the visit; the part before it is the participant ID, which names
+% the Vicon Nexus participant, the shared profile folder, and the server
+% folders. Name each visit's Vicon Nexus and Oxysoft folder
+% 'Visit01'/'Visit02' (...\SpinalAdaptStudy\<participant ID>\Visit01),
+% which TRANSFERDATA_SPINALADAPTBOUTS expects at the end of the visit.
 end
+% the speed profiles are shared by both visits (generated in Visit 1
+% only), so their folder is keyed by the participant ID, not the visit
+% participant ID
 
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now', 'InputFormat', 'dd-MMM-yyyy HH:mm:ss');
@@ -87,7 +86,7 @@ if ~strcmp(answer, 'Yes')
     return;         % abort: fix the fast leg assignment first
 end
 
-%% Set Up the GUI and Define Session Constants
+%% Set Up the GUI and Define Visit Constants
 [audio_data, audio_fs] = audioread('TimeToWalk.mp3');
 AudioTimeUp = audioplayer(audio_data, audio_fs);
 
@@ -115,15 +114,13 @@ mmPerM                 = 1000; % m/s to mm/s, as AdaptationGUI converts
                                % profiles (round(v * 1000)) for display
 
 %% Complete Overground 6-Minute Walk Test
-% First trial of the session: sets the belt speeds used for every other
-% trial (see Compute Speeds and Generate Speed Profiles below). Not one
-% of the 13 numbered conditions in the switch further down. Guarded by a
-% questdlg so resuming a session mid-way does not force a redundant
-% six-minute walk. Self-paced (NaN profile) -- answer 'No' to the audio
-% feedback prompt below so the participant walks at their own pace.
-% Skipped entirely for visit 2 of the two-visit stroke protocol: the
-% walk test is only ever completed in visit 1, and visit 2 reuses those
-% speeds (see Compute Speeds and Generate Speed Profiles below).
+% First trial of Visit 1: sets the belt speeds used for every other trial
+% of both visits (see Compute Speeds and Generate Speed Profiles below).
+% Not one of the 13 numbered conditions in the switch further down.
+% Guarded by a questdlg so resuming a visit mid-way does not force a
+% redundant six-minute walk. Self-paced (NaN profile) -- answer 'No' to
+% the audio feedback prompt below so the participant walks at their own
+% pace. Skipped entirely in Visit 2, which reuses the Visit 1 speeds.
 if isVisit2
     disp(['Visit 2: the 6-minute walk test is only completed in ' ...
         'visit 1; skipping.']);
@@ -157,14 +154,13 @@ end
 % The walk-test speeds are only needed to (re)generate profiles, so
 % 'utils.extractSpeedsNMWT' is called only in the 'Yes' branch below
 % (after the walk test above), not unconditionally at the top of the
-% script -- letting a resumed session skip this dialog entirely.
+% script -- letting a resumed visit skip this dialog entirely.
 if isVisit2
-    % Visit 2 never regenerates: it loads visit 1's profiles (same
-    % speeds, both fast-leg split variants already generated) directly
-    % from visit 1's own profile folder (dirProfile above already points
-    % there). Verify they are actually there rather than silently
-    % pointing at an empty folder if e.g. participantID was mistyped or
-    % visit 1 was never run.
+    % Visit 2 never regenerates: it loads the profiles generated in Visit
+    % 1 (same speeds, both fast-leg split variants) from the shared
+    % profile folder. Verify they are actually there rather than silently
+    % pointing at an empty folder if, e.g., the participant ID was
+    % mistyped or Visit 1 was never run.
     expectedProfiles = {'TiedFastest.mat', 'PreAdaptFast.mat', ...
         'PreAdaptSlow.mat', 'PostAdaptSlow.mat', 'AdaptSplitFastR.mat', ...
         'AdaptSplitFastL.mat', 'CalibrationSlow.mat', ...
@@ -221,7 +217,7 @@ else
     end
 end
 
-%% Complete Pre-Session H-Reflex Walking Calibration Trials
+%% Complete Start-of-Visit H-Reflex Walking Calibration Trials
 speedDefault  = 'Slow'; % protocol order: slow calibration trial first
 isCalibration = true;   % run at least once (slow & fast speeds)
 while isCalibration     % repeat until experimenter selects 'No'
@@ -233,7 +229,7 @@ end
 %% Run the Main SpinalAdapt Protocol Conditions
 % NOTE: audio cues for "TM will start / stop now" are approximate and
 % may be difficult to improve given the GUI callback latency.
-isFirstCon = true;      % is this the first condition in the session?
+isFirstCon = true;      % is this the first condition in the visit?
 currCon    = 0;         % current condition index; loop runs while < maxCon
 while currCon < maxCon
     if ~isFirstCon      % after 1st condition, ask whether to auto-advance
@@ -347,10 +343,10 @@ while currCon < maxCon
     end
 end
 
-%% Complete End-of-Session H-Reflex Walking Calibration Trials
+%% Complete End-of-Visit H-Reflex Walking Calibration Trials
 isCalibration = runWalkingCalibrations(handles, dirProfile, 'Slow');
 
-%% Transfer Session Data to Server
+%% Transfer Visit Data to Server
 % pauseTransferSec allows Vicon Nexus to stop and save the last C3D file
 pause(pauseTransferSec);
 tic;
@@ -362,9 +358,8 @@ toc;
 % ONLY RUN THIS BLOCK ON THE LAB PC1 IF THERE IS SUFFICIENT TIME BEFORE
 % THE NEXT EXPERIMENTER NEEDS THE LAB SPACE
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% participantID (with its visit suffix) keeps this path distinct per
-% visit for the two-visit stroke protocol, matching
-% TRANSFERDATA_SPINALADAPTBOUTS's own per-visit dirSrvrData.
+% this visit's server Vicon folder, matching the destination
+% TRANSFERDATA_SPINALADAPTBOUTS copies it to
 tic;
 dirSrvrData = fullfile('W:\Chase\SpinalAdapt\Data', participantID, ...
     'Vicon');
