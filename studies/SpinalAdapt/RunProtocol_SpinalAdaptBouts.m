@@ -1,44 +1,37 @@
-%RUNPROTOCOL_SPINALADAPTBOUTS Run the SpinalAdapt experimental session.
+%RUNPROTOCOL_SPINALADAPTBOUTS Run one visit of the SpinalAdapt protocol.
 %
-%   Revised 2026-09-18: 13 conditions (1 tied fastest-speed trial, 2
-%   pre-adaptation bouts trials, 5 adaptation split bouts trials, 5
-%   post-adaptation bouts trials). The overground 6-minute walk test now
-%   runs first and sets the belt speeds for every other trial (via
-%   utils.extractSpeedsNMWT). Familiarization trials were removed. The
-%   tied fastest-speed trial runs on the plain open-loop audio-countdown
-%   controller (no fNIRS or H-reflex at that point in the session) and
-%   is followed immediately by the next condition, with no break; every
-%   other bout-based trial is followed by a fixed ~2.5 min break (none
-%   after the final condition). Verify all conditions against the final
+%   Every participant -- neurologically intact young adult (SAYA##),
+%   participant with stroke (SAST##), or matched control (SAMC##) --
+%   completes two visits, with the leg on the fast belt flipped between
+%   them: Visit 1 puts the dominant (young adult), non-paretic (stroke),
+%   or matched (matched control) leg on the fast belt, and Visit 2 the
+%   other leg. At the start of each visit a dialog asks for the visit
+%   participant ID (e.g., SAST01_V01, whose '_V01'/'_V02' suffix sets the
+%   visit) and the leg on the fast belt this visit, then asks the
+%   experimenter to confirm that leg for the participant type and visit.
+%
+%   Visit 1 runs the overground 6-minute walk test first (its speed sets
+%   every other trial's belt speed, via utils.extractSpeedsNMWT) and
+%   generates every speed profile, including both fast-leg assignments of
+%   the adaptation split profile (AdaptSplitFastR.mat/AdaptSplitFastL.mat
+%   -- see GENERATEPROFILES_SPINALADAPTBOUTS), into the participant's
+%   profile folder, which both visits share. Visit 2 skips the walk test
+%   and profile generation, loads those same profiles, and selects the
+%   split profile that matches its (flipped) fast leg.
+%
+%   Conditions (revised 2026-09-18): 1 tied fastest-speed trial on the
+%   plain open-loop audio-countdown controller (no fNIRS or H-reflex at
+%   that point in the visit), then 2 pre-adaptation, 5 adaptation split,
+%   and 5 post-adaptation bouts trials. A fixed ~2.5 min break follows
+%   every bout-based trial except the final condition; none follows the
+%   tied fastest-speed trial. Verify all conditions against the final
 %   approved protocol before data collection. See History-PilotStudy2/
 %   for the Pilot Study 2 original.
 %
-%   Revised again 2026-09-18 for the two-visit stroke protocol
-%   (participant ID ending 'V01'/'V02'): visit 1 runs the 6-minute walk
-%   test and generates every profile, including both possible fast-leg
-%   assignments of the adaptation split profile
-%   (AdaptSplitFastR.mat/AdaptSplitFastL.mat -- see
-%   GENERATEPROFILES_SPINALADAPTBOUTS). Visit 2 skips the walk test and
-%   profile regeneration entirely and loads visit 1's profiles directly
-%   from visit 1's own profile folder, selecting whichever split profile
-%   matches its own (flipped) fast-leg confirmation. Visit 2 never
-%   writes a profile folder of its own, so
-%   TRANSFERDATA_SPINALADAPTBOUTS (called unmodified at the end of each
-%   visit) naturally transfers the speed profiles to the server only
-%   once, at the end of visit 1.
-%
-%   Revised 2026-09-22: before every numbered condition, a local guard
-%   (checkProfileBeforeExecute, end of file) reads the controller
-%   actually selected in the GUI and the profile's stim schedule from
-%   disk, refuses a pairing that would misbehave (e.g., a no-stim
-%   profile on the NIRS/H-reflex controller), and shows the
-%   experimenter the controller, belt speeds, and stim-stride counts to
-%   confirm before the trial starts.
-%
 %   Guides the experimenter through the 6-minute walk test, profile
-%   generation, pre- and post-session H-reflex calibration trials, all
-%   conditions in sequence, and post-session data transfer to the
-%   server. Edit the EXPERIMENTER section below before each session run.
+%   generation, the H-reflex walking calibration trials before and after
+%   the conditions, all conditions in sequence, and the end-of-visit data
+%   transfer to the server.
 %
 % Toolbox Dependencies:
 %   None (external: AdaptationGUI, Vicon Nexus, labTools dataMotion)
