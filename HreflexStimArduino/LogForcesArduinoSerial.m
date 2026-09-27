@@ -79,13 +79,16 @@ if isempty(subjectIdRaw)
     error('Subject ID cannot be empty.');
 end
 subjectID = regexprep(subjectIdRaw,'[^A-Za-z0-9_-]','_'); % filename-safe
-% SpinalAdapt formats: SAYA## (young adults), SAS##V## (stroke), and the
-% historical Pilot Study 2 SABH##
-studyIdPattern = '^(SAYA\d{2}|SAS\d{2}V\d{2}|SABH\d{2})$';
+% SpinalAdapt formats: SAYA## (young adults), SAST## (stroke), SAMC##
+% (matched controls), each optionally with its _V01/_V02 visit suffix,
+% plus the historical SABH## (Pilot Study 2) and SAS## / SAS##V##
+studyIdPattern = ['^((SAYA|SAST|SAMC)\d{2}(_V0[12])?|SABH\d{2}|' ...
+    'SAS\d{2}(V\d{2})?)$'];
 if isempty(regexpi(subjectID,studyIdPattern,'once'))
     warning(['Subject ID "%s" does not match a recognized study ID ' ...
-        'format (SAYA##, SAS##V##, SABH##). Proceeding anyway -- ' ...
-        'expected for a bench check using initials.'],subjectID);
+        'format (SAYA##, SAST##, SAMC##, optionally _V01/_V02; ' ...
+        'historical SABH##, SAS##). Proceeding anyway -- expected ' ...
+        'for a bench check using initials.'],subjectID);
 end
 
 %% OUTPUT PATHS
