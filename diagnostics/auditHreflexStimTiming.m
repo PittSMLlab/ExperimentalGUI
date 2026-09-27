@@ -2,8 +2,8 @@ function report = auditHreflexStimTiming(datlogPath, options)
 %AUDITHREFLEXSTIMTIMING Audit H-reflex stim-gate timing in a saved datlog.
 %
 %   Runs the acceptance checks described in
-%   studies/SpinalAdapt/README.md's "Validation Before Resuming
-%   Collection" section against one saved datlog, so that section's
+%   studies/SpinalAdapt/README.md's "Validation Before Collection"
+%   section against one saved datlog, so that section's
 %   checklist is a runnable tool rather than a set of ad hoc commands.
 %   Device-only checks (accounting, drop classification, the on-target
 %   metric, loop timing) always run. Ground-truth checks against the
@@ -83,9 +83,10 @@ function report = auditHreflexStimTiming(datlogPath, options)
 %                 delivered pulse) for re-deriving an intensity schedule
 %                 from actual stride index rather than an assumed one
 %
-% Toolbox Dependencies: BTK (btkReadAcquisition, btkGetAnalogs,
-%          btkGetAnalogFrequency, btkDeleteAcquisition) if
-%          options.C3DPath is given; none otherwise.
+% Toolbox Dependencies: Statistics and Machine Learning Toolbox
+%          (prctile, loop-timing p95); BTK (btkReadAcquisition,
+%          btkGetAnalogs, btkGetAnalogFrequency, btkDeleteAcquisition) if
+%          options.C3DPath is given.
 %
 % See also NIRSHREFLEXARDUINOOPENLOOPWITHAUDIO, PARSESTIMECHO,
 % UTILS.BUILDDATLOGFRAMETABLE.
@@ -359,7 +360,7 @@ function loopTiming = checkLoopTiming(datlog)
 %          nGateLeadBelow30Ms (an arbitrarily-chosen low-margin flag, 30
 %          ms, well under a normal double-support duration)
 %
-% Toolbox Dependencies: None
+% Toolbox Dependencies: Statistics and Machine Learning Toolbox (prctile)
 %
 % See also AUDITHREFLEXSTIMTIMING.
 
@@ -370,7 +371,7 @@ gateLeadMs  = [datlog.diagnostics.gateLeadMsL(:); ...
     datlog.diagnostics.gateLeadMsR(:)];
 
 loopTiming.iterTotalMedianMs = median(iterTotalMs,'omitnan');
-loopTiming.iterTotalP95Ms    = percentileCore(iterTotalMs,95);
+loopTiming.iterTotalP95Ms    = prctile(iterTotalMs,95);
 loopTiming.iterTotalMaxMs    = max(iterTotalMs,[],'omitnan');
 if isempty(gateLeadMs) % min([]) returns [] rather than NaN (see the
     % matching onTarget.maxMs guard above); a zero-gate trial must still
@@ -381,40 +382,6 @@ else
 end
 loopTiming.gateLeadMeanMs    = mean(gateLeadMs,'omitnan');
 loopTiming.nGateLeadBelow30Ms = sum(gateLeadMs < lowMarginMs);
-
-end
-
-function q = percentileCore(x,p)
-%PERCENTILECORE Percentile of a vector using core MATLAB only.
-%
-%   Reproduces prctile's default method for a vector -- each sorted value
-%   sits at the 100*(k - 0.5)/n percentile, with linear interpolation
-%   between them and the minimum/maximum returned outside that range --
-%   so this tool needs no Statistics and Machine Learning Toolbox on the
-%   older MATLAB releases in the supported R2021a+ window. NaNs are
-%   ignored.
-%
-% Inputs:
-%   x - numeric vector
-%   p - scalar percentile in [0, 100]
-%
-% Outputs:
-%   q - scalar percentile of x (NaN if x has no non-NaN values)
-%
-% Toolbox Dependencies: None
-%
-% See also CHECKLOOPTIMING.
-
-x = sort(x(~isnan(x(:))));
-n = numel(x);
-if n == 0
-    q = NaN;
-elseif n == 1
-    q = x;
-else
-    pctAt = 100 * ((1:n)' - 0.5) / n;  % percentile at each sorted value
-    q = interp1(pctAt,x,min(max(p,pctAt(1)),pctAt(end)));
-end
 
 end
 
