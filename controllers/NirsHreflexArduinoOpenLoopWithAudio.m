@@ -343,6 +343,7 @@ if ~isempty(restSteps)
     need2LogEvent = true;
 end
 nextRestIdx = 1;
+isStopCuePlayed = false; % 'stop' already said for the upcoming rest?
 startCueSettleSec = 1; % s; fixed margin added after the "walk" start cue
 % finishes playing and before the belts begin accelerating, so the
 % participant has a moment to brace beyond the cue's own (short) length
@@ -1174,6 +1175,12 @@ try     % so that if something fails, communications are closed properly
         % first toe-off that reaches the rest stride, so the cue plays
         % once BOTH legs have started the final stride before it. Once
         % per bout; non-blocking, so the loop keeps tracking that stride.
+        if ~isStopCuePlayed && nextRestIdx <= length(restSteps) && ...
+                min(LstepCount,RstepCount) >= restSteps(nextRestIdx) - 1
+            play(instructions('stop'));
+            isStopCuePlayed = true;
+        end
+
         if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
             need2LogEvent = false;
             %for all rest except for the 1st (starting with a rest TM is not
@@ -1182,7 +1189,14 @@ try     % so that if something fails, communications are closed properly
             % make sure TM is at zero and hold it there.
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            play(instructions('stop'));
+            % 'stop' was already said on the bout's last step (above); only
+            % if that was missed (e.g., a missed toe-off kept one step
+            % counter behind) say it now instead. Deliberately no
+            % audioCues row of its own: an extra 'Rest' message would add
+            % a split point for labTools' SepCondsInExpByAudioCue.
+            if ~isStopCuePlayed
+                play(instructions('stop'));
+            end
             % NOTE: this pause is kept deliberately: it holds the Rest
             % fNIRS marker and the count-forward cue below at their
             % pre-2026-09-22 times (belts settled at zero), so rest epochs
@@ -1243,6 +1257,7 @@ try     % so that if something fails, communications are closed properly
             end
             need2LogEvent = true;
             nextRestIdx = nextRestIdx + 1;
+            isStopCuePlayed = false;    % arm the next bout's 'stop' cue
         end
 
         % record per-iteration loop-timing diagnostics (additive)
