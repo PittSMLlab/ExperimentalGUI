@@ -8,7 +8,8 @@ function profilePath = generateProfile_SixMinuteWalk(profileDir)
 %   profile, which is scaled from those speeds. Split out from
 %   GENERATEPROFILES_SPINALADAPTBOUTS so the protocol script can create
 %   this profile first, run the walk test, and only then compute speeds
-%   and generate the rest of the session's profiles.
+%   and generate the rest of the profiles (Visit 1 only; both visits
+%   share them).
 %
 % Inputs:
 %   profileDir - char; path to directory where the profile is saved

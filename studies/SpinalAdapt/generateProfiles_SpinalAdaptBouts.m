@@ -98,7 +98,7 @@ restPad = zeros(boutRestStrides, 1);
 
 %% Build Tied Fastest Trial Profile (Tied Walking, No Ramp, No Stim)
 % Structure: 50 SS strides at fastestSpeed, no ramp (straight to steady
-% state), no rest pad, no stim -- the only time in the session the
+% state), no rest pad, no stim -- the only time in the visit the
 % participant walks at this speed. No trailing rest pad: this trial runs
 % on controlSpeedWithSteps_edit1_AudioCountDown (RUNPROTOCOL_
 % SPINALADAPTBOUTS case 1), not the NIRS/H-reflex controller used by
@@ -153,11 +153,11 @@ save(fullfile(profileDir, 'PostAdaptSlow.mat'), ...
 % Structure per bout: split ramp | SS at fast/slow speeds | rest pad.
 % Both possible fast-leg assignments are generated up front, as separate
 % files, rather than taking a fastLeg input: the two-visit protocol
-% flips which leg is fast between visit 1 and visit 2 (paretic slow in
-% visit 1, non-paretic slow in visit 2) while reusing every other
-% profile, so RUNPROTOCOL_SPINALADAPTBOUTS just selects the file
-% matching each visit's confirmed fast leg at run time and neither visit
-% ever needs to regenerate anything.
+% flips which leg is fast between Visit 1 and Visit 2 (Visit 1 fast leg
+% = dominant, non-paretic, or matched leg; Visit 2 = the other leg) while
+% reusing every other profile, so RUNPROTOCOL_SPINALADAPTBOUTS selects
+% the file matching each visit's confirmed fast leg at run time and
+% neither visit ever needs to regenerate anything.
 boutStimSplit = [zeros(rampStrides, 1); ssStim];
 
 [velSlow, stimSplit] = buildBoutTrial(boutVelSlow, boutStimSplit, ...
