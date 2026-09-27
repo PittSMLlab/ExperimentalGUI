@@ -44,19 +44,6 @@
 speedProportion        = 0.5;  % slow / 6MWT speed ratio
 speedProportionFastest = 1.5;  % fastest / 6MWT speed ratio
 
-participantID = 'SAYA01';
-
-fastLeg = 'R'; % 'R' or 'L'; for healthy: dominant leg; for stroke:
-% non-paretic (visit 1) or paretic (visit 2).
-
-isVisit2 = contains(participantID, 'V02');
-dirExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
-if isVisit2
-    dirProfile = fullfile(dirExpGUI, 'profiles', 'SpinalAdaptNirsStudy', ...
-        regexprep(participantID, 'V\d+$', 'V01'));
-else
-    dirProfile = fullfile(dirExpGUI, 'profiles', 'SpinalAdaptNirsStudy', ...
-        participantID);
 % The visit participant ID and fast leg are entered by dialog at the
 % start of every visit rather than by editing this file (an edited-in ID
 % was forgotten during a 2026-09 pilot). The ID's '_V01'/'_V02' suffix
@@ -65,23 +52,61 @@ else
 % folders. Name each visit's Vicon Nexus and Oxysoft folder
 % 'Visit01'/'Visit02' (...\SpinalAdaptStudy\<participant ID>\Visit01),
 % which TRANSFERDATA_SPINALADAPTBOUTS expects at the end of the visit.
+answerVisit = inputdlg({['Visit participant ID (e.g., SAYA01_V01, ' ...
+    'SAST01_V02, SAMC01_V01):'], ...
+    'Leg on the FAST belt this visit (R or L):'}, ...
+    'SpinalAdapt Visit', [1 60; 1 60]);
+if isempty(answerVisit)
+    return;             % Cancel/closed: end the experiment
 end
+participantVisitID = upper(strtrim(answerVisit{1})); % e.g., 'SAST01_V01'
+fastLeg            = upper(strtrim(answerVisit{2})); % 'R' or 'L'
+tokensID = regexp(participantVisitID, '^([A-Z]+\d+)_V(\d{2})$', ...
+    'tokens', 'once');
+if isempty(tokensID) || ~ismember(str2double(tokensID{2}), [1 2]) || ...
+        ~ismember(fastLeg, {'R', 'L'})
+    errordlg(['Enter the visit participant ID as <ID>_V01 or ' ...
+        '<ID>_V02 (e.g., SAST01_V01) and the fast leg as R or L, then ' ...
+        'run the script again.'], 'Invalid Visit Entry');
+    return;
+end
+participantID = tokensID{1};                    % e.g., 'SAST01'
+visitNum      = str2double(tokensID{2});        % 1 or 2
+visitFolder   = sprintf('Visit%02d', visitNum); % Nexus/Oxysoft/server
+isVisit2      = visitNum == 2;
+
 % the speed profiles are shared by both visits (generated in Visit 1
 % only), so their folder is keyed by the participant ID, not the visit
 % participant ID
+dirExpGUI  = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
+dirProfile = fullfile(dirExpGUI, 'profiles', 'SpinalAdaptNirsStudy', ...
+    participantID);
 
 % date threshold for copying recent files in datlogs
 threshTime = datetime('now', 'InputFormat', 'dd-MMM-yyyy HH:mm:ss');
 
 %% Confirm Fast Leg Assignment
-answer = 'Yes';                     % default to 'yes', don't check it
-if contains(participantID, 'V01')
-    answer = questdlg(['Visit 1: Fast leg should be NON-paretic / ' ...
-        'Dominant leg, which is ' fastLeg ' Is that correct?']);
-elseif isVisit2
-    answer = questdlg(['Visit 2: Fast leg should be paretic / ' ...
-        'NON-Dominant leg, which is ' fastLeg ' Is that correct?']);
+% the leg that belongs on the fast belt depends on the participant type
+% (ID prefix) and the visit: Visit 1 = dominant / non-paretic / matched
+% leg, Visit 2 = the other leg
+switch regexp(participantID, '^[A-Z]+', 'match', 'once')
+    case 'SAYA'
+        groupName = 'young adult';
+        legRoles  = {'dominant', 'non-dominant'};
+    case 'SAST'
+        groupName = 'stroke';
+        legRoles  = {'non-paretic', 'paretic'};
+    case 'SAMC'
+        groupName = 'matched control';
+        legRoles  = {'matched', 'non-matched'};
+    otherwise
+        groupName = 'unrecognized ID prefix';
+        legRoles  = {'dominant / non-paretic / matched', 'other'};
 end
+answer = questdlg(sprintf(['%s -- Visit %d (%s): the fast belt should ' ...
+    'carry the %s leg. You entered fast leg = %s. Is that correct?'], ...
+    participantVisitID, visitNum, groupName, legRoles{visitNum}, ...
+    fastLeg), 'Confirm Fast Leg');
 if ~strcmp(answer, 'Yes')
     return;         % abort: fix the fast leg assignment first
 end
@@ -123,10 +148,10 @@ mmPerM                 = 1000; % m/s to mm/s, as AdaptationGUI converts
 % pace. Skipped entirely in Visit 2, which reuses the Visit 1 speeds.
 if isVisit2
     disp(['Visit 2: the 6-minute walk test is only completed in ' ...
-        'visit 1; skipping.']);
+        'Visit 1; skipping.']);
 else
     runWalkTest = questdlg(['Run the overground 6-minute walk test ' ...
-        'now? Select No if resuming a session and it is already done.']);
+        'now? Select No if resuming a visit and it is already done.']);
     if strcmp(runWalkTest, 'Yes')
         generateProfile_SixMinuteWalk(dirProfile);
         handles.popupmenu2.set('Value', ctrlSlotOgWalkTest);
@@ -168,21 +193,20 @@ if isVisit2
     isProfileMissing = ~cellfun(@(f) ...
         exist(fullfile(dirProfile, f), 'file') == 2, expectedProfiles);
     if ~exist(dirProfile, 'dir') || any(isProfileMissing)
-        errordlg(['Visit 2: expected profile(s) from visit 1 not ' ...
+        errordlg(['Visit 2: expected profile(s) from Visit 1 not ' ...
             'found in ' dirProfile ' (missing: ' ...
             strjoin(expectedProfiles(isProfileMissing), ', ') '). Run ' ...
-            'visit 1 first, or check that participantID matches ' ...
-            'visit 1.']);
+            'Visit 1 first, or check the participant ID.']);
         return;
     end
-    disp(['Visit 2: reusing visit 1 profiles found in ' dirProfile]);
+    disp(['Visit 2: reusing Visit 1 profiles found in ' dirProfile]);
 else
     opts.Interpreter = 'none';
     opts.Default     = 'No, I generated them already';
-    profileToGen = questdlg(['Regenerate profile? Confirm ' ...
-        'participant ID is correct in RunProtocol_SpinalAdaptBouts.m,' ...
-        ' and that the 6-minute walk test above is complete.'], ...
-        'RegenProfile', 'Yes', 'No, I generated them already', opts);
+    profileToGen = questdlg(sprintf(['Regenerate the speed profiles ' ...
+        'for %s? Confirm that the 6-minute walk test above is ' ...
+        'complete.'], participantID), 'RegenProfile', 'Yes', ...
+        'No, I generated them already', opts);
     switch profileToGen
         case 'Yes'
             [speedNMWT, ~, inputsNMWT] = utils.extractSpeedsNMWT();
@@ -350,7 +374,7 @@ isCalibration = runWalkingCalibrations(handles, dirProfile, 'Slow');
 % pauseTransferSec allows Vicon Nexus to stop and save the last C3D file
 pause(pauseTransferSec);
 tic;
-transferData_SpinalAdaptBouts(participantID, threshTime);
+transferData_SpinalAdaptBouts(participantID, visitNum, threshTime);
 toc;
 
 %% Run Reconstruct and Label Pipeline and Fill Marker Gaps
@@ -362,6 +386,6 @@ toc;
 % TRANSFERDATA_SPINALADAPTBOUTS copies it to
 tic;
 dirSrvrData = fullfile('W:\Chase\SpinalAdapt\Data', participantID, ...
-    'Vicon');
+    visitFolder, 'Vicon');
 dataMotion.processAndFillMarkerGapsSession(dirSrvrData);
 toc;
