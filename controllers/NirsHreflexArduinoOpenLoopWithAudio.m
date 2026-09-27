@@ -354,12 +354,13 @@ stopCuePlayer  = instructions('stop');
 stopCueSec     = stopCuePlayer.TotalSamples / stopCuePlayer.SampleRate;
 countCuePlayer = instructions('silentlyCountForward');
 countCueSec    = countCuePlayer.TotalSamples / countCuePlayer.SampleRate;
-% the rest handler below plays 'stop' as the belts begin to decelerate,
-% holds 'silentlyCountForward' until 1.5 s + stopCueSec after that (its
-% pre-2026-09-22 start, which also rules out the two cues overlapping),
-% then starts the rest timer together with THAT cue — padding the target
-% by only the second cue's own length keeps the silent remainder at
-% ~restSilentSec after counting instructions finish
+% 'stop' plays on the bout's last step, about half a stride before the
+% belts stop (see the main loop); the rest handler below then holds
+% 'silentlyCountForward' until 1.5 s + stopCueSec after the zero-speed
+% command (its pre-2026-09-22 start, which also rules out the two cues
+% overlapping) and starts the rest timer together with THAT cue —
+% padding the target by only the second cue's own length keeps the
+% silent remainder at ~restSilentSec after counting instructions finish
 restDuration = restSilentSec + countCueSec;
 
 if ~isempty(nirsEventSteps)
@@ -1167,6 +1168,12 @@ try     % so that if something fails, communications are closed properly
         old_velR.Value = velR(RstepCount,1);
         old_velL.Value = velL(LstepCount,1);
 
+        % Say "stop" on the bout's last step, about half a stride before
+        % the belts stop abruptly at the rest below: each step counter
+        % advances at its own leg's toe-off and the belts stop at the
+        % first toe-off that reaches the rest stride, so the cue plays
+        % once BOTH legs have started the final stride before it. Once
+        % per bout; non-blocking, so the loop keeps tracking that stride.
         if need2LogEvent && nextRestIdx <= length(restSteps) && (LstepCount == restSteps(nextRestIdx) || RstepCount == restSteps(nextRestIdx))  %time for a rest
             need2LogEvent = false;
             %for all rest except for the 1st (starting with a rest TM is not
@@ -1175,19 +1182,11 @@ try     % so that if something fails, communications are closed properly
             % make sure TM is at zero and hold it there.
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            % Say "stop" now, as the belts begin to decelerate, so the word
-            % lands with the participant's last step rather than after the
-            % belts have already stopped (until 2026-09-22 it played after
-            % the settle pause below). Non-blocking, and deliberately no
-            % audioCues row of its own: it fires in the same loop
-            % iteration as this bout's zero-speed TreadmillCommands.sent
-            % row, which timestamps it, and an extra 'Rest' message would
-            % add a split point for labTools' SepCondsInExpByAudioCue.
             play(instructions('stop'));
             % NOTE: this pause is kept deliberately: it holds the Rest
             % fNIRS marker and the count-forward cue below at their
             % pre-2026-09-22 times (belts settled at zero), so rest epochs
-            % stay comparable across sessions; 'stop' has finished by now
+            % stay comparable across visits; 'stop' has finished by now
             pause(1.5);
             % this function sends the Rest event to NIRS and logs it in
             % datlog; the '_noaudio' key is not in instructions, so it
