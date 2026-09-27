@@ -91,30 +91,42 @@ Lead: Nate Brantly (doctoral thesis); co-experimenter: Anna Annello.
 Functional changes require care; consult the user before modifying
 protocol scripts.
 
-**SpinalAdapt** — rebooting; data collection planned to resume ~July
-2026. Lead: Chase Rock (post-doctoral fellow); key experimenters:
-Shuqi Liu, Nate Brantly. Primary protocol:
-`studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`. Revised
-2026-09-18: the session order runs the overground 6-minute walk test
-first (its speed sets every other trial's belt speed), then a tied
-fastest-speed trial, pre-adaptation, adaptation, and post-adaptation
-bouts, with a fixed ~2.5 min break after every bout-based condition
-except the last; every fNIRS event `NirsHreflexArduinoOpenLoopWithAudio`
-logs to Oxysoft is now prefixed with its condition (e.g.
-`PreAdaptSlow_Rest01`) — see `studies/SpinalAdapt/README.md`'s Protocol
-Notes. There is no fNIRS or H-reflex during the tied fastest-speed
-trial, so it does not use that controller at all: it runs on the plain
-`controlSpeedWithSteps_edit1_AudioCountDown` (slot 11, shared with
-C3/BrainWalk), which gives it its own spoken "treadmill will
-start/stop in 3-2-1" countdown instead of the usual cues. Stroke
-participants use a two-visit protocol (participant ID ending
-`V01`/`V02`): visit 1 runs the walk test and generates every profile,
-including both possible fast-leg assignments of the split profile
-(`AdaptSplitFastR.mat`/`AdaptSplitFastL.mat`); visit 2 skips the walk
-test and profile generation entirely, loading visit 1's profiles
-directly from visit 1's own profile folder, with the fast/slow leg
-assignment flipped. H-reflex stimulation timing is controlled by an
-Arduino Uno running
+**SpinalAdapt** — rebooting; data collection begins 2026-09-29 (the
+first outside participant, with stroke). Lead: Chase Rock
+(post-doctoral fellow); key experimenters: Shuqi Liu, Nate Brantly.
+Primary protocol: `studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`.
+The study lead prefers **"visit"**, not "session", in SpinalAdapt
+comments, variable names, and documentation. Every participant —
+young adult `SAYA##`, stroke `SAST##`, matched control `SAMC##`
+(`SABH##` = Pilot Study 2 and earlier) — completes two visits; the
+visit participant ID adds `_V01`/`_V02` (e.g., `SAST01_V01`), and the
+Vicon Nexus, Oxysoft, and server visit folders are `Visit01`/`Visit02`
+inside the participant-ID folder. The fast belt carries the dominant
+(young adult) / non-paretic (stroke) / matched (matched control) leg
+in Visit 1 and the other leg in Visit 2. The protocol script asks for
+the visit participant ID and fast leg by dialog (never edited into the
+file) and confirms the leg; Visit 1 runs the overground 6-minute walk
+test first (its speed sets every other trial's belt speed) and
+generates every profile, including both fast-leg split profiles
+(`AdaptSplitFastR.mat`/`AdaptSplitFastL.mat`), into a profile folder
+both visits share; Visit 2 skips both and loads them. Conditions: a
+tied fastest-speed trial, then pre-adaptation, adaptation, and
+post-adaptation bouts, with a fixed ~2.5 min break after every
+bout-based condition except the last; every fNIRS event
+`NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is prefixed with
+its condition (e.g. `PreAdaptSlow_Rest01`), and its "stop" cue plays on
+each bout's last step, about half a stride before the belts stop (the
+rest timing after it is unchanged) — see `studies/SpinalAdapt/README.md`'s
+Protocol Notes. There is no fNIRS or H-reflex during the tied
+fastest-speed trial, so it does not use that controller at all: it
+runs on the plain `controlSpeedWithSteps_edit1_AudioCountDown` (slot
+11, shared with C3/BrainWalk), which gives it its own spoken
+"treadmill will start/stop in 3-2-1" countdown instead of the usual
+cues. `transferData_SpinalAdaptBouts(participantID, visitNum,
+threshTime)` copies each visit to `W:\Chase\SpinalAdapt\`
+(`Data\<ID>\SpeedProfiles`, shared; `Data\<ID>\Visit0N\...`;
+`RawBackupData\<ID>\Visit0N\...`). H-reflex stimulation timing is
+controlled by an Arduino Uno running
 `HreflexStimArduino/triggerStimWithGaitStateMachine_SpeedIndependent/`
 (see `HreflexStimArduino/README.md` for upload and wiring details). Do
 not change the serial command protocol in MATLAB controllers without
@@ -153,10 +165,17 @@ logs this one-way, informational echo to the additive
 firing decision. MATLAB also watches the echoed Arduino-side step
 counter (`ardStep`) for a decrease, the direct signature of an
 unintended state-machine reset, and warns once per leg into
-`datlog.errormsgs` if it happens. Keep display work off the control
+`datlog.errormsgs` if it happens; at teardown it drains any
+still-waiting echoes before flushing the port, so the accounting
+identity (gates = delivered + dropped echoes) holds exactly. An
+explicit all-zero `stimL`/`stimR` schedule means no stimulation; only
+a profile with no stim variables at all gets the controller's legacy
+every-10th-stride default (the 2026-09-18 Tied Fastest trial was
+stimulated through that default). Keep display work off the control
 loop's hot path. See `studies/SpinalAdapt/README.md` for the full
-timing history, root-cause note, display-pattern detail, and the
-dummy-profile dry-run checklist.
+timing history, root-cause note, display-pattern detail, the measured
+(slightly late) stim placement, and the dummy-profile dry-run
+checklist.
 
 **H-reflex M-wave monitor** — a companion tool, `HreflexMwaveMonitor/`
 (repo root; the `+hreflexMonitor` namespace — see Code Style below),

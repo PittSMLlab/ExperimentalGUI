@@ -31,7 +31,7 @@ requirements, see [README.md](README.md).
 | [`C3/`](studies/C3/README.md) | **Active** (~3 remaining; est. July 2026) | Nate Brantly | Stroke rehabilitation split-belt | `RunProtocol_C3.m`, `RunProtocol_C3_Session2Bouts.m` |
 | [`NirsAutomaticityProtocol/`](studies/NirsAutomaticityProtocol/README.md) | **Completed** | Shuqi Liu | fNIRS + H-reflex + split-belt treadmill | `NirsAutomaticityStudyTMProtocol.m` |
 | [`Perceptual Adaptation/`](<studies/Perceptual Adaptation/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Two-alternative forced choice perceptual adaptation | `GeneratePartialProfile.m` |
-| [`SpinalAdapt/`](studies/SpinalAdapt/README.md) | **Rebooting** (~Fall 2026) | Chase Rock | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` (template; Pilot Study 2 original in `History-PilotStudy2/`) |
+| [`SpinalAdapt/`](studies/SpinalAdapt/README.md) | **Rebooting** (collection begins 2026-09-29) | Chase Rock | H-reflex spinal adaptation to split-belt (+ fNIRS) | `RunProtocol_SpinalAdaptBouts.m` (template; Pilot Study 2 original in `History-PilotStudy2/`) |
 | [`Weber Perception/`](<studies/Weber Perception/README.md>) | **Completed** | Marcela Gonzalez-Rubio | Perceptual discrimination thresholds | `GeneratePartialProfile.m` |
 
 ### BrainWalk — Stability Notice
@@ -48,14 +48,15 @@ acceptable; logic changes are not.
 ### SpinalAdapt — Protocol Notes
 
 **Lead experimenter:** Chase Rock (post-doctoral fellow).
-**Key experimenters:** Shuqi Liu, Nate Brantly. Data collection is
-planned to resume approximately Fall 2026; protocol software updates
-may be required before collection resumes. See
+**Key experimenters:** Shuqi Liu, Nate Brantly. Data collection
+begins 2026-09-29 with an outside pilot participant with stroke. The
+study lead prefers "visit" rather than "session" for this study. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
-Participant ID formats: `SABH##` (healthy controls), `SAS##V##`
-(stroke, two visits). Revised 2026-09-18: every belt speed in the
-session is now derived from the overground 6-minute walk test (6MWT)
+Participant ID formats: `SAYA##` (neurologically intact young adults),
+`SAST##` (stroke), `SAMC##` (matched controls); `SABH##` identifies
+Pilot Study 2 and earlier data. Revised 2026-09-18: every belt speed in
+the visit is derived from the overground 6-minute walk test (6MWT)
 speed — slow = 0.5×, fast = 1.0×, fastest = 1.5× (`speedProportion` /
 `speedProportionFastest` in `RunProtocol_SpinalAdaptBouts.m`), computed
 via `utils.extractSpeedsNMWT`, whose walkway-distance default is 10 m
@@ -69,17 +70,25 @@ separate ramp-to-split phase — and is distinct from the per-bout
 3-stride ramp from rest to target speed at the start of every bout
 (tied or split); see `studies/SpinalAdapt/README.md`'s Protocol Notes.
 
-Stroke participants (`SAS##V01`/`SAS##V02`) use a two-visit protocol:
-visit 1 completes the 6MWT and generates every profile for both
-possible fast-leg assignments; visit 2 skips the 6MWT and profile
-generation entirely, loading visit 1's profiles directly from visit
-1's own profile folder (see `RunProtocol_SpinalAdaptBouts.m`), with the
-fast/slow leg assignment flipped (paretic leg slow in visit 1,
-non-paretic leg slow in visit 2). Visit 2 never writes its own profile
-folder, so the speed profiles are transferred to the server only once,
-at the end of visit 1. A fixed ~2.5 min break follows every bout-based
-condition except the last. There is no fNIRS or H-reflex during the
-tied fastest-speed trial (150% of 6MWT, no ramp, no stim), so it runs
+Every participant completes two visits, with the leg on the fast belt
+flipped between them: Visit 1 = dominant (young adult), non-paretic
+(stroke), or matched (matched control) leg; Visit 2 = the other leg.
+At the start of each visit, `RunProtocol_SpinalAdaptBouts.m` asks by
+dialog for the visit participant ID — the participant ID plus `_V01`
+or `_V02`, e.g. `SAST01_V01` — and the fast leg, then confirms the leg
+for that participant type and visit. Name each visit's Vicon Nexus and
+Oxysoft folder `Visit01`/`Visit02` inside the participant-ID folder
+(e.g., `...\SpinalAdaptStudy\SAST01\Visit01`). Visit 1 completes the
+6MWT and generates every profile, for both possible fast-leg
+assignments, into a profile folder both visits share; Visit 2 skips
+the 6MWT and profile generation and loads those profiles. At the end
+of each visit, `transferData_SpinalAdaptBouts` copies the data to
+`W:\Chase\SpinalAdapt\` (`Data\<ID>\SpeedProfiles` shared by both
+visits, then `Data\<ID>\Visit0N\` and `RawBackupData\<ID>\Visit0N\`).
+A fixed ~2.5 min break follows every bout-based condition except the
+last, and each bout's spoken "stop" plays on its last step, about half
+a stride before the belts stop. There is no fNIRS or H-reflex during
+the tied fastest-speed trial (150% of 6MWT, no ramp, no stim), so it runs
 on the plain open-loop audio-countdown controller
 (`controlSpeedWithSteps_edit1_AudioCountDown`, shared with C3/
 BrainWalk) instead of the NIRS/H-reflex controller used by every other
@@ -101,11 +110,10 @@ preceding double support, to further widen the margin — both fixes
 MATLAB-only, no firmware change). It also sends the start (`0`)/stop
 (`3`) handshake that runs the Arduino's state machine. See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md) for the
-timing contract and the validation checklist to run before resuming
-collection.
+timing contract and the validation checklist to run before collection.
 
-The overground 6-minute walk test (6MWT) — the first trial of the
-session, whose speed sets every other trial's belt speed — uses
+The overground 6-minute walk test (6MWT) — the first trial of Visit 1,
+whose speed sets every other trial's belt speed in both visits — uses
 `HreflexOGWithAudio` (menu slot 8) self-paced (`hreflex_present =
 false`, no stim, audio feedback answered "No"). H-reflex walking
 calibration and all bout-based conditions use
@@ -120,7 +128,10 @@ open trial via `ViconNexus()` (Nexus MATLAB SDK), loads EMG and
 force-plate data via BTK, and calls helper functions in the
 `+Hreflex` namespace (labTools) to extract M- and H-wave
 amplitudes, fit curves, and save figures to `HreflexCalFigs/`.
-This script is triggered by Nexus — not by ExperimentalGUI. See
+This script is triggered by Nexus — not by ExperimentalGUI. The
+pipeline's Run MatLab Operation step is currently broken, so run the
+script manually after each calibration C3D is saved; enter every EMG
+sensor's muscle (`NA` only for unused sensors). See
 [studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
 **H-reflex M-wave monitor:** a separate, near-real-time tool helps the

@@ -7,9 +7,12 @@ stimulators at a fixed phase of the gait cycle.
 
 ## Status
 
-**Rebooting.** Data collection is planned to resume approximately
-Fall 2026. Protocol software updates may be required to ensure
-precise H-reflex stimulation timing before collection resumes.
+**Rebooting; data collection begins 2026-09-29** with an outside pilot
+participant with stroke — the first participant from outside the lab
+and the first participant with stroke to run the two-visit protocol
+(`SAST##_V01`/`_V02`; see Two-Visit Protocol below). The internal lab
+pilots before it (2026-09 `SAYA##` visits) validated the H-reflex
+timing path; open items are tracked under Validation Before Collection.
 
 ## Experimenters
 
@@ -23,8 +26,16 @@ precise H-reflex stimulation timing before collection resumes.
 
 | Format | Population |
 |---|---|
-| `SABH##` | Healthy controls |
-| `SAS##V##` | Participants with stroke (two visits) |
+| `SAYA##` | Neurologically intact young adults |
+| `SAST##` | Participants with stroke |
+| `SAMC##` | Matched controls |
+| `SABH##` | Pilot Study 2 and earlier data (healthy); not used in the rebooted study |
+
+Every participant completes two visits. The **visit participant ID**
+adds the visit suffix, `_V01` or `_V02` (e.g., `SAST01_V01`); the Vicon
+Nexus and Oxysoft visit folders and the server folders are named
+`Visit01`/`Visit02`, inside a folder named with the participant ID
+(e.g., `SAST01\Visit01`).
 
 ## Protocol Notes
 
@@ -63,19 +74,19 @@ the 2026-08-13 design) were removed. H-reflex walking calibration
 (`CalibrationFast.mat`, `CalibrationSlow.mat`, 400 strides each) runs
 separately before and after the main protocol via
 `runWalkingCalibrations`, not as a numbered condition — the
-pre-session loop now defaults to slow first, then fast, matching the
+start-of-visit loop defaults to slow first, then fast, matching the
 protocol's own speed order. There are no TM/OG baseline conditions or
 profiles in the current design — the previous protocol version used
 the TM baseline step length asymmetry to determine each stroke
-participant's fast/slow leg assignment; the current design takes
-`fastLeg` as a direct experimenter input instead
-(`RunProtocol_SpinalAdaptBouts.m`).
+participant's fast/slow leg assignment; the current design takes the
+fast leg as a direct experimenter entry instead (see Two-Visit Protocol
+below).
 
 **Breaks (added 2026-09-18):** a fixed ~2.5 min break
 (`pauseBetweenTrials = 115` s, plus the ~35 s Vicon stop/start delay)
 follows every bout-based condition (2, 3, and the numbered Adaptation
-Split / Post-Adaptation Slow blocks) except the very last condition in
-the session. There is no break between the 6MWT, the pre-session
+Split / Post-Adaptation Slow blocks) except the very last condition of
+the visit. There is no break between the 6MWT, the start-of-visit
 H-reflex calibration trials, or after the Tied Fastest trial (condition
 1) — the protocol proceeds straight into condition 2 after it.
 
@@ -84,40 +95,55 @@ H-reflex calibration trials, or after the Tied Fastest trial (condition
 SpinalAdaptBouts` generates BOTH `AdaptSplitFastR.mat` (right belt
 fast) and `AdaptSplitFastL.mat` (left belt fast) up front, rather than
 taking a `fastLeg` input and generating only one. `RunProtocol_
-SpinalAdaptBouts.m` selects the file matching the confirmed `fastLeg`
-at run time. This lets a stroke participant's visit 2 reuse every
-profile generated in visit 1 with the fast/slow leg assignment simply
-flipped, without regenerating anything (see Two-Visit Protocol below).
+SpinalAdaptBouts.m` selects the file matching the confirmed fast leg
+at run time, so Visit 2 reuses every profile generated in Visit 1 with
+the fast/slow leg assignment simply flipped, without regenerating
+anything.
 
-**Two-visit protocol for participants with stroke (added 2026-09-18):**
-participant IDs ending `V01`/`V02` (`SAS##V01`/`SAS##V02`) trigger
-visit-specific behavior in `RunProtocol_SpinalAdaptBouts.m`. Visit 1
-runs the 6-minute walk test, computes speeds, and generates every
-profile (both fast-leg split variants above) into its own profile
-folder, keyed by the full, visit-suffixed participant ID exactly as
-before this revision. Visit 2 skips the walk test and profile
-regeneration entirely — it loads visit 1's profiles directly from
-visit 1's own profile folder (`dirProfile` is built from the
-participant ID with its `V02` suffix replaced by `V01`), verifying
-they exist before proceeding rather than silently pointing at an empty
-folder — and confirms the (now flipped) fast-leg assignment: the
-paretic leg is slow in visit 1 (fast leg = non-paretic/dominant) and
-the non-paretic leg is slow in visit 2 (fast leg = paretic). Visit 2
-never writes a profile folder of its own, so
-`transferData_SpinalAdaptBouts.m` (called unmodified, with the full
-visit-suffixed participant ID, at the end of each visit) naturally
-transfers the speed profiles to the server only once, at the end of
-visit 1 — at the end of visit 2 it finds no local profile folder under
-the `V02` ID and logs a harmless warning for that one item while every
-other transfer (Vicon, NIRS, datlogs) proceeds normally.
+**Two-Visit Protocol (all participants; revised 2026-09-25):** every
+participant — young adult (`SAYA##`), participant with stroke
+(`SAST##`), or matched control (`SAMC##`) — completes two visits with
+the leg on the fast belt flipped between them: Visit 1 puts the
+dominant (young adult), non-paretic (stroke), or matched (matched
+control) leg on the fast belt, and Visit 2 the other leg.
 
-**Overground 6-minute walk test:** the first trial of the session
+- **Entry.** `RunProtocol_SpinalAdaptBouts.m` opens with a dialog for
+  the visit participant ID (e.g., `SAST01_V01`) and the leg on the fast
+  belt this visit (R/L); nothing is edited in the script (an edited-in
+  ID was forgotten during a 2026-09 pilot, and editing a tracked file
+  also blocks `git pull` on the lab PC). A malformed ID or leg stops
+  the script with an error. A confirmation dialog then spells out which
+  leg belongs on the fast belt for that participant type and visit
+  (e.g., "Visit 2 (stroke): the fast belt should carry the paretic
+  leg").
+- **Visit 1** runs the 6-minute walk test, computes speeds, and
+  generates every profile (both split variants above) into the
+  participant's profile folder,
+  `profiles\SpinalAdaptNirsStudy\<participant ID>`, which both visits
+  share.
+- **Visit 2** skips the walk test and profile generation, verifies the
+  Visit 1 profiles exist in that folder (error otherwise, rather than
+  silently running an empty folder), and loads the split file for its
+  flipped fast leg.
+- **Folders.** Name the Vicon Nexus and Oxysoft visit folders `Visit01`/
+  `Visit02` inside the participant folder (e.g.,
+  `...\SpinalAdaptStudy\SAST01\Visit01`). At the end of each visit
+  `transferData_SpinalAdaptBouts(participantID, visitNum, threshTime)`
+  copies files newer than the visit's start to the server,
+  `W:\Chase\SpinalAdapt\`, laid out as for `SAYA90`:
+  `Data\<ID>\SpeedProfiles\` (shared, transferred once, at Visit 1),
+  `Data\<ID>\Visit0N\{Vicon, NIRS, DataLogs, Results}`, and
+  `RawBackupData\<ID>\Visit0N\{Vicon, NIRS, DataLogs}`. Post-hoc
+  outputs (`DatlogSyncRes`, `TrajectoryFigures`, the `c3d2mat` files,
+  renamed `DataLogs\TrialNN.mat`) are not the helper's job.
+
+**Overground 6-minute walk test:** the first trial of Visit 1
 (added 2026-09-01; moved to run *before* speed computation 2026-09-18,
 since its result now sets every other trial's belt speed — previously
 `utils.extractSpeedsNMWT()` was called before this trial had run,
 which cannot have been correct). Not one of the 13 numbered conditions
-above, and skipped entirely in visit 2 of the two-visit protocol (see
-above). Uses `HreflexOGWithAudio` (slot 8, `hreflex_present = false`,
+above, and skipped entirely in Visit 2 (see above). Uses
+`HreflexOGWithAudio` (slot 8, `hreflex_present = false`,
 no stim), profile `SixMinuteWalk.mat` (`velL`/`velR` all-`NaN`, 1,000
 strides — self-paced, sized only as a generous safety margin since the
 trial length is controlled by the experimenter pressing Stop in the
@@ -130,12 +156,17 @@ SpinalAdaptBouts.m` no longer calls it internally (it would just
 rewrite an identical, already-present file, since the protocol script
 guarantees `SixMinuteWalk.mat` exists before ever reaching profile
 regeneration). The walk-test trial and the profile-regeneration dialog
-are both guarded by a resume prompt, so restarting a session mid-way
-does not force a redundant six-minute walk or NMWT re-entry.
+are both guarded by a resume prompt, so restarting a visit mid-way
+does not force a redundant six-minute walk or NMWT re-entry. After the
+walk-test dialog, the script prints the walk-test arithmetic (laps ×
+walkway ± tape = distance / duration) and every derived belt speed in
+m/s and in the integer mm/s actually commanded — the paper datasheet's
+lap and tape units need not match the dialog's (10 m laps, tape in
+inches), and the echo makes a mismatch visible at entry time.
 
 **Tied Fastest trial: a different controller entirely (revised
 2026-09-18):** there is no fNIRS or H-reflex during this trial, so
-unlike every other condition in the session it does not run on
+unlike every other condition in the visit it does not run on
 `NirsHreflexArduinoOpenLoopWithAudio` (GUI slot 14) at all — it runs on
 the plain `controlSpeedWithSteps_edit1_AudioCountDown` (GUI slot 11),
 the same controller C3 and BrainWalk use for their own tied trials.
@@ -157,7 +188,16 @@ controller used for this trial in an earlier design), which shortens
 the dead-stop ramp to 150% of comfortable speed from roughly 3 s to
 well under 1 s. This controller is shared with C3/BrainWalk and not
 this study's to edit; flag it to the lead experimenter if a gentler
-ramp is wanted for this trial specifically.
+ramp is wanted for this trial specifically. **Why it matters which
+controller runs it:** on 2026-09-18 (participant `SAYA90`) this trial
+ran on slot 14 — the switch to slot 11 was committed after the trial
+— and the participant felt stimulation: the NIRS/H-reflex controller
+treated the profile's explicit all-zero `stimL`/`stimR` as "no schedule
+given" and gated every 10th stride (strides 4, 14, 24, 34, 44; five
+pulses per leg, confirmed on the Vicon trigger channels). Since
+2026-09-22 that controller treats an explicit all-zero schedule as no
+stimulation; only a profile with no stim variables at all still gets
+its legacy every-10th-stride default.
 
 **fNIRS event naming (added 2026-09-18):** every event
 `NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is now prefixed
@@ -196,33 +236,46 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   `AccRamp`, split ramp = `DccRamp2Split`) announces "Walk" exactly
   once, with no 3-2-1 countdown; bout 1 gets the same "Walk" cue from
   the pre-loop block, and the ramp-event cue is suppressed only for
-  that first bout to avoid a duplicate. Every belt stop (each
-  inter-bout rest and the trial end) plays `stop.mp3` then, once it
-  finishes, `silentlyCountForward.mp3` — sequenced with a blocking
-  `pause` on the first cue's own duration so the two never overlap —
-  also with no countdown. This entire bullet describes
+  that first bout to avoid a duplicate. This entire bullet describes
   `NirsHreflexArduinoOpenLoopWithAudio` only; the Tied Fastest trial
   does not use this controller at all (see Tied Fastest trial above).
   The speed ramp at each bout start is 3 strides (`rampStrides` in
   `generateProfiles_SpinalAdaptBouts.m`, reduced from 10). The "which
   bout to start from" dialog range and default are derived from the
   loaded profile's bout count (10 for every bout-based condition), not
-  hard-coded. The break
-  between trials (`pauseBetweenTrials` in
+  hard-coded. The break between trials (`pauseBetweenTrials` in
   `RunProtocol_SpinalAdaptBouts.m`) targets ~2.5 min wall clock — see
   Breaks above.
-- **Stop cue wording and split into two files (revised 2026-09-02):**
-  the 2026-08 dry run's single `stopAndRest.mp3` was too wordy; it is
-  replaced by two shorter cues played back-to-back — `stop.mp3`
-  ("Stop") then `silentlyCountForward.mp3` ("Silently count forward
-  from one"). `NirsHreflexArduinoOpenLoopWithAudio.m` plays `stop`,
-  blocks for exactly its own duration (`stopCueSec`), then plays
-  `silentlyCountForward` and starts the rest timer from that second
-  cue — so the 10 s silent counting window (`restSilentSec`) always
-  begins exactly when `silentlyCountForward.mp3` finishes, regardless
-  of either cue's length. Both mp3s were generated with Narakeet — see
-  [CONTRIBUTING.md](../../CONTRIBUTING.md#audio-cue-assets) for the
-  voice/settings used and why other cues in this repo may not match.
+- **Belt-stop cues (revised 2026-09-25):** each inter-bout rest and the
+  trial end use two short cues, `stop.mp3` ("Stop", 0.72 s) and
+  `silentlyCountForward.mp3` ("Silently count forward from one"; both
+  from Narakeet — see
+  [CONTRIBUTING.md](../../CONTRIBUTING.md#audio-cue-assets)), which
+  replaced the too-wordy `stopAndRest.mp3` in 2026-09.
+  - **"Stop" is spoken on the bout's last step**, about half a stride
+    before the belts stop abruptly: each step counter advances at its
+    own leg's toe-off and the belts stop at the first toe-off that
+    reaches the rest stride, so the controller plays `stop`
+    (non-blocking) once *both* legs have started the final stride.
+    History: until 2026-09-22 it played after a 1.5 s settle pause,
+    once the belts had already stopped; the 2026-09-24 pilot's version,
+    at the zero-speed command, was still too late to be useful. If a
+    missed toe-off keeps one counter behind, the rest handler says it
+    at the zero-speed command instead.
+  - **The rest itself is timed as before:** the Rest fNIRS marker
+    follows the zero-speed command by 1.5 s and `silentlyCountForward`
+    by 1.5 s + the `stop` cue's length, and the 10 s silent counting
+    window (`restSilentSec`) begins exactly when
+    `silentlyCountForward.mp3` finishes — so rest epochs stay
+    comparable across visits.
+  - **Analysis note — exclude each bout's final, post-stop pulse:** at
+    every rest, one leg's last gated pulse (alternating legs; 10 of 200
+    per bout trial) fires 100–300 ms *after* the zero-speed command,
+    while the belts decelerate, because that leg's final single stance
+    begins about when the belts are commanded to stop (2026-09-18
+    datlogs). The spoken "stop" now also precedes the bout's last one or
+    two pulses. These pulses are handled by exclusion in analysis; the
+    profiles and controller are deliberately unchanged.
 - H-reflex stimulation timing: `NirsHreflexArduinoOpenLoopWithAudio`
   paired with firmware `triggerStimWithGaitStateMachine_SpeedIndependent`
   is the authoritative, Arduino-timed path. The Arduino owns the
@@ -289,7 +342,7 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   landing a stride later than intended), despite every delivered pulse
   still being correctly timed to ~50% of the (wrong) stride's single
   stance. Diagnosed against the matching Vicon capture (`Trial08.c3d`)
-  and a known-good comparison session from 2026-09-02 (`Trial03.c3d`,
+  and a known-good comparison visit from 2026-09-02 (`Trial03.c3d`,
   same belt speed and loop timing, 0 stride-count deficit). Root
   cause: `updateGaitEventStateMachine()`'s stance debounce required
   BOTH legs' `timeSinceStanceChange` to exceed `timeDebounce` (100 ms)
@@ -308,10 +361,10 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   stride) let two consecutive stalls carry a gate two strides before
   the expiry guard dropped it — all 4 drops in the 09-08 pilot were
   this expiry case. Ruled out: loop timing (statistically identical
-  between the two sessions), the encoding regression above (`ardStep`
+  between the two visits), the encoding regression above (`ardStep`
   climbed cleanly into the 140s), and analog wiring/gain/zeroing (a
   single ~320 N effective threshold, and a swing-phase baseline
-  differing by <2 N, explain both sessions equally well — a wiring or
+  differing by <2 N, explain both visits equally well — a wiring or
   zeroing change could not fit both). Fix (firmware, needs
   re-upload): the debounce now checks only each leg's own
   `timeSinceStanceChange` (see the `timeDebounce` comment in the
@@ -329,7 +382,7 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   (same-stride, Arduino clock) instead of `durSSms` (one stride
   stale), which had been inflating the apparent within-stance spread
   the experimenters noticed (true placement sd was 2.4–2.8% in both
-  sessions; the stale-denominator readout ran 3.9–5.2%); a new
+  visits; the stale-denominator readout ran 3.9–5.2%); a new
   stride-count-deficit watchdog (distinct from the existing `ardStep`
   regression sentinel, which only catches the counter *decreasing*)
   warns into `datlog.errormsgs` the first time a leg's Arduino step
@@ -340,16 +393,15 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   diagnosis — accounting, drop classification, the on-target metric,
   loop timing, and (given the matching C3D) the Arduino stride-count
   deficit, true double support, and toe-off reference error — against
-  any saved datlog; it reproduces 0/360 for the 09-02 session and
-  50/333 for 09-08. **Still required before the next pilot:** re-flash
-  the firmware, a bench bits-to-newtons calibration for `threshFzUp`
-  (see `HreflexStimArduino/README.md`), and the dry-run checklist
-  below, now including a fast-speed run and a light or
-  short-double-support walker.
+  any saved datlog; it reproduces 0/360 for the 09-02 visit and
+  50/333 for 09-08. (The firmware was re-flashed on 2026-09-17; the
+  bench bits-to-newtons calibration for `threshFzUp` and a formal run
+  of the dry-run checklist remain open — see Validation Before
+  Collection.)
 - **Near-total stim loss, 2026-09-16 pilot (09-14 fix confirmed never
   flashed):** a participant reported no felt stimulation during
   `CalibrationFast`. `NirsHreflexArduinoOpenLoopWithAudio.m` sent all 132
-  gates normally (66/leg, matching the 09-02 good-session count), but the
+  gates normally (66/leg, matching the 09-02 good-visit count), but the
   Arduino delivered only 1 and dropped 131, every drop classified as
   expiry, never lateness — `ardStep` reached only 1 (left) / 0 (right)
   across the full 227 s trial, categorically worse than 09-08's partial
@@ -359,7 +411,7 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   the gate-to-drop-echo latency: both legs' drops cluster tightly at
   ~2000 ms (the old fixed `durGateMaxAge`), none near the current
   firmware's ~595 ms (`1.5 * estSSLInit`) band. This participant (52.0 kg)
-  also loaded the plates markedly more lightly than prior sessions (Vicon
+  also loaded the plates markedly more lightly than prior visits (Vicon
   `forces.data` |Fz| p99 ~560 N vs. ~940 N on 09-08 and ~1340 N on 09-02)
   — still above the ~280-320 N effective `threshFzUp` inferred by the
   09-14 fix's own reasoning, so the threshold was not simply unreachable;
@@ -386,9 +438,13 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   gate-to-drop-echo latency into old-vs-new-firmware bands; with zero
   drops there is nothing to classify and it reports "inconclusive" by
   design — see the 09-17 entry below, where a clean trial could not
-  self-certify its own firmware this way). Still required before the
-  next pilot: everything the 09-14 entry above already listed, now
-  confirmed outstanding rather than merely due.
+  self-certify its own firmware this way). The 2026-09-18 pilot added a
+  corollary: commit a changed function and its callers together, and
+  never treat a fix written after a trial as having been live for it —
+  the Tied Fastest stimulation that day ran on code whose fix was
+  committed 16 minutes *after* the trial, and for two hours the
+  committed tree could not even regenerate profiles (the generator's
+  argument list had changed without its caller).
 - **Per-leg debounce fix validated, 2026-09-17 pilot:** the first pilot
   run on a freshly re-flashed Arduino carrying the 09-14 per-leg debounce
   fix, deliberately run as a stress test — a light participant (52.5 kg)
@@ -409,74 +465,66 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   or duplicated walking stride, and not what the existing deficit
   watchdog would flag (it only warns when the Arduino falls *behind*
   MATLAB, i.e. a positive deficit; this was the opposite sign). MATLAB-
-  perceived double support this session had a median of 49 ms, roughly
+  perceived double support this visit had a median of 49 ms, roughly
   *half* `timeDebounce` (100 ms) — under the old cross-leg debounce this
   would have blanked nearly every toe-off; the per-leg version lost
   nothing. The fix is now validated under a harder condition than any
-  prior session. (`auditHreflexStimTiming`'s firmware
+  prior visit. (`auditHreflexStimTiming`'s firmware
   fingerprint reports "inconclusive" for this trial, as expected for a
-  zero-drop session — see the fingerprint caveat in the 09-16 entry
+  zero-drop trial — see the fingerprint caveat in the 09-16 entry
   above; the behavioral evidence above is the confirmation instead.)
+  **Confirmed on the Vicon clock at the 2026-09-18 pilot** (`SAYA90`,
+  short-statured, 154.2 cm, 61.6 kg; every walking stim trial captured
+  in Vicon with both trigger channels and force plates): trigger-sync
+  edges matched every gate on all 15 stim trials (60/60 per calibration
+  trial, 100/100 per bout trial, 5/5 on the Tied Fastest trial), and
+  the Arduino stride-count deficit was 0 within every walking bout on
+  both legs — including the Tied Fastest trial at 1.48 m/s, where true
+  (force-plate) double support averaged 65 ms (minimum 46 ms), well
+  under `timeDebounce`.
 
-  Two unrelated tooling bugs surfaced during this session's analysis,
-  both fixed (no firmware change, no re-flash needed):
-  - `Hreflex.plotCal` (labTools `fun/+Hreflex/plotCal.m`) crashed with
-    *"Vectors must be the same length"* plotting the right leg's
-    normalized recruitment curve. Cause: the right-leg M-wave fit did
-    not saturate within the delivered 5–26 mA range (R² = 0.88, below
-    the caller's own 0.95 trust threshold, with `nlinfit`
-    rank-deficiency warnings); an unsaturated fit's third derivative is
-    monotonic over that range, so `findpeaks` legitimately returns empty
-    and the downstream `I_star`/`M_star` annotation lines had no guard
-    for it. Fixed by skipping the I\*/M\* annotation (with a
-    once-per-leg warning) when no third-derivative peak exists, and by
-    guarding every `fit.M.(legID)`/`fit.H.(legID)` dereference in the
-    file on the leg's fields actually existing — `Hreflex.fitCal` skips
-    a leg with no stimulation data entirely, so a one-leg session hit
-    the same class of "Reference to non-existent field" crash before
-    this fix.
-  - `LogForcesArduinoSerial.m`'s `readline` timeout guard
-    (`ismissing(rawLine) || rawLine == ""`) itself crashed with a `||`
-    non-scalar-operand error on a genuine timeout, before its own
-    intended, actionable error message could print. Root cause was
-    **not** a serial port conflict (ruled out: `serialport()` — which a
-    port already held open elsewhere would have failed instead —
-    succeeded; only the subsequent read timed out) but the ordinary,
-    expected case: `logForceData()` is commented out in production
-    firmware, so an as-flashed Arduino streams nothing for this script
-    to read. Fixed by checking `isempty` first, wording the error around
-    the actual cause, and tolerating a single transient gap (once real
-    data has started flowing) instead of aborting the whole run and
-    discarding everything already logged.
+  Two unrelated tooling bugs found in the 09-17 analysis are fixed (no
+  firmware change): `Hreflex.plotCal` (labTools) no longer crashes on an
+  unsaturated M-wave fit (no third-derivative peak) or a one-leg
+  trial's missing fit fields; and `LogForcesArduinoSerial.m`'s
+  `readline` timeout guard now reports its real cause — production
+  firmware has `logForceData()` commented out, so nothing streams —
+  instead of crashing on a `||` non-scalar operand.
 
-  **Stim-timing precision:** the device-only on-target metric
-  (`|dtStimMs - estSSms/2|`, i.e. how precisely the Arduino hits its own
-  scheduled target) was sub-millisecond on every session with delivered
-  pulses (09-17: mean 0.49 ms, median 0.50 ms, max 0.95 ms, n = 120) —
-  this reflects the control loop's own scheduling precision, not true
-  placement within physiological single stance, since it compares the
-  fire time against the Arduino's own estimate rather than a ground-truth
-  boundary. **No Vicon capture of this session's walking trial exists**
-  to compute true %-single-stance placement: the only C3D produced today
-  (`Trial01.c3d` in TEST11's Nexus session) is the separate, standing
-  EMG-based recruitment-curve trial used by `GenerateHreflexRecruitmentCurves`,
-  not a capture of the gait-triggered `CalibrationFast` walking bout. The
-  best available proxy is the stored `pctSS` column (`deviceEcho` data,
-  one-stride-stale denominator — see the 09-14 entry above): left leg
-  mean 51.9%, median 50.3%, sd 6.4 pp (IQR [47.8, 54.6], n = 60, KS
-  normal, p = 0.28); right leg mean 52.0%, median 51.4%, sd 4.2 pp (IQR
-  [49.6, 53.5], n = 60, KS normal, p = 0.13). Per the 09-14 entry, this
-  denominator lag inflates apparent spread over the true value, so these
-  are upper bounds on placement variability, not the acceptance number.
-  Across every session with delivered pulses, the Arduino's smoothed
-  `estSS` ran longer than the immediately preceding measured `durSS` by
-  +13 to +51 ms (09-17: +13.1 ms L, mirrored on R); this is consistent
-  with (but not proven to be caused by) the `threshFzUp` heel-strike
-  registration lag discussed under 09-14, and could equally be ordinary
-  EWMA lag if stride duration trends within a trial. Resolving which
-  needs the Vicon ground truth this session doesn't have — **capture a
-  Vicon trial of the walking `CalibrationFast` bout itself**, not only
-  the standing recruitment-curve trial, at the next pilot.
+  **Stim-timing precision and placement (ground truth, 2026-09-18).**
+  Three measures exist and are not interchangeable:
+  - *Device-only* `|dtStimMs - estSSms/2|` (the Arduino hitting its own
+    target) was 0–1 ms on every trial (mean ≈ 0.5, sd ≈ 0.29 ms, i.e.,
+    the `millis()` resolution floor) — indistinguishable from 09-17
+    (mean 0.49, median 0.50, max 0.95 ms, n = 120). It says nothing
+    about physiological placement.
+  - *Stored* `pctSS` (one-stride-stale denominator) is an upper bound
+    only: on `CalibrationFast` (0.988 m/s) its sd was 4.4 pp (L) /
+    5.6 pp (R), vs. 09-17's 6.4 / 4.2 pp — about twice the true spread.
+  - *True* placement, `100 × (stim − single-stance onset) / single-
+    stance duration` from the Vicon trigger and force-plate channels
+    (the acceptance measure): on `CalibrationFast`, L mean 53.8%, sd
+    2.0, median 53.6, IQR 52.8–55.1, range 48.1–58.8 (n = 60); R mean
+    54.0%, sd 2.5, median 54.3, IQR 52.9–55.2, range 45.9–61.0 (n = 60;
+    Lilliefors normality p = 0.42 L, 0.04 R, so prefer the robust
+    summary for R). The spread matches 09-02/09-08 (sd 2.4–2.8 pp), but
+    placement is **systematically late**: mean +2.5 to +6.7 pp across
+    all 15 trials, only 68–72% of `CalibrationFast` pulses within 50 ±
+    5% (every miss late), and 33–57% within it at slow speed.
+  - *Cause (measured):* the Arduino's `estSS` exceeds true single
+    stance by +19 to +71 ms (larger at slower speed) while its toe-off
+    reference is accurate to within a few ms, so firing at `estSS/2`
+    lands late by about half that bias. A steady EWMA cannot hold a
+    constant positive bias through continuous walking, so this is
+    heel-strike registration lag from `threshFzUp` — which settles the
+    09-14/09-17 open question and makes the threshold calibration below
+    the top timing item after 2026-09-29.
+  - *Accounting:* every bout trial showed exactly one gate with no
+    echo — always the trial's final gate, whose pulse the Vicon trigger
+    channel shows did fire; its echo arrived during the blocking final
+    rest and was discarded by the controller's teardown
+    `flush(portArduino)`. Since 2026-09-22 the controller drains echoes
+    before that flush, so the accounting identity holds exactly.
 - **Firmware threshold analysis (2026-09-17, no `.ino` change made):**
   quantified the open bits-to-newtons calibration item below using the
   one archived Arduino bit-domain log
@@ -487,7 +535,7 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   baseline" as the prior guidance implied — corroborating the 09-14
   entry's inferred 280–320 N effective threshold at roughly 10 N/bit.
   Because the threshold is a fixed bit value, that fraction of peak
-  scales inversely with participant weight across sessions: ~22% (09-02
+  scales inversely with participant weight across visits: ~22% (09-02
   fast, 1377 N peak) to ~54% (09-16, 563 N peak) to ~42% (09-17, 723 N
   peak). At ~54% of peak, heel-strike registration lag grows and
   perceived double support collapses — the same mechanism as the 09-14
@@ -503,7 +551,13 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   at ≥10× the bench-measured baseline sd of the *current* plates
   (the archived 0.09-bit figure is 14 months old and `.ino:31-33`'s own
   TODO warns left-plate noise may now be worse), and re-check the
-  `estSS`-vs-`durSS` bias above after any change.
+  `estSS`-vs-`durSS` bias above after any change. **Priority raised
+  2026-09-18:** the ground truth above measured this bias as the cause
+  of late stim placement; lighter paretic-limb loading and slower belts
+  in participants with stroke should enlarge it. Kept deliberately
+  after 2026-09-29, with its own re-flash and dry run, rather than
+  changing a validated flash the week of the first outside
+  participant.
 - **Date/time modernization (2026-07):** `now`/`datestr`/`clock`/`etime`
   calls in `NirsHreflexArduinoOpenLoopWithAudio.m` were replaced with
   `datetime`/`char`/`tic`-`toc` equivalents to clear MATLAB Code
@@ -523,7 +577,7 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   need. Genuine storage-format modernization for both is deferred to a
   coordinated ExperimentalGUI + labTools change.
 
-## Validation Before Resuming Collection
+## Validation Before Collection
 
 The controller logs per-iteration loop timing and gate lead time to the
 additive `datlog.diagnostics` field. Before participant collection,
@@ -531,36 +585,37 @@ confirm:
 
 - **0 missed stims** — intended stims (count of `1`s in the `stimL` /
   `stimR` profile columns) equal delivered pulses (Vicon-recorded
-  Arduino trigger count).
+  Arduino trigger count). *Met 2026-09-18 (all 15 stim trials).*
 - **Tight stim timing** — stimulus fires near 50% of single stance;
   check the distribution from labTools `computeHreflexParameters`
-  (`stimTimeFromSingleStanceSlow/Fast`).
+  (`stimTimeFromSingleStanceSlow/Fast`). *Reopened 2026-09-18:* first
+  measured on the Vicon clock, placement is consistently late (mean
+  ~54% at fast walking; ~30% of pulses outside 50 ± 5%, more at slow
+  speed) — see the stim-timing entry above; fix via the `threshFzUp`
+  calibration after 2026-09-29.
 - **Loop timing** — review `datlog.diagnostics.loopSegMs` (median, p95,
   max) and `gateLeadMs*` (positive = gate arrived that many ms *before*
   single-stance onset; expect roughly a double-support duration of lead).
-- **Arduino stride-count deficit = 0** — each leg's Arduino `ardStep`
-  increment between consecutive delivered pulses should equal how many
-  true strides actually elapsed (from the C3D force plates). This is the
-  load-bearing check for the 2026-09-14 failure mode above: it is not
-  caught by loop timing or by the pre-existing `ardStep`-decreased
-  sentinel, since the counter still increases, just too slowly.
-- **Double-support margin** — measured double support (C3D force plates)
-  should exceed `timeDebounce` (100 ms) by at least ~40 ms. Below that,
-  the debounce risks blanking a genuine toe-off (see the
-  margin-sensitivity table above); fast walking and a short-statured or
-  light participant both shorten double support and are the conditions
-  to watch. **Possibly obsolete for the per-leg debounce (open, as of
-  2026-09-17):** this margin was derived for the old *cross-leg*
-  debounce, which coupled the blanking risk to double-support duration
-  directly. The 2026-09-17 pilot delivered 120/120 gates with 0 drops
-  despite a MATLAB-*perceived* double support median of only 49 ms —
-  well under this check's implied floor — which is suggestive but not
-  conclusive, since perceived DS (frame-quantized, MATLAB clock) is not
-  the true (C3D) DS this check actually specifies, and that session has
-  no matching Vicon capture (see Study History). Re-evaluate this
-  threshold once a walking trial with matching ground truth confirms
-  true DS at a comparably short margin with 0 drops; don't relax it on
-  perceived-DS evidence alone.
+- **Arduino stride-count deficit = 0 within every walking bout** — each
+  leg's Arduino `ardStep` increment between consecutive delivered
+  pulses should equal how many true strides actually elapsed (from the
+  C3D force plates). This is the load-bearing check for the 2026-09-14
+  failure mode above: it is not caught by loop timing or by the
+  pre-existing `ardStep`-decreased sentinel, since the counter still
+  increases, just too slowly. Gaps that span a rest break are reported
+  separately and excluded: standing weight shifts can register a
+  spurious stance change on either side, in either direction (±1–5 per
+  trial on 2026-09-18), which is not a walking stride. *Met 2026-09-18
+  (0 on every leg of all 15 trials).*
+- **Double-support margin — resolved 2026-09-18; now a reported
+  diagnostic, not an acceptance criterion.** The old rule (true double
+  support ≥ `timeDebounce` + ~40 ms) was derived for the *cross-leg*
+  debounce. With the per-leg debounce, 2026-09-18 delivered every gate
+  with 0 within-bout deficit at a true (force-plate) double support of
+  99 ms mean on `CalibrationFast` (about half the intervals < 100 ms)
+  and 65 ms mean (minimum 46 ms) on the 1.48 m/s Tied Fastest trial, so
+  short double support no longer predicts failure; the within-bout
+  deficit above is the acceptance check.
 - **Bench check** — run `HreflexStimArduino/LogForcesArduinoSerial.m`
   (see that folder's README for the firmware prerequisite) and confirm
   the printed baseline-noise-to-`threshFzUp` margin is clean and stance
@@ -571,13 +626,17 @@ confirm:
 runs the missed-stims, stim-timing, loop-timing, and (given the matching
 C3D) stride-count-deficit and double-support checks above in one call
 against a saved datlog — see its help text for the full check list and
-output fields.
+output fields. It splits the stride-count deficit into within-bout and
+rest-spanning gaps (using each pulse's gate step and the profile's rest
+pads), flags the known teardown signature (one unaccounted gate, the
+last, sent after the last echo; fixed for datlogs from 2026-09-22 on),
+and needs the Statistics and Machine Learning Toolbox (`prctile`).
 
 ### Dummy-Profile Dry Run (treadmill only, no participant)
 
 Run this after any change to the serial encoding or firmware timing
 guards (e.g., the 2026-08-06 or 2026-09-14 fixes above), before the next
-pilot or participant session. **Re-flash the Arduino first** if the
+pilot or participant visit. **Re-flash the Arduino first** if the
 firmware changed — see `HreflexStimArduino/README.md`'s upload workflow
 (COM4).
 
@@ -615,7 +674,9 @@ this fix (2026-08-06 or later) — guard with
    pattern means the fix did not take.
 2. **Full accounting:** `size(stim.L,1) + size(stim.R,1)` equals
    `size(stim.deviceEcho.data,1) + size(stim.deviceDrop.data,1)` — no
-   gate unexplained.
+   gate unexplained. (Datlogs before 2026-09-22 come up one short on
+   every bout trial — the final gate's echo was lost at teardown; the
+   audit tool flags that case.)
 3. **`stim.deviceDrop` is empty.** If not, the firmware's lateness or
    gate-expiry guard fired — read the dropped rows' `dtStimMs` for how
    late. Empty here isolates the encoding fix (check 1) from the
@@ -633,24 +694,22 @@ this fix (2026-08-06 or later) — guard with
 8. **Stop actually stops** (new behavior — command `3` previously
    self-cancelled via the same encoding bug): after STOP, confirm no
    further echoes arrive and the Arduino's stim/Vicon pins read LOW.
-9. **Arduino stride-count deficit = 0**, at both slow and fast speed.
-   The direct regression test for the 2026-09-14 fix: run
+9. **Arduino stride-count deficit = 0 within bouts**, at both slow and
+   fast speed. The direct regression test for the 2026-09-14 fix: run
    `diagnostics/auditHreflexStimTiming.m` against the dry-run datlog
-   with the matching C3D and confirm `strideDeficit` is 0 for both
-   legs.
-10. **Measured double support exceeds `timeDebounce` by >= 40 ms** on
-    the fast-speed runs (same tool, `groundTruth.doubleSupportMs`). If
-    it does not, the margin is thin regardless of check 9's result on
-    this particular walker/day — flag it before moving to a
-    participant.
+   with the matching C3D and confirm `strideDeficit` (within-bout) is 0
+   for both legs.
+10. **Report true double support** on the fast-speed runs (same tool,
+    `groundTruth.doubleSupportMs`) as a diagnostic; it is no longer an
+    acceptance threshold (see Validation Before Collection above).
 
-**Still unvalidated after this dry run**, to be run once stim testing
-on a person is scheduled: the Vicon-sync acceptance test
-(`100 × (stimVsync − RTO) / (RHS − RTO)` on the Vicon clock, target
-50 ± 5%) per `HreflexStimArduino/README.md`'s acceptance test steps
-4-5, and a live lab dry-run of the H-Reflex M-Wave Monitor tool
-(below) — it is replay-validated against real prior calibration data
-but not yet run live in the lab.
+The Vicon-sync placement test (`100 × (stimVsync − RTO) / (RHS − RTO)`
+on the Vicon clock, target 50 ± 5%; `HreflexStimArduino/README.md`
+acceptance steps 4-5) was first run on 2026-09-18 and failed for ~30%
+of pulses at fast walking, all late (see the stim-timing entry above).
+**Still unvalidated:** a live lab dry run of the H-Reflex M-Wave
+Monitor tool (below) — it is replay-validated against real prior
+calibration data but not yet run live in the lab.
 
 ## Study History
 
@@ -686,7 +745,7 @@ verify all parameters against the final approved protocol before collection.
 
 A near-real-time M-wave monitor helps the experimenter hold each leg's
 H-reflex M-wave within ~±10% of its calibration baseline during a
-session by watching a live plot and adjusting DS8R current
+visit by watching a live plot and adjusting DS8R current
 accordingly. It runs in a **separate MATLAB instance** from this
 study's control/stimulation instance, so it cannot perturb
 `NirsHreflexArduinoOpenLoopWithAudio`'s control-loop timing.
@@ -737,6 +796,27 @@ directly. To diagnose on the lab PC:
    MATLAB" error points to a broken MATLAB executable/working-directory
    reference in the step's own configuration — then update the
    pipeline's script reference (or MATLAB path config) to match.
+
+**Until the pipeline is fixed, run the script manually** after each
+calibration trial's C3D is saved (in MATLAB, run
+`GenerateHreflexRecruitmentCurves`; with Nexus not driving it, it asks
+for the C3D via a file dialog). That pipeline-step fault is separate
+from the script crash below.
+
+**Script crash with the full muscle list (2026-09-18, fixed
+2026-09-22).** Entering all 7 muscles per leg (`RF`, `VL`, `BF`, `TA`,
+`PER`, `LG`, `SOL`) crashed the script ("Index exceeds the number of
+array elements. Index must not exceed 3."). Its muscle list had been
+trimmed to the lower-leg muscles, so an unrecognized name fell into
+the re-entry prompt's `'sync'` check, which read the name's first four
+characters — past the end of any 3-letter name such as `RRF`. The
+script now uses labTools' full muscle list (as `loadTrials.m` does)
+and a short-name-safe check; the 09-18 workaround (every sensor except
+SOL/TAP entered as `NA`) is no longer needed. Validated headless on the
+real script: the full list now runs with results identical to the
+workaround's, and `SABH02` `Trial03` is unchanged. (`loadTrials.m:196`
+has the same latent `(1:4)` check but never reaches it, since its list
+already includes the thigh muscles.)
 
 **`+Hreflex` functions called by this pipeline** (all in
 `labTools/fun/+Hreflex/`):
@@ -799,9 +879,13 @@ Also changed in that pass:
 
 - **Muscle selection.** Two new dialog fields (appended, so older
   config files are padded with defaults rather than rejected): the
-  H-reflex muscle (default `SOL`) and the artifact localization muscle
-  (default `TAP`, falling back to the H-reflex muscle when that leg
-  has no such channel).
+  H-reflex muscle (default `SOL`) and the artifact localization muscle.
+  Since 2026-09-22 the artifact muscle defaults to `TA` and resolves
+  per leg through the tibialis anterior family — the requested name
+  first, then `TAP`, `TA`, `TAD` — before falling back to the H-reflex
+  muscle, printing the channel used per leg. A visit that records a
+  single `RTA`/`LTA` channel and a historical one with `RTAP`/`RTAD`
+  both work from either entry; no channel is renamed.
 - **Artifact threshold is now a quality control floor, not a gate**,
   in both paths: a stimulus below it is flagged and drawn in red, not
   discarded. On the dry run a 0.3 mV gate excluded 3 of 60 real
