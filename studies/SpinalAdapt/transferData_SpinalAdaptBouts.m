@@ -1,18 +1,25 @@
 function transferData_SpinalAdaptBouts(participantID, threshTime)
-%TRANSFERDATA_SPINALADAPTBOUTS Transfer PC1 data for the SpinalAdapt study.
+%TRANSFERDATA_SPINALADAPTBOUTS Transfer PC1 data for one SpinalAdapt visit.
 %
-%   Recursively copies Vicon, NIRS, speed profile, and data-log files to
-%   the server (W:\Chase\SpinalAdapt\, study root since 2026-09-22),
-%   creating non-existent destination folders as needed, then creates
-%   the Results analysis folder. The Vicon Nexus session folder must be
-%   named after the participant, i.e.,
-%   ...\Vicon Training\SpinalAdaptStudy\<participantID>\<participantID>.
+%   Recursively copies one visit's Vicon, NIRS, and data-log files, and
+%   the participant's speed profiles (shared by both visits), to the
+%   server (W:\Chase\SpinalAdapt\), creating non-existent destination
+%   folders as needed, then creates the visit's Results analysis folder.
+%   On PC1, each visit's Vicon Nexus and Oxysoft data are in a
+%   'Visit01'/'Visit02' folder inside the participant's folder. The
+%   server layout (as for SAYA90) is:
+%     Data\<participantID>\SpeedProfiles\         (shared by both visits)
+%     Data\<participantID>\Visit0N\{Vicon, NIRS, DataLogs, Results}
+%     RawBackupData\<participantID>\Visit0N\{Vicon, NIRS, DataLogs}
+%   Only files newer than threshTime are copied, so the speed profiles
+%   (generated in Visit 1) are transferred once, at the end of Visit 1.
 %
 % Inputs:
-%   participantID - char or string; participant ID (e.g., 'SAYA01',
-%                   'SAS01V01')
+%   participantID - char; participant ID without the visit suffix
+%                   (e.g., 'SAYA01', 'SAST01', 'SAMC01')
+%   visitNum      - double; visit number, 1 or 2
 %   threshTime    - datetime; only files newer than this timestamp are
-%                   transferred (typically set at session start)
+%                   transferred (typically set at the start of the visit)
 %
 % Outputs:
 %   None
@@ -22,10 +29,9 @@ function transferData_SpinalAdaptBouts(participantID, threshTime)
 %
 % See also RUNPROTOCOL_SPINALADAPTBOUTS, UTILS.TRANSFERDATASESS.
 
-% TODO: update function to open a GUI for user input if no inputs provided
 narginchk(2, 2);        % verify correct number of input arguments
 
-% TODO: add error checks and set default value for 'threshTime'
+% TODO: update function to open a GUI for user input if no inputs provided
 
 %% Define Data Paths
 dirExpGUI = 'C:\Users\Public\Documents\MATLAB\ExperimentalGUI';
