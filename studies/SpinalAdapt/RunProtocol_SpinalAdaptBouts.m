@@ -41,8 +41,8 @@
 %   TRANSFERDATA_SPINALADAPTBOUTS.
 
 %% EXPERIMENTER: Enter Visit-Specific Parameters
-speedProportion        = 0.5;  % slow / 6MWT speed ratio
-speedProportionFastest = 1.5;  % fastest / 6MWT speed ratio
+speedProportion        = 0.50;  % slow / 6MWT speed ratio
+speedProportionFastest = 1.25;  % fastest / 6MWT speed ratio
 
 % The visit participant ID and fast leg are entered by dialog at the
 % start of every visit rather than by editing this file (an edited-in ID
@@ -284,7 +284,7 @@ while currCon < maxCon
     end
 
     switch currCon
-        case 1          % Tied Fastest (150% of 6MWT, no ramp, no stim)
+        case 1          % Tied Fastest (125% of 6MWT, ramp, no stim)
             % No fNIRS or H-reflex during this trial: runs on the plain
             % open-loop audio-countdown controller (shared with C3/
             % BrainWalk), not the NIRS/H-reflex controller used by every

@@ -14,7 +14,8 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 %   test must run before these speeds are even known).
 %
 %   Revised 2026-09-18: familiarization removed; added a 50-stride tied
-%   trial at fastestSpeed (150% of 6MWT); control bouts renamed/split
+%   trial at fastestSpeed (150% of 6MWT; 125% with the bouts' 3-stride
+%   ramp from 2026-09-29); control bouts renamed/split
 %   into PreAdaptFast (tied, 100%) and PreAdaptSlow (tied, 50%); split
 %   bouts renamed AdaptSplit; PostAdaptSlow (5 blocks, tied, 50%) added.
 %   Revised again 2026-09-18 for the two-visit protocol: the adaptation
@@ -30,7 +31,7 @@ function profileDir = generateProfiles_SpinalAdaptBouts( ...
 % Inputs:
 %   slowSpeed    - double; slow belt speed (m/s), 50% of 6MWT speed
 %   fastSpeed    - double; fast belt speed (m/s), 100% of 6MWT speed
-%   fastestSpeed - double; fastest belt speed (m/s), 150% of 6MWT speed
+%   fastestSpeed - double; fastest belt speed (m/s), 125% of 6MWT speed
 %   profileDir   - char; path to directory where profiles are saved
 %
 % Outputs:
@@ -85,7 +86,7 @@ boutsPerTrial   = 10;   % bouts per training trial
 rampStrides     = 3;    % strides; speed ramp from rest at bout start
 ssStrides       = 10;   % strides; steady-state walking per bout
 boutRestStrides = 30;   % strides; max rest-pad between bouts
-fastestStrides  = 50;   % strides; TiedFastest trial length, no ramp
+fastestStrides  = 50;   % strides; TiedFastest trial length, incl. ramp
 
 %% Build Per-Bout Speed and Stim Vectors
 % Ramp: linear increase from rest to target speed over rampStrides.
@@ -96,10 +97,13 @@ rampSlowBelt = (1:rampStrides)' / rampStrides * slowSpeed;
 ssStim  = ones(ssStrides, 1);
 restPad = zeros(boutRestStrides, 1);
 
-%% Build Tied Fastest Trial Profile (Tied Walking, No Ramp, No Stim)
-% Structure: 50 SS strides at fastestSpeed, no ramp (straight to steady
-% state), no rest pad, no stim -- the only time in the visit the
-% participant walks at this speed. No trailing rest pad: this trial runs
+%% Build Tied Fastest Trial Profile (Tied Walking, 3-Stride Ramp, No Stim)
+% Structure: the bouts' own linear ramp from rest (rampStrides; its last
+% stride is already at fastestSpeed), then steady state -- 50 strides in
+% all, no rest pad, no stim -- the only time in the visit the
+% participant walks at this speed. The ramp (added 2026-09-29), not a
+% change to the shared controller's belt acceleration, is what softens
+% the start from standing. No trailing rest pad: this trial runs
 % on controlSpeedWithSteps_edit1_AudioCountDown (RUNPROTOCOL_
 % SPINALADAPTBOUTS case 1), not the NIRS/H-reflex controller used by
 % every other condition here -- there is no fNIRS or H-reflex during
@@ -107,7 +111,10 @@ restPad = zeros(boutRestStrides, 1);
 % NIRS controller's own "stop in 3-2-1" cue; the audio-countdown
 % controller speaks its own "treadmill will start/stop in 3-2-1" warning
 % and stops cleanly once all 50 strides are taken.
-velL  = ones(fastestStrides, 1) * fastestSpeed;
+rampFastestBelt = (1:rampStrides)' / rampStrides * fastestSpeed;
+
+velL  = [rampFastestBelt; ...
+    ones(fastestStrides - rampStrides, 1) * fastestSpeed];
 velR  = velL;
 stimL = zeros(fastestStrides, 1);
 stimR = stimL;
