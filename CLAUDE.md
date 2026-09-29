@@ -67,8 +67,9 @@ LTO}data` (Step#, U Time, frame #, Relative Time), `inclineang`,
 `speedprofile.{velL,velR}`, `TreadmillCommands.{read,sent}` (RBS, LBS,
 angle, U Time, Relative Time) and `.firstSent`, `audioCues`,
 `stim.{L,R}` (Step#, StimDelayTarget(ms), GateSendTime) plus the
-additive `stim.deviceEcho`, `stim.deviceDrop`, and `diagnostics`
-fields (see the H-reflex timing contract below). Saved to
+additive `stim.deviceEcho`, `stim.deviceDrop`, `diagnostics`, and
+(slot 14 only) `protocolVersion` fields (see the H-reflex timing
+contract below). Saved to
 `datlogs/<timestamp>_<profile>.mat` on STOP. For a consolidated
 per-frame view (belt speeds, gait events, stim gate flags joined onto
 one timetable), see `utils.buildDatlogFrameTable` — a read-side
@@ -115,14 +116,19 @@ post-adaptation bouts, with a fixed ~2.5 min break after every
 bout-based condition except the last; every fNIRS event
 `NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is prefixed with
 its condition (e.g. `PreAdaptSlow_Rest01`), and its "stop" cue plays on
-each bout's last step, about half a stride before the belts stop (the
-rest timing after it is unchanged) — see `studies/SpinalAdapt/README.md`'s
-Protocol Notes. There is no fNIRS or H-reflex during the tied
-fastest-speed trial, so it does not use that controller at all: it
-runs on the plain `controlSpeedWithSteps_edit1_AudioCountDown` (slot
-11, shared with C3/BrainWalk), which gives it its own spoken
-"treadmill will start/stop in 3-2-1" countdown instead of the usual
-cues. `transferData_SpinalAdaptBouts(participantID, visitNum,
+each bout's last step (no datlog row; rest timing unchanged) — see
+`studies/SpinalAdapt/README.md`'s Protocol Notes. labTools'
+`splitSpinalAdaptBoutConds` splits each bout trial into per-bout
+ramp/steady-state conditions using only the datlog's ramp
+(`AccRamp`/`DccRamp2Split`), `Mid`/`Split`, and `Rest##_CountForward`
+rows; do not rename, reorder, or duplicate them without updating it.
+The tied fastest-speed trial (125% of 6MWT speed) has no fNIRS or
+H-reflex, so it runs on the plain
+`controlSpeedWithSteps_edit1_AudioCountDown` (slot 11, shared with
+C3/BrainWalk; own 3-2-1 countdown, no audio-cue rows); its gentler
+start is the profile's 3-stride ramp, and that shared controller's
+`acc` is deliberately unchanged.
+`transferData_SpinalAdaptBouts(participantID, visitNum,
 threshTime)` copies each visit to `W:\Chase\SpinalAdapt\`
 (`Data\<ID>\SpeedProfiles`, shared; `Data\<ID>\Visit0N\...`;
 `RawBackupData\<ID>\Visit0N\...`). H-reflex stimulation timing is
@@ -172,10 +178,17 @@ explicit all-zero `stimL`/`stimR` schedule means no stimulation; only
 a profile with no stim variables at all gets the controller's legacy
 every-10th-stride default (the 2026-09-18 Tied Fastest trial was
 stimulated through that default). Keep display work off the control
-loop's hot path. See `studies/SpinalAdapt/README.md` for the full
+loop's hot path. **A change is live only once it is committed, pushed,
+pulled on the lab PC, and MATLAB restarted** (firmware: re-flashed) —
+verified by the 2026-09-16 unflashed firmware and stale MATLAB session
+and the 2026-09-18 fix committed after its trial; check
+`datlog.protocolVersion` (`commit`, `isDirty`, `isStaleSession`)
+rather than assuming. See `studies/SpinalAdapt/README.md` for the full
 timing history, root-cause note, display-pattern detail, the measured
-(slightly late) stim placement, and the dummy-profile dry-run
-checklist.
+stim placement (verified late by +2.5 to +6.7 pp on the 2026-09-18 and
+-24 pilots, worse at slow speed, from `threshFzUp` heel-strike lag;
+that it worsens for lighter participants is inferred), and the
+dummy-profile dry-run checklist.
 
 **H-reflex M-wave monitor** — a companion tool, `HreflexMwaveMonitor/`
 (repo root; the `+hreflexMonitor` namespace — see Code Style below),

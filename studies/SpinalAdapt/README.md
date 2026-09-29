@@ -42,25 +42,21 @@ Nexus and Oxysoft visit folders and the server folders are named
 **Speeds** are all derived from the overground N-Minute (6-minute)
 Walk Test comfortable walking speed (`speedNMWT`), computed via
 `utils.extractSpeedsNMWT()` immediately after the walk test trial (see
-below): slow = 0.5×, fast = 1.0×, fastest = 1.5× `speedNMWT`
+below): slow = 0.5×, fast = 1.0×, fastest = 1.25× `speedNMWT`
 (`speedProportion` / `speedProportionFastest` in
 `RunProtocol_SpinalAdaptBouts.m`). Pilot Study 2 used a 0.7 slow:fast
 ratio, changed from 0.5 after participant SABH16 (July 2024) — see
-Study History below. The 1.5× "fastest" speed was added 2026-09-18 for
-the single tied trial described below. `extractSpeedsNMWT`'s default
-walkway distance is 10 m (the SpinalAdapt lab walkway) as of
-2026-09-18 — this function is currently called only from this study's
-protocol script. Earlier walkway distances (12.2 m, Schenley Place
-gym; 11.5824 m, an earlier/longer lab walkway) are no longer offered
-as dialog defaults but are recorded in
-[EXPERIMENT_SETUP.md](../../EXPERIMENT_SETUP.md)'s SpinalAdapt section
-for reference.
+Study History below. The "fastest" speed, added 2026-09-18 for the
+single tied trial described below, was 1.5× through the 2026-09-24
+pilot and is 1.25× from 2026-09-29. `extractSpeedsNMWT` defaults to
+the 10 m lab walkway (earlier distances are recorded in
+[EXPERIMENT_SETUP.md](../../EXPERIMENT_SETUP.md)'s SpinalAdapt section).
 
 **Current protocol design (revised 2026-09-18):**
 
 | Condition | # | Structure |
 |---|---|---|
-| Tied Fastest (tied, no ramp, 150% of 6MWT) | 1 | 50 SS strides |
+| Tied Fastest (tied, 125% of 6MWT, 3 ramp + 47 SS) | 1 | 50 strides |
 | Pre-Adaptation Fast (tied, 100% of 6MWT, 10 bouts × 3 ramp + 10 SS) | 1 | 130 strides |
 | Pre-Adaptation Slow (tied, 50% of 6MWT, 10 bouts × 3 ramp + 10 SS) | 1 | 130 strides |
 | Adaptation Split (100%/50% split, 10 bouts × 3 ramp + 10 SS per trial) | 5 | 130 strides each |
@@ -90,15 +86,10 @@ the visit. There is no break between the 6MWT, the start-of-visit
 H-reflex calibration trials, or after the Tied Fastest trial (condition
 1) — the protocol proceeds straight into condition 2 after it.
 
-**Adaptation split profile, both fast-leg assignments (added
-2026-09-18 for the two-visit protocol):** `generateProfiles_
-SpinalAdaptBouts` generates BOTH `AdaptSplitFastR.mat` (right belt
-fast) and `AdaptSplitFastL.mat` (left belt fast) up front, rather than
-taking a `fastLeg` input and generating only one. `RunProtocol_
-SpinalAdaptBouts.m` selects the file matching the confirmed fast leg
-at run time, so Visit 2 reuses every profile generated in Visit 1 with
-the fast/slow leg assignment simply flipped, without regenerating
-anything.
+**Adaptation split profile (2026-09-18):** Visit 1 generates both
+fast-leg files, `AdaptSplitFastR.mat` and `AdaptSplitFastL.mat`;
+`RunProtocol_SpinalAdaptBouts.m` loads the one matching each visit's
+confirmed fast leg, so Visit 2 regenerates nothing.
 
 **Two-Visit Protocol (all participants; revised 2026-09-25):** every
 participant — young adult (`SAYA##`), participant with stroke
@@ -176,19 +167,21 @@ a stride-synced "treadmill will stop in 3-2-1" countdown before they
 stop — there is no "stop"/"silently count forward" rest cue and no
 silent-counting wait at all for this trial, since that comparison
 condition only applies once fNIRS is recording. The profile
-(`TiedFastest.mat`) is 50 steady-state strides with no ramp and no
-trailing rest pad: `controlSpeedWithSteps_edit1_AudioCountDown` has no
-rest-event handling and terminates cleanly once all 50 strides are
-taken, unlike the NIRS/H-reflex controller used by every other
-condition, which needs a rest event as its self-termination path. **Belt
-acceleration is not the same as other trials**, and was not
-deliberately changed: `controlSpeedWithSteps_edit1_AudioCountDown`
-hardcodes `acc = 3500` mm/s² (vs. the ~500 mm/s² the NIRS/H-reflex
-controller used for this trial in an earlier design), which shortens
-the dead-stop ramp to 150% of comfortable speed from roughly 3 s to
-well under 1 s. This controller is shared with C3/BrainWalk and not
-this study's to edit; flag it to the lead experimenter if a gentler
-ramp is wanted for this trial specifically. **Why it matters which
+(`TiedFastest.mat`) is 50 strides — the bouts' 3-stride linear ramp
+from rest (`rampStrides`; its third stride is at full speed), then 47
+steady-state strides — with no trailing rest pad:
+`controlSpeedWithSteps_edit1_AudioCountDown` has no rest-event handling
+and terminates cleanly once all 50 strides are taken, unlike the
+NIRS/H-reflex controller used by every other condition, which needs a
+rest event as its self-termination path. **Belt acceleration is
+deliberately left as that shared controller has it** (not this study's
+to edit): it commands `acc = 3500` mm/s², which `getPayload` clips to
+its 3000 mm/s² limit (inferred from SAYA91's ~2.8 m/s² belt read-back;
+confirm with `type getPayload` on the lab PC) — ~0.7 s from standing
+to 1.94 m/s in the 2026-09-24 read-back. The ramp (2026-09-29), not an
+change, softens that start: each step is a third of the target speed,
+though the belts still accelerate at the same rate within it.
+**Why it matters which
 controller runs it:** on 2026-09-18 (participant `SAYA90`) this trial
 ran on slot 14 — the switch to slot 11 was committed after the trial
 — and the participant felt stimulation: the NIRS/H-reflex controller
@@ -221,11 +214,19 @@ underscore-free CamelCase (`TrialEnd`, not `Trial_End`) so the
 condition prefix stays the only `_` separator in the string; the
 `Rest` event name itself comes from the shared `parseEventsFromSpeeds`
 (also used by BrainWalk controllers) and was left as-is. See the local
-`nirsEventName` helper in `NirsHreflexArduinoOpenLoopWithAudio.m`. The
-2026-09-18 pass also normalized the bout numbering: ramp/steady-state
-events previously logged one bout number lower than that same bout's
-rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
-1-based bout number.
+`nirsEventName` helper in `NirsHreflexArduinoOpenLoopWithAudio.m`.
+(Before 2026-09-18, ramp/steady-state events were numbered one bout
+lower than that bout's rest event, e.g. `AccRamp0` beside `Rest1`.)
+
+**labTools processing (2026-09-27):** for `ExpDescription`
+`'SpinalAdapt'`, labTools' `loadSubject` splits every bout trial into
+per-bout conditions (`'<Condition> Ramp01'`, `'<Condition> SS01'`, …)
+with `splitSpinalAdaptBoutConds`, which reads only three datlog rows
+per bout: the ramp cue (bout 1: the pre-loop `Mid01`), the `Mid`/
+`Split` row after it, and `Rest##_CountForward` (bout end). Renaming,
+reordering, or duplicating those rows breaks the split; other rows are
+ignored. Checked against the SAYA90 and SAYA91 datlogs with labTools'
+`testing/ValidateSpinalAdaptBoutSplitOnServer.m`.
 
 - Calibration trials: `NirsHreflexArduinoOpenLoopWithAudio` (slot 14).
 - Bout timing and cues (`NirsHreflexArduinoOpenLoopWithAudio`, revised
@@ -431,7 +432,10 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   for both sides of the system:** restart MATLAB (clear cached function
   definitions) after every `git pull`, the same way the firmware requires
   a re-upload, and do not assume a committed fix is active without
-  runtime confirmation — `diagnostics/auditHreflexStimTiming.m`'s
+  runtime confirmation. For MATLAB, slot-14 datlogs record
+  `protocolVersion` since 2026-09-29 (commit, `isDirty`, and
+  `isStaleSession`, also warned into `errormsgs`); for the firmware,
+  `diagnostics/auditHreflexStimTiming.m`'s
   firmware-fingerprint check (added after this incident) can provide
   that confirmation from the datlog alone, no C3D required, **but only
   when the trial has drops on either leg** (the fingerprint classifies
@@ -519,12 +523,10 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
     heel-strike registration lag from `threshFzUp` — which settles the
     09-14/09-17 open question and makes the threshold calibration below
     the top timing item after 2026-09-29.
-  - *Accounting:* every bout trial showed exactly one gate with no
-    echo — always the trial's final gate, whose pulse the Vicon trigger
-    channel shows did fire; its echo arrived during the blocking final
-    rest and was discarded by the controller's teardown
-    `flush(portArduino)`. Since 2026-09-22 the controller drains echoes
-    before that flush, so the accounting identity holds exactly.
+  - *Accounting:* every bout trial was one echo short — the final
+    gate's pulse fired (Vicon trigger) but its echo was discarded by the
+    teardown `flush(portArduino)`. Echoes are drained before that flush
+    since 2026-09-22; the identity held exactly on all 14 SAYA91 trials.
 - **Firmware threshold analysis (2026-09-17, no `.ino` change made):**
   quantified the open bits-to-newtons calibration item below using the
   one archived Arduino bit-domain log
@@ -551,7 +553,9 @@ rest event (e.g. `AccRamp0` next to `Rest1`); both now use the same
   at ≥10× the bench-measured baseline sd of the *current* plates
   (the archived 0.09-bit figure is 14 months old and `.ino:31-33`'s own
   TODO warns left-plate noise may now be worse), and re-check the
-  `estSS`-vs-`durSS` bias above after any change. **Priority raised
+  `estSS`-vs-`durSS` bias above after any change. The SAYA91 report
+  (`Data\SAYA91\Visit01\Results\`) works this rule through to ≈55 N (5
+  bits at the inferred ~10 N/bit; 43.9 kg design mass). **Priority raised
   2026-09-18:** the ground truth above measured this bias as the cause
   of late stim placement; lighter paretic-limb loading and slower belts
   in participants with stroke should enlarge it. Kept deliberately
@@ -585,14 +589,15 @@ confirm:
 
 - **0 missed stims** — intended stims (count of `1`s in the `stimL` /
   `stimR` profile columns) equal delivered pulses (Vicon-recorded
-  Arduino trigger count). *Met 2026-09-18 (all 15 stim trials).*
+  Arduino trigger count). *Met 2026-09-18 (all 15) and 2026-09-24 (all
+  14 stim trials).*
 - **Tight stim timing** — stimulus fires near 50% of single stance;
   check the distribution from labTools `computeHreflexParameters`
   (`stimTimeFromSingleStanceSlow/Fast`). *Reopened 2026-09-18:* first
   measured on the Vicon clock, placement is consistently late (mean
   ~54% at fast walking; ~30% of pulses outside 50 ± 5%, more at slow
-  speed) — see the stim-timing entry above; fix via the `threshFzUp`
-  calibration after 2026-09-29.
+  speed) — see the stim-timing entry above; replicated 2026-09-24 (+2.5
+  to +6.2 pp); fix via the `threshFzUp` calibration after 2026-09-29.
 - **Loop timing** — review `datlog.diagnostics.loopSegMs` (median, p95,
   max) and `gateLeadMs*` (positive = gate arrived that many ms *before*
   single-stance onset; expect roughly a double-support duration of lead).
@@ -605,8 +610,9 @@ confirm:
   increases, just too slowly. Gaps that span a rest break are reported
   separately and excluded: standing weight shifts can register a
   spurious stance change on either side, in either direction (±1–5 per
-  trial on 2026-09-18), which is not a walking stride. *Met 2026-09-18
-  (0 on every leg of all 15 trials).*
+  trial on 2026-09-18, up to +11 on 2026-09-24), which is not a walking
+  stride. *Met 2026-09-18 and 2026-09-24 (0 on every leg of every
+  trial).*
 - **Double-support margin — resolved 2026-09-18; now a reported
   diagnostic, not an acceptance criterion.** The old rule (true double
   support ≥ `timeDebounce` + ~40 ms) was derived for the *cross-leg*
@@ -816,7 +822,10 @@ SOL/TAP entered as `NA`) is no longer needed. Validated headless on the
 real script: the full list now runs with results identical to the
 workaround's, and `SABH02` `Trial03` is unchanged. (`loadTrials.m:196`
 has the same latent `(1:4)` check but never reaches it, since its list
-already includes the thigh muscles.)
+already includes the thigh muscles.) Since 2026-09-29 the dialog's
+default sensor list is the SpinalAdapt layout, `LSOL RSOL LLG RLG LPER
+RPER LTA RTA LBF RBF LVL RVL LRF NA RRF sync1`; a participant's saved
+configuration file still takes precedence after their first trial.
 
 **`+Hreflex` functions called by this pipeline** (all in
 `labTools/fun/+Hreflex/`):
@@ -847,7 +856,9 @@ Vicon Nexus analog device configuration before collection: the
 Nexus for these trigger channels to be recorded.** The
 2026-08-21 dry run's C3D had neither, and the script silently degraded;
 it now stops and asks (Abort / Continue with threshold detection)
-instead.
+instead. Before using a transferred C3D as ground truth, confirm its
+analog channels span the whole trial (the server copy of SAYA91
+`Trial02`, re-saved 2026-09-25, stops at 47.3 s of 283 s).
 
 ### 2026-08-21 Dry Run: Findings and Fixes (2026-08-26)
 

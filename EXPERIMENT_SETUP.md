@@ -57,7 +57,7 @@ Participant ID formats: `SAYA##` (neurologically intact young adults),
 `SAST##` (stroke), `SAMC##` (matched controls); `SABH##` identifies
 Pilot Study 2 and earlier data. Revised 2026-09-18: every belt speed in
 the visit is derived from the overground 6-minute walk test (6MWT)
-speed — slow = 0.5×, fast = 1.0×, fastest = 1.5× (`speedProportion` /
+speed — slow = 0.5×, fast = 1.0×, fastest = 1.25× (`speedProportion` /
 `speedProportionFastest` in `RunProtocol_SpinalAdaptBouts.m`), computed
 via `utils.extractSpeedsNMWT`, whose walkway-distance default is 10 m
 (the current lab walkway). Historical walkway distances used before
@@ -88,8 +88,8 @@ visits, then `Data\<ID>\Visit0N\` and `RawBackupData\<ID>\Visit0N\`).
 A fixed ~2.5 min break follows every bout-based condition except the
 last, and each bout's spoken "stop" plays on its last step, about half
 a stride before the belts stop. There is no fNIRS or H-reflex during
-the tied fastest-speed trial (150% of 6MWT, no ramp, no stim), so it runs
-on the plain open-loop audio-countdown controller
+the tied fastest-speed trial (125% of 6MWT, 3-stride ramp, no stim), so
+it runs on the plain open-loop audio-countdown controller
 (`controlSpeedWithSteps_edit1_AudioCountDown`, shared with C3/
 BrainWalk) instead of the NIRS/H-reflex controller used by every other
 condition, and gets that controller's own spoken "treadmill will
@@ -188,7 +188,7 @@ GUI menu slot numbers correspond to `case` labels in
 | 15 | `controlSpeedWithSteps_WeberPerceptionFaster` | Weber perception variant; faster inter-stride update for threshold estimation. | Weber Perception |
 | 8 | `HreflexOGWithAudio` | Overground (no belt control) with H-reflex triggers and audio speed feedback. | BrainWalk (OG baseline), C3 (OG baseline), SpinalAdapt (6-min walk test) |
 | 16 | `HreflexOGWithAudio` | Same controller, second menu entry. Not currently used by an active study — SpinalAdapt's OG baseline trials were removed from the protocol design. | (unused) |
-| 14 | `NirsHreflexArduinoOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback. | NirsAutomaticityProtocol, SpinalAdapt (calibration + all bout-based conditions) |
+| 14 | `NirsHreflexArduinoOpenLoopWithAudio` | Split-belt controller with fNIRS event markers, H-reflex stimulation, and audio feedback; records the running code generation in `datlog.protocolVersion`. | NirsAutomaticityProtocol, SpinalAdapt (calibration + all bout-based conditions) |
 | 10 | `NirsAutomaticityAssessment` | Overground alphabet dual-task assessment. Records responses and logs events. | BrainWalk, NirsAutomaticityProtocol |
 | 12 | `Dulce_grad_betarev2` | H-reflex gradient computation tool (grad project). | Standalone H-reflex analysis |
 | 13 | `OGNBackTask` | Overground N-back cognitive dual-task; plays audio stimuli and records Wii-remote responses. | BrainWalk |
