@@ -1206,8 +1206,9 @@ try     % so that if something fails, communications are closed properly
             % 'stop' was already said on the bout's last step (above); only
             % if that was missed (e.g., a missed toe-off kept one step
             % counter behind) say it now instead. Deliberately no
-            % audioCues row of its own: an extra 'Rest' message would add
-            % a split point for labTools' SepCondsInExpByAudioCue.
+            % audioCues row of its own: labTools'
+            % splitSpinalAdaptBoutConds takes each bout's boundaries from
+            % the ramp, Mid/Split, and _CountForward rows.
             if ~isStopCuePlayed
                 play(instructions('stop'));
             end
