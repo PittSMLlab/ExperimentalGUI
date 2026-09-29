@@ -90,6 +90,7 @@ end
 %% Create Analysis Directories
 pathsCreate = {
     fullfile(dirSrvrVisit, 'Results')
+    fullfile(dirSrvrVisit, 'WatchData')
     };
 
 for ii = 1:length(pathsCreate)
