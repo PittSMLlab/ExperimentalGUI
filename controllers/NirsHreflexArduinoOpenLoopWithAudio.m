@@ -470,6 +470,20 @@ datlog.diagnostics.gateLeadMsR = [];
 % coordinated ExperimentalGUI + labTools change; the %#ok suppressions
 % below intentionally silence the editor warning until then.
 
+% Code generation actually running this trial (additive; NOT consumed by
+% labTools/SyncDatalog): commit, uncommitted-edit flag, this controller's
+% path, and whether any repository .m file changed after this MATLAB
+% session started (a pull without a restart). Captured once, here, before
+% the main loop and the Arduino start command; never errors.
+datlog.protocolVersion = captureProtocolVersion(mfilename('fullpath'));
+if isequal(datlog.protocolVersion.isStaleSession, true)
+    msg = sprintf(['%s changed after this MATLAB session started: ' ...
+        'restart MATLAB so the running code matches the files on disk'], ...
+        datlog.protocolVersion.newestSourceFile);
+    datlog.errormsgs{end+1} = msg;
+    warning('NirsHreflexArduinoOpenLoopWithAudio:StaleSession', '%s', msg);
+end
+
 %do initial save
 try
     save(savename,'datlog');
@@ -1680,6 +1694,139 @@ elseif abs(pctSS - pctTargetSS) > pctToleranceSS
         legStr,ardStep,pctSS,pctTargetSS,pctToleranceSS);
 else
     fprintf('Stim %s step %d: %.1f%% SS\n',legStr,ardStep,pctSS);
+end
+
+end
+
+function protocolVersion = captureProtocolVersion(controllerFile)
+%CAPTUREPROTOCOLVERSION Identify the code generation running this trial.
+%
+%   A git commit ID records what is committed, not what is running: on
+%   2026-09-16 a committed fix was never made live, and nothing in the
+%   datlog could show it. This records the commit AND three companion
+%   signals that detect that failure mode (see studies/SpinalAdapt/
+%   README.md): isDirty (uncommitted edits in the working tree),
+%   controllerPath (which checkout is actually running), and
+%   isStaleSession (a repository .m file changed on disk after this
+%   MATLAB session started -- e.g., a git pull without restarting
+%   MATLAB, which may leave stale function definitions in memory). The
+%   commit is read from .git directly (HEAD, then the loose ref, then
+%   packed-refs), so it does not need git on the system PATH; only
+%   isDirty does. Every step is individually guarded: a failure records
+%   a sentinel and a note, never an error, so it can never stop a trial.
+%
+% Inputs:
+%   controllerFile - full path of the running controller, without
+%          extension (mfilename('fullpath') of the caller)
+%
+% Outputs:
+%   protocolVersion - struct: commit (40-hex SHA or sentinel), branch,
+%          isDirty (logical, or sentinel if git is unavailable),
+%          controllerPath, repoRoot, newestSourceFile/newestSourceTime
+%          (newest .m file in the repository), sessionStartTime (MATLAB
+%          start), isStaleSession (logical, or sentinel), notes (cellstr
+%          of any step failures)
+%
+% Toolbox Dependencies: None
+%
+% See also NIRSHREFLEXARDUINOOPENLOOPWITHAUDIO.
+
+sentinel = 'unknown';
+timeFmt  = 'yyyy-MM-dd HH:mm:ss';   % local wall-clock time in the datlog
+protocolVersion = struct('commit', sentinel, 'branch', sentinel, ...
+    'isDirty', sentinel, 'controllerPath', [controllerFile '.m'], ...
+    'repoRoot', sentinel, 'newestSourceFile', sentinel, ...
+    'newestSourceTime', sentinel, 'sessionStartTime', sentinel, ...
+    'isStaleSession', sentinel, 'notes', {{}});
+maxLevelsUp = 4;    % controllers/ sits one level below the repo root
+
+%% Locate Repository Root From the Controller's Own Location
+try
+    dirCur = fileparts(controllerFile);
+    for lv = 1:maxLevelsUp
+        if isfolder(fullfile(dirCur, '.git'))
+            protocolVersion.repoRoot = dirCur;
+            break
+        end
+        dirCur = fileparts(dirCur);
+    end
+    if strcmp(protocolVersion.repoRoot, sentinel)
+        protocolVersion.notes{end+1} = ...
+            'no .git folder above the controller';
+        return
+    end
+catch ME
+    protocolVersion.notes{end+1} = ['repo root: ' ME.message];
+    return
+end
+dirGit = fullfile(protocolVersion.repoRoot, '.git');
+
+%% Read the Commit ID From .git (No Git Executable Needed)
+try
+    headTxt = strtrim(fileread(fullfile(dirGit, 'HEAD')));
+    if startsWith(headTxt, 'ref: ')
+        ref = strtrim(headTxt(6:end));
+        protocolVersion.branch = regexprep(ref, '^refs/heads/', '');
+        fileRef = fullfile(dirGit, ref);
+        if isfile(fileRef)
+            protocolVersion.commit = strtrim(fileread(fileRef));
+        elseif isfile(fullfile(dirGit, 'packed-refs'))
+            refPattern = ['^([0-9a-f]{40}) ' ...
+                regexptranslate('escape', ref) '\s*$'];
+            tok = regexp(fileread(fullfile(dirGit, 'packed-refs')), ...
+                refPattern, 'tokens', 'once', 'lineanchors');
+            if ~isempty(tok)
+                protocolVersion.commit = tok{1};
+            end
+        end
+    else
+        protocolVersion.branch = '(detached HEAD)';
+        protocolVersion.commit = headTxt;
+    end
+catch ME
+    protocolVersion.notes{end+1} = ['commit: ' ME.message];
+end
+
+%% Check for Uncommitted Edits (Needs Git on the System PATH)
+% '--no-optional-locks' keeps git status from taking the index lock, and
+% '--untracked-files=no' ignores datlogs and generated profiles
+try
+    [status, out] = system(sprintf(['git --no-optional-locks -C "%s" ' ...
+        'status --porcelain --untracked-files=no'], ...
+        protocolVersion.repoRoot));
+    if status == 0
+        protocolVersion.isDirty = ~isempty(strtrim(out));
+    else
+        protocolVersion.isDirty = 'unknown: git unavailable';
+    end
+catch ME
+    protocolVersion.isDirty = 'unknown: git unavailable';
+    protocolVersion.notes{end+1} = ['isDirty: ' ME.message];
+end
+
+%% Compare Newest Source File Against MATLAB Session Start
+% git writes files with the current time when it checks them out, so a
+% pull after MATLAB started leaves a source file newer than the session
+try
+    files = dir(fullfile(protocolVersion.repoRoot, '**', '*.m'));
+    [newestNum, idxNewest] = max([files.datenum]);
+    newestTime = datetime(newestNum, 'ConvertFrom', 'datenum');
+    protocolVersion.newestSourceFile = fullfile(files(idxNewest).folder, ...
+        files(idxNewest).name);
+    protocolVersion.newestSourceTime = char(newestTime, timeFmt);
+    if usejava('jvm')
+        startMs = java.lang.management.ManagementFactory. ...
+            getRuntimeMXBean().getStartTime();
+        startTime = datetime(double(startMs) / 1000, 'ConvertFrom', ...
+            'posixtime', 'TimeZone', 'local');
+        startTime.TimeZone = '';    % compare in local wall-clock time
+        protocolVersion.sessionStartTime = char(startTime, timeFmt);
+        protocolVersion.isStaleSession = newestTime > startTime;
+    else
+        protocolVersion.notes{end+1} = 'session start: no JVM';
+    end
+catch ME
+    protocolVersion.notes{end+1} = ['stale check: ' ME.message];
 end
 
 end
