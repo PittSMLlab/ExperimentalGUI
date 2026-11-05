@@ -19,6 +19,11 @@ function runHreflexMwaveMonitorLive(leg, tapSensor, hSensor, options)
 %   Stop it by closing the figure or with Ctrl+C. Either way it
 % disconnects and saves the log.
 %
+%   NOTE: run data the cleanup needs lives in a containers.Map, a handle
+% object its onCleanup callback keeps alive. A callback using a nested
+% function's shared variables fails, because MATLAB may destroy them
+% before onCleanup fires on exit.
+%
 % Inputs:
 %   leg       - char; 'R' or 'L'
 %   tapSensor - EMG sensor number of this leg's proximal TA
@@ -35,6 +40,9 @@ function runHreflexMwaveMonitorLive(leg, tapSensor, hSensor, options)
 %   outputDir       - folder for the log file (default: '' = current)
 %   hostName        - DataStream server (default: 'localhost:801')
 %   bufferSize      - frames the SDK client queues (default: 100)
+%   source          - source struct shaped like
+%                     HREFLEXSOURCEDATASTREAM's output, replacing the
+%                     Vicon connection. For tests. (default: [])
 %
 % Outputs:
 %   None (saves HreflexMonitorLive_<leg>_<timestamp>.mat, variable
@@ -59,14 +67,16 @@ arguments
     options.outputDir char = ''
     options.hostName  (1,:) char = 'localhost:801'
     options.bufferSize (1,1) double {mustBePositive, mustBeInteger} = 100
+    options.source = []
 end
 
-maxLogFrames    = 360000;  % frames; 1 hour at 100 Hz, then logging stops
-trimEveryFrames = 500;     % frames; about 5 s between buffer trims
-uiEveryFrames   = 10;      % frames; about 0.1 s between UI flushes
-statusEvery     = 100;     % frames; about 1 s between status updates
-flatCheckFrame  = 200;     % frame at which to warn about a flat channel
-noFramePauseS   = 0.001;   % s; avoids spinning while no frame is queued
+flushEveryFrames = 100;  % frames; about 1 s between timing-log flushes,
+                         % the most a Ctrl+C can lose from that log
+trimEveryFrames  = 500;  % frames; about 5 s between buffer trims
+uiEveryFrames    = 10;   % frames; about 0.1 s between UI flushes
+statusEvery      = 100;  % frames; about 1 s between status updates
+flatCheckFrame   = 200;  % frame at which to warn about a flat channel
+noFramePauseS    = 0.001; % s; avoids spinning while no frame is queued
 
 legSlot = 1 + strcmpi(leg, 'L');  % 1 = right, 2 = left (+Hreflex slots)
 
@@ -79,25 +89,39 @@ bounds = hreflexMonitor.computeMwaveTolerance(baselineMwaveMv);
 
 %% Open the Source and Figure
 % connect after the baseline prompt, so frames do not queue behind it
-source = hreflexMonitor.hreflexSourceDataStream(leg, tapSensor, ...
-    hSensor, 'hostName', options.hostName, ...
-    'bufferSize', options.bufferSize);
+if isempty(options.source)
+    source = hreflexMonitor.hreflexSourceDataStream(leg, tapSensor, ...
+        hSensor, 'hostName', options.hostName, ...
+        'bufferSize', options.bufferSize);
+else
+    source = options.source;
+end
+
+meta = struct('leg', leg, 'tapSensor', tapSensor, 'hSensor', hSensor, ...
+    'muscle', options.muscle, 'baselineMwaveMv', baselineMwaveMv, ...
+    'bounds', bounds, 'outputDir', options.outputDir);
+runData = containers.Map();
+runData('state')       = [];
+runData('sourceState') = [];
+runData('numFrames')   = 0;
+runData('numInvalid')  = 0;
+runData('stimDelayS')  = zeros(0, 1);
+runData('readMs')      = zeros(0, 1);
+runData('behindS')     = zeros(0, 1);
+cleanupRun = onCleanup(@() finishRun(source, runData, meta));
+
+handles = hreflexMonitor.createMonitorFigure(leg, options.muscle, ...
+    baselineMwaveMv, bounds);
 
 state       = [];
 sourceState = [];
 numFrames   = 0;
 numInvalid  = 0;
-readMs      = nan(maxLogFrames, 1);
-behindS     = nan(maxLogFrames, 1);
-stimDelayS  = zeros(0, 1);
+readBatch   = nan(flushEveryFrames, 1);
+behindBatch = nan(flushEveryFrames, 1);
+numInBatch  = 0;
 wallMinusStream = Inf;     % s; smallest wall-clock minus stream time seen
-latestBehindS   = 0;
-isFinished  = false;
-tStart      = tic;
-cleanupRun  = onCleanup(@finishRun);
-
-handles = hreflexMonitor.createMonitorFigure(leg, options.muscle, ...
-    baselineMwaveMv, bounds);
+tStart = tic;
 
 %% Read and Process Frames Until Stopped
 while toc(tStart) < options.durationS
@@ -116,20 +140,26 @@ while toc(tStart) < options.durationS
     [sourceState, chunk] = hreflexMonitor.assembleLiveChunk( ...
         sourceState, frame.frameNum, frame.tap, frame.h, frame.trig, ...
         source.period);
+    runData('sourceState') = sourceState;
     if isempty(chunk.times)
         continue;   % a repeated frame adds no data
     end
     [state, newAmps] = hreflexMonitor.stepHreflexMonitor(state, chunk, ...
         options.muscle, legSlot);
+    runData('state') = state;
 
     % log how far this frame's data is behind the fastest frame seen
     lagS = toc(tStart) - chunk.times(end);
     wallMinusStream = min(wallMinusStream, lagS);
     latestBehindS = lagS - wallMinusStream;
     numFrames = numFrames + 1;
-    if numFrames <= maxLogFrames
-        readMs(numFrames)  = readTimeMs;
-        behindS(numFrames) = latestBehindS;
+    runData('numFrames') = numFrames;
+    numInBatch = numInBatch + 1;
+    readBatch(numInBatch)   = readTimeMs;
+    behindBatch(numInBatch) = latestBehindS;
+    if numInBatch == flushEveryFrames
+        flushTimingLog(runData, readBatch, behindBatch);
+        numInBatch = 0;
     end
 
     %% Show New Stimuli
@@ -137,23 +167,24 @@ while toc(tStart) < options.durationS
     numInvalidNow = size(state.invalidOnsetTimes, 1);
     if numNew > 0 || numInvalidNow > numInvalid
         numInvalid = numInvalidNow;
+        runData('numInvalid') = numInvalid;
         if ~isvalid(handles.fig)
             break;
         end
         hreflexMonitor.updateMonitorFigure(handles, state, bounds, ...
             options.numConsecutiveForAlert);
-        setStatus();
+        setStatus(handles, numInvalid, sourceState, latestBehindS);
         drawnow;
         if numNew > 0
             onsets = state.onsetTimes(end - numNew + 1:end);
-            stimDelayS = [stimDelayS; ...
-                toc(tStart) - wallMinusStream - onsets]; %#ok<AGROW>
+            runData('stimDelayS') = [runData('stimDelayS'); ...
+                toc(tStart) - wallMinusStream - onsets];
         end
     end
 
     %% Periodic Housekeeping
     if numFrames == flatCheckFrame
-        warnIfFlat();
+        warnIfFlat(state, tapSensor, hSensor);
     end
     if mod(numFrames, trimEveryFrames) == 0
         state = hreflexMonitor.trimMonitorBuffers(state);
@@ -163,121 +194,159 @@ while toc(tStart) < options.durationS
             break;
         end
         if mod(numFrames, statusEvery) == 0
-            setStatus();
+            setStatus(handles, numInvalid, sourceState, latestBehindS);
         end
         drawnow limitrate;
     end
 end
 
-    function setStatus()
-    %SETSTATUS Show invalid stimuli, lost frames, and current delay.
-    %
-    % Inputs:
-    %   None
-    %
-    % Outputs:
-    %   None
-    %
-    % Toolbox Dependencies:
-    %   None
+flushTimingLog(runData, readBatch(1:numInBatch), ...
+    behindBatch(1:numInBatch));
 
-    set(handles.status, 'String', sprintf( ...
-        'Invalid stims: %d | Lost frames: %d | Behind: %.2f s', ...
-        numInvalid, sourceState.numLostFrames, latestBehindS));
+end
 
-    end
+%% Local Functions
 
-    function warnIfFlat()
-    %WARNIFFLAT Warn once if a sensor looks switched off or misnumbered.
-    %
-    % Inputs:
-    %   None
-    %
-    % Outputs:
-    %   None
-    %
-    % Toolbox Dependencies:
-    %   None
+function flushTimingLog(runData, readNew, behindNew)
+%FLUSHTIMINGLOG Append a batch of per-frame timing to the run log.
+%
+%   Batched because appending copies the whole array, which would be too
+% slow to repeat on every frame of a long run.
+%
+% Inputs:
+%   runData   - containers.Map of run data
+%   readNew   - numNew x 1 frame read times (ms)
+%   behindNew - numNew x 1 seconds behind the stream
+%
+% Outputs:
+%   None (updates runData, a handle object)
+%
+% Toolbox Dependencies:
+%   None
 
-    if ~(std(state.detect.tap, 'omitnan') > 0)
-        warning('runHreflexMwaveMonitorLive:flatTA', ...
-            'TA channel (sensor %d) is flat. Is the sensor on?', tapSensor);
-    end
-    if ~(std(state.hBuf, 'omitnan') > 0)
-        warning('runHreflexMwaveMonitorLive:flatH', ...
-            'H-muscle channel (sensor %d) is flat. Is the sensor on?', ...
-            hSensor);
-    end
+maxLogFrames = 360000;   % frames; 1 hour at 100 Hz, then logging stops
 
-    end
+if numel(runData('readMs')) + numel(readNew) <= maxLogFrames
+    runData('readMs')  = [runData('readMs'); readNew];
+    runData('behindS') = [runData('behindS'); behindNew];
+end
 
-    function finishRun()
-    %FINISHRUN Disconnect and save the log, including after Ctrl+C.
-    %
-    % Inputs:
-    %   None
-    %
-    % Outputs:
-    %   None
-    %
-    % Toolbox Dependencies:
-    %   None
+end
 
-    if isFinished
-        return;
-    end
-    isFinished = true;
-    source.close();
+function setStatus(handles, numInvalid, sourceState, behindS)
+%SETSTATUS Show invalid stimuli, lost frames, and current delay.
+%
+% Inputs:
+%   handles     - struct from CREATEMONITORFIGURE
+%   numInvalid  - invalid stimuli so far
+%   sourceState - running state from ASSEMBLELIVECHUNK
+%   behindS     - seconds behind the stream
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies:
+%   None
 
-    numLogged = min(numFrames, maxLogFrames);
-    monitorLog.leg             = leg;
-    monitorLog.tapSensor       = tapSensor;
-    monitorLog.hSensor         = hSensor;
-    monitorLog.muscle          = options.muscle;
-    monitorLog.baselineMwaveMv = baselineMwaveMv;
-    monitorLog.bounds          = bounds;
-    monitorLog.sourceState     = sourceState;
-    monitorLog.readMs          = readMs(1:numLogged);
-    monitorLog.behindS         = behindS(1:numLogged);
-    monitorLog.stimDelayS      = stimDelayS;
-    if ~isempty(state)
-        monitorLog.onsetTimes        = state.onsetTimes;
-        monitorLog.amps              = state.amps;
-        monitorLog.snippets          = state.snippets;
-        monitorLog.mWaveInds         = state.mWaveInds;
-        monitorLog.invalidOnsetTimes = state.invalidOnsetTimes;
-    end
+set(handles.status, 'String', sprintf( ...
+    'Invalid stims: %d | Lost frames: %d | Behind: %.2f s', ...
+    numInvalid, sourceState.numLostFrames, behindS));
 
-    outputDir = options.outputDir;
-    if isempty(outputDir)
-        outputDir = pwd;
-    end
-    logPath = fullfile(outputDir, sprintf( ...
-        'HreflexMonitorLive_%s_%s.mat', leg, ...
-        char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'))));
-    save(logPath, 'monitorLog');
+end
 
-    fprintf('Frames: %d; ', numFrames);
-    if ~isempty(sourceState)
-        fprintf('lost: %d; repeated: %d; restarts: %d\n', ...
-            sourceState.numLostFrames, sourceState.numRepeatedFrames, ...
-            sourceState.numRestarts);
-    else
-        fprintf('no frames were read\n');
-    end
-    fprintf('Stimuli: %d valid, %d invalid\n', numel(stimDelayS), ...
-        numInvalid);
-    if ~isempty(stimDelayS)
-        fprintf(['Stimulus-to-display delay (s): median %.3f, ' ...
-            'max %.3f\n'], median(stimDelayS), max(stimDelayS));
-    end
-    if numLogged > 0
-        fprintf(['Read (ms): median %.2f, max %.2f; ' ...
-            'max behind: %.3f s\n'], median(monitorLog.readMs), ...
-            max(monitorLog.readMs), max(monitorLog.behindS));
-    end
-    fprintf('Log saved: %s\n', logPath);
+function warnIfFlat(state, tapSensor, hSensor)
+%WARNIFFLAT Warn once if a sensor looks switched off or misnumbered.
+%
+% Inputs:
+%   state     - running state from STEPHREFLEXMONITOR
+%   tapSensor - EMG sensor number of the proximal TA
+%   hSensor   - EMG sensor number of the H-reflex muscle
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies:
+%   None
 
-    end
+if ~(std(state.detect.tap, 'omitnan') > 0)
+    warning('runHreflexMwaveMonitorLive:flatTA', ...
+        'TA channel (sensor %d) is flat. Is the sensor on?', tapSensor);
+end
+if ~(std(state.hBuf, 'omitnan') > 0)
+    warning('runHreflexMwaveMonitorLive:flatH', ...
+        'H-muscle channel (sensor %d) is flat. Is the sensor on?', hSensor);
+end
+
+end
+
+function finishRun(source, runData, meta)
+%FINISHRUN Disconnect and save the log, including after Ctrl+C or error.
+%
+% Inputs:
+%   source  - source struct, with a close handle
+%   runData - containers.Map of run data
+%   meta    - struct of run settings: leg, tapSensor, hSensor, muscle,
+%             baselineMwaveMv, bounds, outputDir
+%
+% Outputs:
+%   None
+%
+% Toolbox Dependencies:
+%   None
+
+source.close();
+
+state       = runData('state');
+sourceState = runData('sourceState');
+numFrames   = runData('numFrames');
+stimDelayS  = runData('stimDelayS');
+readMs      = runData('readMs');
+behindS     = runData('behindS');
+
+monitorLog.leg             = meta.leg;
+monitorLog.tapSensor       = meta.tapSensor;
+monitorLog.hSensor         = meta.hSensor;
+monitorLog.muscle          = meta.muscle;
+monitorLog.baselineMwaveMv = meta.baselineMwaveMv;
+monitorLog.bounds          = meta.bounds;
+monitorLog.sourceState     = sourceState;
+monitorLog.readMs          = readMs;
+monitorLog.behindS         = behindS;
+monitorLog.stimDelayS      = stimDelayS;
+if ~isempty(state)
+    monitorLog.onsetTimes        = state.onsetTimes;
+    monitorLog.amps              = state.amps;
+    monitorLog.snippets          = state.snippets;
+    monitorLog.mWaveInds         = state.mWaveInds;
+    monitorLog.invalidOnsetTimes = state.invalidOnsetTimes;
+end
+
+outputDir = meta.outputDir;
+if isempty(outputDir)
+    outputDir = pwd;
+end
+logPath = fullfile(outputDir, sprintf('HreflexMonitorLive_%s_%s.mat', ...
+    meta.leg, char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'))));
+save(logPath, 'monitorLog');
+
+fprintf('Frames: %d; ', numFrames);
+if ~isempty(sourceState)
+    fprintf('lost: %d; repeated: %d; restarts: %d\n', ...
+        sourceState.numLostFrames, sourceState.numRepeatedFrames, ...
+        sourceState.numRestarts);
+else
+    fprintf('no frames were read\n');
+end
+fprintf('Stimuli: %d valid, %d invalid\n', numel(stimDelayS), ...
+    runData('numInvalid'));
+if ~isempty(stimDelayS)
+    fprintf(['Stimulus-to-display delay (s): median %.3f, ' ...
+        'max %.3f\n'], median(stimDelayS), max(stimDelayS));
+end
+if ~isempty(readMs)
+    fprintf('Read (ms): median %.2f, max %.2f; max behind: %.3f s\n', ...
+        median(readMs), max(readMs), max(behindS));
+end
+fprintf('Log saved: %s\n', logPath);
 
 end

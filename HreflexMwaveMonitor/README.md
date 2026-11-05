@@ -62,6 +62,7 @@ Subfolders" from the repo root, run once and saved); confirm
 | `testComputeMwaveTolerance.m` | 2 (test) | Unit tests for the tolerance-bound arithmetic. |
 | `testAssembleLiveChunk.m` | 3 (test) | Vicon-free tests for lost-frame padding, trigger repetition, repeats, and restarts. |
 | `testComputeMwaveAlert.m` | 3 (test) | Unit tests for the consecutive out-of-window rule. |
+| `testRunHreflexMwaveMonitorLive.m` | 3 (test) | End-to-end live loop against a fake source, covering the exit path, log file, lost frames, and amplitude agreement. Vicon's SDK calls are not covered. |
 
 ## Real-Data Validation (2026-08-14)
 
@@ -185,10 +186,10 @@ stored at 2 kHz in the C3D by repeating samples.
 
 ## Known Gaps Before This Is Lab-Ready
 
-- **The live path has not been run.** `runHreflexMwaveMonitorLive.m` and
-  `hreflexSourceDataStream.m` were written without MATLAB or Vicon access.
-  Run the Validate With suites, then a live test, starting without the
-  controller.
+- **The live path has not completed a full run with real data.** Its first
+  seated run (2026-11-05) reached the end of its 30 s but failed at exit
+  without saving a log, which led to the current cleanup design. Confirm
+  the summary and log file appear on the next seated run.
 - **Not yet checked with real stimuli:** live trigger pulses reaching the
   2.5 V threshold, live vs. offline amplitude agreement, and the delay and
   lost-frame figures alongside the controller. Confirm the controller's
@@ -212,6 +213,7 @@ runtests('testComputeMwaveTolerance')
 runtests('testComputeMwaveAlert')
 runtests('testAssembleLiveChunk')
 runtests('testHreflexMwaveMonitorReplay')
+runtests('testRunHreflexMwaveMonitorLive')
 ```
 
 The last suite's `testReplayAgainstRealCalibrationC3D` is lab-only,
