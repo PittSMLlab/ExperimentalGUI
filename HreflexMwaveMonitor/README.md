@@ -49,11 +49,19 @@ Subfolders" from the repo root, run once and saved); confirm
 | `+hreflexMonitor/promptHreflexBaseline.m` | 2 | Prompts for a leg's baseline M-wave amplitude (mV), read off that leg's walking-calibration recruitment curve, since no baseline is currently persisted by `GenerateHreflexRecruitmentCurves.m` for this tool to load automatically (see Flagged Upstream Item below). |
 | `+hreflexMonitor/computeMwaveTolerance.m` | 2 | Pure ±10% (default) tolerance-bound arithmetic around a baseline M-wave value. |
 | `+hreflexMonitor/generateSyntheticHreflexTrial.m` | 1 (test) | Hardware/BTK-free synthetic trial fixture for CI. |
-| `+hreflexMonitor/runHreflexMwaveMonitor.m` | 1-3 | Entry point: replays a trial through the pipeline, updating one persistent two-axes figure in place per stim — snippet with the M-wave peak/trough marked (top), M-wave amplitude vs. stimulus number with the baseline and ±10% bounds, an in/out-of-tolerance indicator, and a last-N-out-of-tolerance counter (bottom). Single-leg only for now (`leg` argument); a later phase removes it and monitors both legs at once. |
+| `+hreflexMonitor/runHreflexMwaveMonitor.m` | 1-3 | Replay entry point: runs a recorded trial through the pipeline and the shared figure, one leg per call. |
+| `+hreflexMonitor/runHreflexMwaveMonitorLive.m` | 3 | Live entry point, one leg per MATLAB instance. Reads the stream, updates the figure, shows lost frames and delay, and saves its own log file when stopped. |
+| `+hreflexMonitor/hreflexSourceDataStream.m` | 3 | Live Vicon source: device-data-only `ServerPush` client that reads one leg's TA, H-muscle, and trigger channels per frame. |
+| `+hreflexMonitor/assembleLiveChunk.m` | 3 | Turns a live frame into a contiguous chunk: NaN-pads lost frames and repeats the trigger to the EMG length. No SDK calls, so it is unit-tested. |
+| `+hreflexMonitor/trimMonitorBuffers.m` | 3 | Drops raw samples no pending stimulus needs, so per-frame buffer copies stay small on long live runs. |
+| `+hreflexMonitor/computeMwaveAlert.m` | 3 | Consecutive out-of-window rule (3 by default), with HIGH/LOW/MIXED direction. |
+| `+hreflexMonitor/createMonitorFigure.m`, `updateMonitorFigure.m` | 3 | Figure shared by replay and live: latest snippet with M-wave markers (top); M- and H-wave trends, baseline and ±10% bounds, alert, and status line (bottom). |
 | `testDetectStimArtifactOnline.m` | 1 (test) | Unit + online-vs-offline parity tests for the causal detector, including the negative-dominant artifact regression fixture (see Artifact Localization Rule below). |
 | `testHreflexMwaveMonitorReplay.m` | 1-2 (test) | Integration parity between the online pipeline and the offline `+Hreflex` batch pipeline, including the marker-index fix and a lab-only real-C3D replay test. |
 | `testMapHreflexAnalogChannels.m` | 1 (test) | BTK-free unit tests for the channel-mapping logic. |
 | `testComputeMwaveTolerance.m` | 2 (test) | Unit tests for the tolerance-bound arithmetic. |
+| `testAssembleLiveChunk.m` | 3 (test) | Vicon-free tests for lost-frame padding, trigger repetition, repeats, and restarts. |
+| `testComputeMwaveAlert.m` | 3 (test) | Unit tests for the consecutive out-of-window rule. |
 
 ## Real-Data Validation (2026-08-14)
 
@@ -85,13 +93,10 @@ walking H-reflex calibration data, from
 - **Growing-set recompute cost, real stimulus counts**: at N=60 stimuli
   (chunk size 10), per-stimulus recompute time was median 5.3 ms, p95
   29.8 ms, max 754 ms (one-off, consistent with first-call JIT
-  warm-up). Scaling roughly linearly with N (the recompute is
-  O(numStimSoFar) by design — see `stepHreflexMonitor.m`), a full
-  ~400-stimulus calibration trial would be expected to cost on the
-  order of ~100 ms at its largest N — comfortably inside a gait
-  cycle's double-support window and the "bounded per-update work"
-  isolation requirement. Still worth a real timing check at an actual
-  ~400-stim trial in the lab before fully retiring this caveat.
+  warm-up). The recompute is O(numStimSoFar) by design (see
+  `stepHreflexMonitor.m`). SpinalAdapt's profiles stimulate 72 times per
+  leg in a calibration trial and 100 in a bout trial, close to the
+  tested N. Still worth a live timing check (see Running Live below).
 - The gated real-C3D integration test now passes:
   `runtests('testHreflexMwaveMonitorReplay')` with
   `HREFLEX_REPLAY_TEST_C3D` pointed at a real calibration C3D exercises
@@ -130,27 +135,69 @@ control floor reported through its new second output,
 `testDetectStimArtifactOnline` pins the shared rule with a
 negative-dominant fixture whose artifact sits below the old 1 mV gate.
 
+## Running Live
+
+Run one instance per leg, each in its **own MATLAB**, with Nexus in Live
+mode and the `HreflexEMGDataCollection` profile selected. Arguments are
+leg, proximal TA sensor, and H-muscle sensor:
+
+```matlab
+hreflexMonitor.runHreflexMwaveMonitorLive('R', 1, 7);
+hreflexMonitor.runHreflexMwaveMonitorLive('L', 8, 13);
+```
+
+Sensor numbers are session-specific. It prompts for the baseline M-wave
+unless `'baselineMwaveMv'` is passed. Close the figure or press Ctrl+C to
+stop; either way it disconnects, prints a summary, and saves
+`HreflexMonitorLive_<leg>_<timestamp>.mat` (variable `monitorLog`).
+
+- **Alert:** the figure turns pale red and the title reports the
+  direction when the M-wave is out of window for 3 stimuli in a row.
+- **Invalid stimuli:** a stimulus touching a lost frame is counted, never
+  plotted, and neither adds to nor resets the alert count. A pulse lost
+  entirely inside a gap cannot be seen, so also compare lost frames in the
+  summary with the controller's stimulus count.
+- **Status line:** invalid stimuli, lost frames, and seconds behind the
+  stream. A growing "Behind" value means reads are not keeping up.
+
+### Read-Speed Tests (2026-11-05, Lab PC, Seated, No Controller)
+
+Each subsample takes one SDK call of about 134 µs, and this SDK has no bulk
+read. All runs below read each listed leg's TA, H-muscle, and trigger.
+
+| Setup | Median read | Frames lost |
+|---|---|---|
+| Both legs, one client, `ClientPull`, buffer 1 | 13.8 ms | 37% |
+| One leg, `ClientPull`, buffers 1 / 10 / 100 | ~6 ms | 4.6% / 2.9% / 8.7% |
+| One leg, `ClientPullPreFetch`, buffer 100 | 6.1 ms | 4.8% |
+| One leg, `ServerPush`, buffer 100 (30 s) | 6.0 ms | 0 |
+| Two MATLABs at once, `ServerPush`, buffer 100 (60 s) | 7.4 and 6.0 ms | 0 and 0 |
+
+The busier two-instance run averaged 8.7 ms per 10 ms frame, so the margin
+is thin. These tests did not include the controller, the figure, amplitude
+calculation, or real stimuli.
+
+The live trigger device is `Stimulator Trigger Signal` / `Electric
+Potential` / `Right Stimulator` or `Left  Stimulator` (two spaces), while
+`testing01.c3d` labels the same channels `Stimulator Trigger Sync.<...>`.
+Offline code keeps the C3D names. The trigger streams at 1 kHz and is
+stored at 2 kHz in the C3D by repeating samples.
+
 ## Known Gaps Before This Is Lab-Ready
 
-- **Live Vicon DataStream source** (`hreflexSourceDataStream.m`, Phase
-  3) is not yet built — replay-only so far. Needs a lab dry-run
-  alongside the control instance before real use.
-- **Second-leg simultaneous monitoring** (Phase 3) is not yet built;
-  `runHreflexMwaveMonitor`'s `leg` argument still selects one leg per
-  call. Deferred as a bigger structural change (two independent
-  pipeline states/figures, per-leg baseline prompts) rather than
-  bundled into this pass.
-- `probeViconDataStreamDevices.m` has not been run against a *live*
-  stream (only the offline BTK/C3D path has real-data coverage so far)
-  — run this first in the lab. Its connection, device wait, subsample
-  count, and value read mirror `HreflexMappingTool`'s live EMG path,
-  but its enumeration calls (`GetDeviceName`, `GetDeviceOutputCount`,
-  `GetDeviceOutputComponentName`) are used nowhere else in this
-  repository, and their zero-based indexing is inferred from the same
-  client's other calls. `report.indexFailures` or a warning at the end
-  of its output flags a wrong assumption. Its CPU load alongside the
-  control loop is also unmeasured, so run it without a control instance
-  first.
+- **The live path has not been run.** `runHreflexMwaveMonitorLive.m` and
+  `hreflexSourceDataStream.m` were written without MATLAB or Vicon access.
+  Run the Validate With suites, then a live test, starting without the
+  controller.
+- **Not yet checked with real stimuli:** live trigger pulses reaching the
+  2.5 V threshold, live vs. offline amplitude agreement, and the delay and
+  lost-frame figures alongside the controller. Confirm the controller's
+  stimulation timing is unchanged with
+  `diagnostics/auditHreflexStimTiming.m`.
+- **Trigger timing differs slightly from offline:** live onsets are
+  quantized to 10 ms frames. This only anchors the ±100 ms artifact search,
+  but live amplitudes must be compared against the offline pipeline on the
+  same trial.
 - `promptHreflexMuscle.m` and `promptHreflexBaseline.m`'s interactive
   dialogs (`listdlg`, `inputdlg`) are untested interactively (every
   automated test passes `muscle`/`baselineMwaveMv` explicitly to
@@ -162,6 +209,8 @@ negative-dominant fixture whose artifact sits below the old 1 mV gate.
 runtests('testDetectStimArtifactOnline')
 runtests('testMapHreflexAnalogChannels')
 runtests('testComputeMwaveTolerance')
+runtests('testComputeMwaveAlert')
+runtests('testAssembleLiveChunk')
 runtests('testHreflexMwaveMonitorReplay')
 ```
 

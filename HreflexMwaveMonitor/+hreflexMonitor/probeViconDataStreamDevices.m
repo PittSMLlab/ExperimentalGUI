@@ -68,8 +68,9 @@ function report = probeViconDataStreamDevices(options)
 %              hasEMG         - true if any output or component name
 %                               contains 'EMG'
 %              hasStimTrigger - true if any device, output, or component
-%                               name contains 'Stimulator Trigger Sync',
-%                               ignoring spaces and underscores
+%                               name contains 'Stimulator Trigger',
+%                               ignoring spaces and underscores (live
+%                               device: 'Stimulator Trigger Signal')
 %
 % Toolbox Dependencies:
 %   None (external: Vicon DataStream SDK, .NET assembly)
@@ -301,7 +302,7 @@ for dd = 0:deviceCount - 1
         isEMG = contains(normalizeName([outputName compName]), 'emg');
         isTrigger = contains( ...
             normalizeName([deviceName outputName compName]), ...
-            'stimulatortriggersync');
+            'stimulatortrigger');
 
         channels(end+1, 1) = struct('device', deviceName, ...
             'output', outputName, 'component', compName, ...
