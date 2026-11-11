@@ -1,4 +1,5 @@
-function [state,finalized] = detectStimArtifactOnline(state, ...
+function [state,finalized,hasGapInWindow] = detectStimArtifactOnline( ...
+    state, ...
     chunkTimes,chunkTrig,chunkTAP,options)
 %DETECTSTIMARTIFACTONLINE Causal, streaming H-reflex stim artifact
 %detector for one leg.
@@ -50,6 +51,10 @@ function [state,finalized] = detectStimArtifactOnline(state, ...
 %               artifactInd]; artifactInd indexes into
 %               state.times/state.tap (the full buffer seen so far).
 %               0x2 if none finalized this call.
+%   hasGapInWindow - numNewlyFinalized x 1 logical; true where the TA
+%               search window contained NaN samples (lost frames), so
+%               the true artifact may be the part that was lost and
+%               artifactInd cannot be trusted. Always false in replay.
 %
 % Toolbox Dependencies:
 %   None
@@ -77,6 +82,7 @@ if isempty(state)  % first call: initialize the running detector state
 end
 
 finalized = zeros(0,2);   % [onsetTime artifactInd]; none yet this call
+hasGapInWindow = false(0,1);
 if isempty(chunkTimes)
     return;
 end
@@ -127,6 +133,7 @@ for pp = 1:numel(state.pendingOnsetTimes)
     deflection = abs(segment - median(segment,'omitnan'));
     [~,indPeak] = max(deflection,[],'omitnan');
     finalized(end+1,:) = [onsetTime winSearch(indPeak)]; %#ok<AGROW>
+    hasGapInWindow(end+1,1) = any(isnan(segment)); %#ok<AGROW>
 end
 state.pendingOnsetTimes(isResolved) = [];
 

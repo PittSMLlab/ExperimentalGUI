@@ -16,16 +16,20 @@ function [state,newAmps] = stepHreflexMonitor(state,chunk,muscle,legSlot)
 %   arrived is held in a small pending list and retried on a later
 %   call -- a bounded, safe delay, never a blocking wait.
 %
+%   LOST SAMPLES: a stimulus whose TA search window or H-muscle snippet
+%   contains NaN (a lost live frame) is recorded in
+%   state.invalidOnsetTimes and left out of the snippet set.
+%   HREFLEX.COMPUTEAMPLITUDES' min/max ignore NaN, so including it would
+%   return a plausible but wrong amplitude and could shift the
+%   population statistics for every other stimulus.
+%
 %   COST NOTE: the recompute is O(numStimSoFar) per new stimulus (not
 %   O(1)), an inherent consequence of exact parity -- a new stimulus
 %   can shift which prior stimuli COMPUTEAMPLITUDES' outlier-duration
 %   correction flags. This is only incurred once per stimulus (never
 %   per loop iteration) and is cheap at the stimulus counts a
-%   SpinalAdapt session produces (at most a few hundred); it has not
-%   yet been measured against the "bounded per-update work" isolation
-%   requirement at the lab, and should be before relying on this
-%   alongside the live control loop (see the CPU/draw-load check in the
-%   study README's validation section).
+%   SpinalAdapt visit produces. Raw buffers grow on every call; long
+%   live runs bound them with TRIMMONITORBUFFERS.
 %
 %   This is pure data processing -- no plotting, no figure/GUI handles
 %   -- so it can be called identically by RUNHREFLEXMWAVEMONITOR (which
@@ -38,9 +42,10 @@ function [state,newAmps] = stepHreflexMonitor(state,chunk,muscle,legSlot)
 %             state), hBuf (growing H-muscle EMG buffer), snippets
 %             (numStim x 121 accumulated H-reflex EMG snippets),
 %             onsetTimes (numStim x 1), amps (numStim x 3: M-wave,
-%             H-wave, noise, mV), pending (numPending x 2: [onsetTime
-%             artifactInd], awaiting a full snippet window), muscle,
-%             legSlot
+%             H-wave, noise, mV), pending (numPending x 3: [onsetTime
+%             artifactInd hasGapInWindow], awaiting a full snippet
+%             window), invalidOnsetTimes (numInvalid x 1; see LOST SAMPLES
+%             above), muscle, legSlot
 %   chunk   - 1x1 struct with fields times, trig, tap, h (all
 %             numSamples x 1 arrays of this leg's new data)
 %   muscle  - char; H-reflex muscle label, echoed into state for the
@@ -87,16 +92,18 @@ if isempty(state)
         'onsetTimes',zeros(0,1), ...
         'amps',zeros(0,3), ...
         'mWaveInds',zeros(0,2), ...  % [indMin indMax] into a snippet
-        'pending',zeros(0,2), ...    % [onsetTime artifactInd]
+        'pending',zeros(0,3), ...    % [onset artifactInd hasGap]
+        'invalidOnsetTimes',zeros(0,1), ...
         'muscle',muscle, ...
         'legSlot',legSlot);
 end
 
 state.hBuf = [state.hBuf; chunk.h];
 
-[state.detect,finalized] = hreflexMonitor.detectStimArtifactOnline( ...
+[state.detect,finalized,hasGap] = ...
+    hreflexMonitor.detectStimArtifactOnline( ...
     state.detect,chunk.times,chunk.trig,chunk.tap);
-state.pending = [state.pending; finalized];
+state.pending = [state.pending; finalized double(hasGap)];
 
 newAmps = zeros(0,3);
 period = state.detect.period;
@@ -120,14 +127,23 @@ end
 % actually being monitored; the unmonitored slot is left empty and is
 % skipped internally by those functions.
 emptyCell = {[]; []};
+numValidNew = 0;
 for ss = 1:numNew
     indsPeaks = emptyCell;
     indsPeaks{legSlot} = ready(ss,2);
     rawEMG = emptyCell;
     rawEMG{legSlot} = state.hBuf;
     snip = Hreflex.extractSnippets(indsPeaks,rawEMG);
+    if ready(ss,3) || any(isnan(snip{legSlot,1}))
+        state.invalidOnsetTimes(end+1,1) = ready(ss,1);
+        continue;
+    end
     state.snippets(end+1,:) = snip{legSlot,1};
     state.onsetTimes(end+1,1) = ready(ss,1);
+    numValidNew = numValidNew + 1;
+end
+if numValidNew == 0
+    return;     % nothing new to compute; amplitudes are unchanged
 end
 
 ampsCell = emptyCell;
@@ -143,7 +159,7 @@ lastwarn(lastMsg,lastId);
 
 % V -> mV, matches GENERATEHREFLEXRECRUITMENTCURVES' convention
 state.amps = 1000 * [amps{legSlot,1} amps{legSlot,2} amps{legSlot,3}];
-newAmps = state.amps(end-numNew+1:end,:);
+newAmps = state.amps(end-numValidNew+1:end,:);
 
 %% Re-Derive the M-Wave Peak/Trough Indices COMPUTEAMPLITUDES Used
 % COMPUTEAMPLITUDES' outlier-duration correction (and the raw min/max

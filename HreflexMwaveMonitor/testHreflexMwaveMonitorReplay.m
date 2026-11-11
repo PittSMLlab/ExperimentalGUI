@@ -119,6 +119,70 @@ verifyEqual(testCase,amps,ampsOffline,'AbsTol',1e-9);
 
 end
 
+function testPeriodicTrimDoesNotChangeAmplitudes(testCase)
+%TESTPERIODICTRIMDOESNOTCHANGEAMPLITUDES Trimming raw buffers during a
+%run, as the live loop does, must not change any result, and must actually
+%shrink the buffers.
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
+[amps,numStim] = replayTrialLeg(trial,1,20);
+
+keepS = 0.3;    % s; far shorter than the trial, so trims really happen
+state = [];
+numSamps = numel(trial.trigR);
+numChunks = 0;
+for startInd = 1:20:numSamps
+    endInd = min(startInd + 19,numSamps);
+    chunk.times = trial.times(startInd:endInd);
+    chunk.trig  = trial.trigR(startInd:endInd);
+    chunk.tap   = trial.tapR(startInd:endInd);
+    chunk.h     = trial.hR(startInd:endInd);
+    state = hreflexMonitor.stepHreflexMonitor( ...
+        state,chunk,trial.muscle,1);
+    numChunks = numChunks + 1;
+    if mod(numChunks,5) == 0
+        state = hreflexMonitor.trimMonitorBuffers(state,'keepS',keepS);
+    end
+end
+
+verifyEqual(testCase,size(state.amps,1),numStim);
+verifyEqual(testCase,state.amps,amps,'AbsTol',1e-12);
+verifyLessThan(testCase,numel(state.hBuf),numSamps / 2);
+verifyEqual(testCase,numel(state.hBuf),numel(state.detect.tap));
+
+end
+
+function testLostSnippetSamplesInvalidateOnlyThatStimulus(testCase)
+%TESTLOSTSNIPPETSAMPLESINVALIDATEONLYTHATSTIMULUS NaN inside one
+%stimulus's H-muscle snippet excludes that stimulus, keeps the other four,
+%and leaves no NaN amplitudes.
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
+onset = trial.onsetTimesR(2);
+isLost = trial.times >= onset + 0.010 & trial.times < onset + 0.020;
+trial.hR(isLost) = NaN;
+[amps,numStim,~,~,invalidOnsets] = replayTrialLeg(trial,1,20);
+
+verifyEqual(testCase,numStim,4);
+verifyEqual(testCase,numel(invalidOnsets),1);
+verifyEqual(testCase,invalidOnsets,onset,'AbsTol',0.002);
+verifyFalse(testCase,any(isnan(amps(:))));
+
+end
+
+function testLostTaWindowSamplesInvalidateTheStimulus(testCase)
+%TESTLOSTTAWINDOWSAMPLESINVALIDATETHESTIMULUS NaN in the TA search window
+%excludes the stimulus even when its H-muscle snippet is complete, since
+%the true artifact could be what was lost.
+trial = hreflexMonitor.generateSyntheticHreflexTrial('numStim',5);
+onset = trial.onsetTimesR(3);
+isLost = trial.times >= onset - 0.060 & trial.times < onset - 0.050;
+trial.tapR(isLost) = NaN;
+[~,numStim,~,~,invalidOnsets] = replayTrialLeg(trial,1,20);
+
+verifyEqual(testCase,numStim,4);
+verifyEqual(testCase,invalidOnsets,onset,'AbsTol',0.002);
+
+end
+
 function testReplayAgainstRealCalibrationC3D(testCase)
 %TESTREPLAYAGAINSTREALCALIBRATIONC3D Lab-only: replay a real prior
 %SpinalAdapt H-reflex calibration C3D and confirm the online pipeline's
@@ -183,7 +247,8 @@ trial.hR = hR;
 
 end
 
-function [amps,numStim,mWaveInds,snippets] = replayTrialLeg( ...
+function [amps,numStim,mWaveInds,snippets,invalidOnsets] = ...
+    replayTrialLeg( ...
     trial,legSlot,chunkSize)
 %REPLAYTRIALLEG Replay one leg of TRIAL through STEPHREFLEXMONITOR in
 %fixed-size chunks (simulating streaming cadence) and return the final
@@ -202,6 +267,8 @@ function [amps,numStim,mWaveInds,snippets] = replayTrialLeg( ...
 %               mWaveInds
 %   snippets  - numStim x 121 array; see STEPHREFLEXMONITOR's state.
 %               snippets
+%   invalidOnsets - numInvalid x 1 array; see STEPHREFLEXMONITOR's
+%               state.invalidOnsetTimes
 %
 % Toolbox Dependencies:
 %   None
@@ -228,6 +295,7 @@ amps = state.amps;
 numStim = size(amps,1);
 mWaveInds = state.mWaveInds;
 snippets = state.snippets;
+invalidOnsets = state.invalidOnsetTimes;
 
 end
 
