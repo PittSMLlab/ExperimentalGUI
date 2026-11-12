@@ -338,6 +338,26 @@ end
 
 nirsEventSteps(restIdx) = []; % remove rest from this array
 nirsEventNames(restIdx) = [];
+
+% A 'DccRamp2Split' whose preceding stride is tied and moving is an
+% abrupt mid-bout switch from tied to split walking (e.g., SpinalAdapt
+% Version 4.0's fast-start bouts; see GENERATEPROFILES_SPINALADAPTBOUTSV4),
+% not a bout start: relabel it 'ChangeSpeedToSplit', the split
+% counterpart of PARSEEVENTSFROMSPEEDS' 'ChangeSpeedToSlow'. Like that
+% event, it has no audio key and is not a start event, so it is logged
+% as a silent fNIRS marker (Oxysoft code 'C') with no "walk" cue and no
+% pause -- pausing would freeze the control loop while the participant
+% is walking. It also keeps each bout to one ramp row, which labTools'
+% splitSpinalAdaptBoutConds requires. Bout-start split ramps are
+% unaffected: they follow a rest stride (zero speed) or, in bout 1,
+% start on an already-split first stride.
+for ii = 1:numel(nirsEventSteps)
+    stepPrev = nirsEventSteps(ii) - 1;
+    if strcmp(nirsEventNames{ii}, 'DccRamp2Split') && stepPrev >= 1 && ...
+            velL(stepPrev,1) ~= 0 && velL(stepPrev,1) == velR(stepPrev,1)
+        nirsEventNames{ii} = 'ChangeSpeedToSplit';
+    end
+end
 need2LogEvent = false; % initialize to false;
 if ~isempty(restSteps)
     need2LogEvent = true;
@@ -355,7 +375,7 @@ stopCuePlayer  = instructions('stop');
 stopCueSec     = stopCuePlayer.TotalSamples / stopCuePlayer.SampleRate;
 countCuePlayer = instructions('silentlyCountForward');
 countCueSec    = countCuePlayer.TotalSamples / countCuePlayer.SampleRate;
-% 'stop' plays on the bout's last step, about half a stride before the
+% 'stop' plays on the bout's penultimate step, about a stride before the
 % belts stop (see the main loop); the rest handler below then holds
 % 'silentlyCountForward' until 1.5 s + stopCueSec after the zero-speed
 % command (its pre-2026-09-22 start, which also rules out the two cues
@@ -1183,14 +1203,17 @@ try     % so that if something fails, communications are closed properly
         old_velR.Value = velR(RstepCount,1);
         old_velL.Value = velL(LstepCount,1);
 
-        % Say "stop" on the bout's last step, about half a stride before
-        % the belts stop abruptly at the rest below: each step counter
-        % advances at its own leg's toe-off and the belts stop at the
-        % first toe-off that reaches the rest stride, so the cue plays
-        % once BOTH legs have started the final stride before it. Once
-        % per bout; non-blocking, so the loop keeps tracking that stride.
+        % Say "stop" on the bout's penultimate step, about one stride
+        % before the belts stop abruptly at the rest below: each step
+        % counter advances at its own leg's toe-off and the belts stop at
+        % the first toe-off that reaches the rest stride, so the cue
+        % plays once EITHER leg has started the final stride before it
+        % (max, not min). Revised 2026-11-12: the earlier last-step
+        % trigger (min, ~half a stride ahead) was heard almost exactly
+        % as the belts stopped, too late to prepare. Once per bout;
+        % non-blocking, so the loop keeps tracking that stride.
         if ~isStopCuePlayed && nextRestIdx <= length(restSteps) && ...
-                min(LstepCount,RstepCount) >= restSteps(nextRestIdx) - 1
+                max(LstepCount,RstepCount) >= restSteps(nextRestIdx) - 1
             play(instructions('stop'));
             isStopCuePlayed = true;
         end
@@ -1203,9 +1226,9 @@ try     % so that if something fails, communications are closed properly
             % make sure TM is at zero and hold it there.
             [payload] = getPayload(0,0,acc,acc,cur_incl);
             sendTreadmillPacket(payload,t);
-            % 'stop' was already said on the bout's last step (above); only
-            % if that was missed (e.g., a missed toe-off kept one step
-            % counter behind) say it now instead. Deliberately no
+            % 'stop' was already said on the bout's penultimate step
+            % (above); only if that was missed (e.g., missed toe-offs kept
+            % both step counters behind) say it now instead. Deliberately no
             % audioCues row of its own: labTools'
             % splitSpinalAdaptBoutConds takes each bout's boundaries from
             % the ramp, Mid/Split, and _CountForward rows.

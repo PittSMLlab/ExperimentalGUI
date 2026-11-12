@@ -86,14 +86,27 @@ of each visit, `transferData_SpinalAdaptBouts` copies the data to
 `W:\Chase\SpinalAdapt\` (`Data\<ID>\SpeedProfiles` shared by both
 visits, then `Data\<ID>\Visit0N\` and `RawBackupData\<ID>\Visit0N\`).
 A fixed ~2.5 min break follows every bout-based condition except the
-last, and each bout's spoken "stop" plays on its last step, about half
-a stride before the belts stop. There is no fNIRS or H-reflex during
-the tied fastest-speed trial (125% of 6MWT, 3-stride ramp, no stim), so
-it runs on the plain open-loop audio-countdown controller
-(`controlSpeedWithSteps_edit1_AudioCountDown`, shared with C3/
-BrainWalk) instead of the NIRS/H-reflex controller used by every other
+last, and each bout's spoken "stop" plays on its penultimate step,
+about one stride before the belts stop (revised 2026-11-12; it was the
+last step, which was heard as the belts stopped). There is no fNIRS or
+H-reflex during the tied fastest-speed trial (125% of 6MWT, 3-stride
+ramp, no stim), so it runs on the plain open-loop audio-countdown
+controller (`controlSpeedWithSteps_edit1_AudioCountDown`, shared with
+C3/BrainWalk) instead of the NIRS/H-reflex controller used by every other
 condition, and gets that controller's own spoken "treadmill will
 start/stop in 3-2-1" countdown instead of the usual cues.
+
+Protocol Versions 3.0 and 4.0 (added 2026-11-09) each have their own
+run script beside the current one. Version 3.0
+(`RunProtocol_SpinalAdaptBoutsV3.m`) keeps every bout and profile and
+runs 1 pre-adaptation fast, 3 pre-adaptation slow, 3 adaptation, and 3
+post-adaptation trials (11 conditions). Version 4.0
+(`RunProtocol_SpinalAdaptBoutsV4.m`, profiles from
+`generateProfiles_SpinalAdaptBoutsV4.m`) keeps that structure but
+starts every slow and split bout with a tied ramp to the fast speed
+and one more tied-fast stride, then switches abruptly to tied-slow or
+split walking for 10 stimulated strides. See
+[studies/SpinalAdapt/README.md](studies/SpinalAdapt/README.md).
 
 H-reflex stimulation requires an Arduino Uno running the firmware in
 `HreflexStimArduino/`. See `HreflexStimArduino/README.md` for the

@@ -96,6 +96,14 @@ protocol scripts.
 first outside participant, with stroke). Lead: Chase Rock
 (post-doctoral fellow); key experimenters: Shuqi Liu, Nate Brantly.
 Primary protocol: `studies/SpinalAdapt/RunProtocol_SpinalAdaptBouts.m`.
+Two variants (2026-11-09) have their own run scripts:
+`RunProtocol_SpinalAdaptBoutsV3.m` (same bouts; 1 pre-adapt fast, 3
+pre-adapt slow, 3 adapt, 3 post-adapt trials) and
+`RunProtocol_SpinalAdaptBoutsV4.m` with
+`generateProfiles_SpinalAdaptBoutsV4.m` (V3's trials, but slow/split
+bouts start tied-fast for one stride, then switch abruptly; profile
+files carry `V4`; the switch logs as a silent `ChangeSpeedToSlow`/
+`ChangeSpeedToSplit` row) — see `studies/SpinalAdapt/README.md`.
 The study lead prefers **"visit"**, not "session", in SpinalAdapt
 comments, variable names, and documentation. Every participant —
 young adult `SAYA##`, stroke `SAST##`, matched control `SAMC##`
@@ -116,7 +124,8 @@ post-adaptation bouts, with a fixed ~2.5 min break after every
 bout-based condition except the last; every fNIRS event
 `NirsHreflexArduinoOpenLoopWithAudio` logs to Oxysoft is prefixed with
 its condition (e.g. `PreAdaptSlow_Rest01`), and its "stop" cue plays on
-each bout's last step (no datlog row; rest timing unchanged) — see
+each bout's penultimate step, about a stride before the belts stop (no
+datlog row; rest timing unchanged) — see
 `studies/SpinalAdapt/README.md`'s Protocol Notes. labTools'
 `splitSpinalAdaptBoutConds` splits each bout trial into per-bout
 ramp/steady-state conditions using only the datlog's ramp
